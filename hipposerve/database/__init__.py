@@ -59,6 +59,12 @@ class ComplianceInformation(BaseModel):
     nersc_username: str | None
 
 
+class Group(Document):
+    name: Indexed(str, unique=True)
+    description: str = None
+    users: list[Link["User"]] = []
+
+
 class User(Document):
     name: Indexed(str, unique=True)
     hashed_password: str
@@ -69,6 +75,7 @@ class User(Document):
     privileges: list[Privilege]
 
     compliance: ComplianceInformation | None
+    groups: list[Link["Group"]] = []
 
 
 class FileMetadata(BaseModel):

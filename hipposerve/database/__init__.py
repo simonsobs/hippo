@@ -60,9 +60,8 @@ class ComplianceInformation(BaseModel):
 
 
 class Group(Document):
-    name: Indexed(str, unique=True)
+    name: str
     description: str = None
-    users: list[Link["User"]] = []
 
 
 class User(Document):
@@ -75,7 +74,7 @@ class User(Document):
     privileges: list[Privilege]
 
     compliance: ComplianceInformation | None
-    groups: list[Link[Group]] = []
+    groups: Link[Group] | None = None
 
 
 class FileMetadata(BaseModel):
@@ -181,4 +180,4 @@ class Collection(Document):
     )
 
 
-BEANIE_MODELS = [User, File, Product, Collection]
+BEANIE_MODELS = [User, Group, File, Product, Collection]

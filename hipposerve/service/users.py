@@ -8,6 +8,7 @@ from beanie import PydanticObjectId
 from pwdlib import PasswordHash
 
 from hipposerve.database import ComplianceInformation, Privilege, User
+from hipposerve.service.groups import create as create_group
 
 # TODO: Settings
 API_KEY_BYTES = 128
@@ -57,14 +58,18 @@ async def create(
         privileges=privileges,
         compliance=compliance,
     )
-
+    group = await create_group(
+        name=name,
+        description=f"Owner group for user {name}",
+    )
+    user.groups = group
     await user.create()
 
     return user
 
 
 async def read(name: str) -> User:
-    result = await User.find(User.name == name).first_or_none()
+    result = await User.find(User.name == name, fetch_links=True).first_or_none()
 
     if result is None:
         raise UserNotFound

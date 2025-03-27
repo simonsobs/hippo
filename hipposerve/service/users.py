@@ -7,7 +7,7 @@ import secrets
 from beanie import PydanticObjectId
 from pwdlib import PasswordHash
 
-from hipposerve.database import ComplianceInformation, Privilege, User
+from hipposerve.database import AccessControl, ComplianceInformation, Privilege, User
 from hipposerve.service.groups import create as create_group
 
 # TODO: Settings
@@ -62,7 +62,7 @@ async def create(
         name=name,
         description=f"Owner group for user {name}",
         user_list=[name],
-        access_control=[Privilege.CREATE_GROUP],
+        access_control={AccessControl.CREATE_GROUP: True},
     )
     user.groups = group
     await user.create()

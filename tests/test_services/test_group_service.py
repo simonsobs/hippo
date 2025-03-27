@@ -4,7 +4,7 @@ Tests the functions in the group service.
 
 import pytest
 
-from hipposerve.database import Privilege
+from hipposerve.database import AccessControl
 from hipposerve.service import groups
 
 
@@ -17,7 +17,7 @@ async def test_create_user_group(created_user):
         name=created_user.name,
         description=group_description,
         user_list=[created_user.name],
-        access_control=[Privilege.CREATE_GROUP],
+        access_control={AccessControl.CREATE_GROUP: True},
     )
 
     # Assert the group was created correctly

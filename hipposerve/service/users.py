@@ -64,7 +64,7 @@ async def create(
         user_list=[name],
         access_control={AccessControl.CREATE_GROUP: True},
     )
-    user.groups = group
+    user.groups.append(group)
     await user.create()
 
     return user

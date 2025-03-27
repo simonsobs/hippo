@@ -89,7 +89,7 @@ class User(Document):
     privileges: list[Privilege]
 
     compliance: ComplianceInformation | None
-    groups: Link[Group] | None = None
+    groups: list[Link[Group]] = []
 
 
 class FileMetadata(BaseModel):

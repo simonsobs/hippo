@@ -13,6 +13,7 @@ from hipposerve.service import users
 async def test_read_user(created_user):
     this_user = await users.read(name=created_user.name)
     assert this_user.name == created_user.name
+    assert this_user.groups == created_user.groups
 
     this_user = await users.read_by_id(id=created_user.id)
     assert this_user.name == created_user.name

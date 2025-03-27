@@ -13,7 +13,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 
-from hipposerve.database import BEANIE_MODELS
+from hipposerve.database import BEANIE_MODELS, Privilege
 
 ### -- Dependency Injection Fixtures -- ###
 
@@ -50,6 +50,27 @@ async def created_user(database):
     yield user
 
     await users.delete(user.name)
+
+
+@pytest_asyncio.fixture(scope="session")
+async def created_group(database):
+    from hipposerve.service import groups
+
+    group = await groups.create(
+        name="test_group",
+        description="A test group",
+        user_list=["test_user"],
+        access_control=[
+            Privilege.CREATE_GROUP,
+            Privilege.READ_GROUP,
+            Privilege.UPDATE_GROUP,
+            Privilege.DELETE_GROUP,
+        ],
+    )
+
+    yield group
+
+    await groups.delete(group.name)
 
 
 @pytest_asyncio.fixture(scope="session")

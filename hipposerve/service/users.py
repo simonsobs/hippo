@@ -61,6 +61,8 @@ async def create(
     group = await create_group(
         name=name,
         description=f"Owner group for user {name}",
+        user_list=[name],
+        access_control=[Privilege.CREATE_GROUP],
     )
     user.groups = group
     await user.create()

@@ -24,6 +24,9 @@ async def test_get_existing_file(created_full_product, database):
     for key in created_full_product.model_fields_set:
         original = getattr(created_full_product, key)
         loaded = getattr(selected_product, key)
+        if key == "owner":
+            print(original)
+            print(loaded)
         # Mongo datetimes are lossy. Just make sure they were created at the same HH:MM:SS
         if isinstance(original, datetime.datetime):
             original_time = f"{original.hour}:{original.minute}:{original.second}"

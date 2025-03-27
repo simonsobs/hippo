@@ -38,6 +38,12 @@ class Privilege(Enum):
     UPDATE_USER = "update_user"
     DELETE_USER = "delete_user"
 
+    # Group management
+    CREATE_GROUP = "create_group"
+    READ_GROUP = "read_group"
+    UPDATE_GROUP = "update_group"
+    DELETE_GROUP = "delete_group"
+
 
 class CollectionPolicy(Enum):
     # What to do when versions are revved of products.
@@ -62,6 +68,8 @@ class ComplianceInformation(BaseModel):
 class Group(Document):
     name: str
     description: str = None
+    user_list: list[str] = []
+    access_controls: list[Privilege] = []
 
 
 class User(Document):

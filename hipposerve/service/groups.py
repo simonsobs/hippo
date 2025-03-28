@@ -54,6 +54,7 @@ async def update(
     name: str,
     description: str | None,
     user_list: list[str] | None,
+    access_control: dict[AccessControl, bool] | None,
 ) -> Group:
     group = await read(name=name)
 
@@ -62,6 +63,9 @@ async def update(
 
     if user_list is not None:
         await group.set({Group.user_list: user_list})
+
+    if access_control is not None:
+        await group.set({Group.access_controls: access_control})
 
     return group
 

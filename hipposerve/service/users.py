@@ -7,7 +7,13 @@ import secrets
 from beanie import PydanticObjectId
 from pwdlib import PasswordHash
 
-from hipposerve.database import AccessControl, ComplianceInformation, Privilege, User
+from hipposerve.database import (
+    AccessControl,
+    ComplianceInformation,
+    Group,
+    Privilege,
+    User,
+)
 from hipposerve.service.groups import create as create_group
 
 # TODO: Settings
@@ -95,6 +101,7 @@ async def update(
     privileges: list[Privilege] | None,
     compliance: ComplianceInformation | None,
     refresh_key: bool = False,
+    groups: list[Group] | None = None,
 ) -> User:
     user = await read(name=name)
 
@@ -110,6 +117,12 @@ async def update(
 
     if compliance is not None:
         await user.set({User.compliance: compliance})
+
+    if groups is not None:
+        user.groups.extend(
+            groups
+        )  # This change needs to be carried back to the Groups Document
+        await user.set({User.groups: user.groups})
 
     return user
 

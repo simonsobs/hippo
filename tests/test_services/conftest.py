@@ -13,7 +13,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 
-from hipposerve.database import BEANIE_MODELS, AccessControl
+from hipposerve.database import BEANIE_MODELS
 
 ### -- Dependency Injection Fixtures -- ###
 
@@ -59,8 +59,7 @@ async def created_group(database):
     group = await groups.create(
         name="test_group",
         description="A test group",
-        user_list=["test_user"],
-        access_control={AccessControl.CREATE_GROUP: True},
+        access_control=list(groups.Privilege),
     )
 
     yield group

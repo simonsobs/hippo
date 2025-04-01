@@ -4,7 +4,7 @@ Functionalities for creating and updating groups.
 
 from beanie import PydanticObjectId
 
-from hipposerve.database import AccessControl, Group
+from hipposerve.database import Group, Privilege
 
 
 class GroupNotFound(Exception):
@@ -14,14 +14,12 @@ class GroupNotFound(Exception):
 async def create(
     name: str,
     description: str | None,
-    user_list: list[str] = [],
-    access_control: dict[AccessControl, bool] = {},
+    access_control: list[Privilege] | None,
 ) -> Group:
     try:
         group = Group(
             name=name,
             description=description,
-            user_list=user_list,
             access_controls=access_control,
         )
 
@@ -53,16 +51,12 @@ async def read_by_id(id: PydanticObjectId) -> Group:
 async def update(
     name: str,
     description: str | None,
-    user_list: list[str] | None,
-    access_control: dict[AccessControl, bool] | None,
+    access_control: list[Privilege] | None,
 ) -> Group:
     group = await read(name=name)
 
     if description is not None:
         await group.set({Group.description: description})
-
-    if user_list is not None:
-        await group.set({Group.user_list: user_list})
 
     if access_control is not None:
         await group.set({Group.access_controls: access_control})

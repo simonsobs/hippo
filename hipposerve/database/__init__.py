@@ -12,13 +12,6 @@ from pydantic import BaseModel, Field
 from hippometa import ALL_METADATA_TYPE
 
 
-class AccessControl(str, Enum):
-    CREATE_GROUP = "create_group"
-    READ_GROUP = "read_group"
-    UPDATE_GROUP = "update_group"
-    DELETE_GROUP = "delete_group"
-
-
 class Privilege(Enum):
     # Product management. Note that _for now_ users can update any other
     # user's products.
@@ -51,6 +44,9 @@ class Privilege(Enum):
     UPDATE_GROUP = "update_group"
     DELETE_GROUP = "delete_group"
 
+    # Update Privileges
+    UPDATE_PRIVILEGES = "update_privileges"
+
 
 class CollectionPolicy(Enum):
     # What to do when versions are revved of products.
@@ -75,8 +71,7 @@ class ComplianceInformation(BaseModel):
 class Group(Document):
     name: str
     description: str = None
-    user_list: list[str] = []
-    access_controls: dict[AccessControl, bool] = {}
+    access_controls: list[Privilege]
 
 
 class User(Document):

@@ -47,6 +47,14 @@ async def test_update_user(created_user):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_update_group(created_user, created_group):
+    this_user = await users.add_group(created_user, [created_group])
+    assert created_group in this_user.groups
+    this_user = await users.remove_group(created_user, [created_group])
+    assert created_group not in this_user.groups
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_read_user_not_found():
     with pytest.raises(users.UserNotFound):
         await users.read(name="non_existent_user")

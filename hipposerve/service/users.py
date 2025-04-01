@@ -8,7 +8,6 @@ from beanie import PydanticObjectId
 from pwdlib import PasswordHash
 
 from hipposerve.database import (
-    AccessControl,
     ComplianceInformation,
     Group,
     Privilege,
@@ -67,8 +66,7 @@ async def create(
     group = await create_group(
         name=name,
         description=f"Owner group for user {name}",
-        user_list=[name],
-        access_control={AccessControl.CREATE_GROUP: True},
+        access_control=privileges,
     )
     user.groups.append(group)
     await user.create()
@@ -101,8 +99,6 @@ async def update(
     privileges: list[Privilege] | None,
     compliance: ComplianceInformation | None,
     refresh_key: bool = False,
-    add_groups: list[Group] | None = None,
-    remove_groups: list[Group] | None = None,
 ) -> User:
     user = await read(name=name)
 
@@ -119,18 +115,19 @@ async def update(
     if compliance is not None:
         await user.set({User.compliance: compliance})
 
-    if add_groups is not None:
-        for group in add_groups:  # at api level check if the user already exists in the group and update the group.user_list
-            group.user_list.append(user.name)
-            await group.set({Group.user_list: group.user_list})
-        user.groups.extend(add_groups)
-        await user.set({User.groups: user.groups})
-    if remove_groups is not None:
-        for group in remove_groups:
-            group.user_list.remove(user.name)
-            await group.set({Group.user_list: group.user_list})
-        user.groups = [group for group in user.groups if group not in remove_groups]
-        await user.set({User.groups: user.groups})
+    return user
+
+
+async def add_group(user: User, group_list: list[Group]) -> User:
+    user.groups.extend(group_list)
+    await user.set({User.groups: user.groups})
+
+    return user
+
+
+async def remove_group(user: User, group_list: list[Group]) -> User:
+    user.groups = [group for group in user.groups if group not in group_list]
+    await user.set({User.groups: user.groups})
 
     return user
 

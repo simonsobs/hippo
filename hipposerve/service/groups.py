@@ -7,6 +7,10 @@ from beanie import PydanticObjectId
 from hipposerve.database import Group, Privilege
 
 
+class GroupNotCreated(Exception):
+    pass
+
+
 class GroupNotFound(Exception):
     pass
 
@@ -16,21 +20,18 @@ async def create(
     description: str | None,
     access_control: list[Privilege] | None,
 ) -> Group:
-    try:
-        group = Group(
-            name=name,
-            description=description,
-            access_controls=access_control,
-        )
+    group = Group(
+        name=name,
+        description=description,
+        access_controls=access_control,
+    )
 
-        await group.create()
+    await group.create()
 
-        return group
-    except Exception as e:
-        raise RuntimeError("Failed to create group: " + str(e)) from e
+    return group
 
 
-async def read(name: str) -> Group:
+async def read_by_name(name: str) -> Group:
     result = await Group.find(Group.name == name).first_or_none()
 
     if result is None:
@@ -53,7 +54,7 @@ async def update(
     description: str | None,
     access_control: list[Privilege] | None,
 ) -> Group:
-    group = await read(name=name)
+    group = await read_by_name(name=name)
 
     if description is not None:
         await group.set({Group.description: description})
@@ -65,7 +66,7 @@ async def update(
 
 
 async def delete(name: str):
-    group = await read(name=name)
+    group = await read_by_name(name=name)
     await group.delete()
 
     return

@@ -27,7 +27,7 @@ async def test_create_user_group(created_user):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_read_group(created_group):
     # Test reading a group by name
-    this_group = await groups.read(name=created_group.name)
+    this_group = await groups.read_by_name(name=created_group.name)
     assert this_group.name == created_group.name
 
     # Test reading a group by id

@@ -49,18 +49,33 @@ async def read_by_id(id: PydanticObjectId) -> Group:
     return result
 
 
-async def update(
+async def update_desciption(
     name: str,
     description: str | None,
-    access_control: list[Privilege] | None,
 ) -> Group:
     group = await read_by_name(name=name)
 
     if description is not None:
         await group.set({Group.description: description})
 
-    if access_control is not None:
-        await group.set({Group.access_controls: access_control})
+    return group
+
+
+async def update_access_control(
+    name: str,
+    add_access_control: list[Privilege] | None = None,
+    remove_access_control: list[Privilege] | None = None,
+) -> Group:
+    group = await read_by_name(name=name)
+
+    if add_access_control is not None:
+        group.access_controls.extend(add_access_control)
+
+    if remove_access_control is not None:
+        for privilege in remove_access_control:
+            group.access_controls.remove(privilege)
+
+    await group.set({Group.access_controls: group.access_controls})
 
     return group
 

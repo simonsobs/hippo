@@ -7,10 +7,6 @@ from beanie import PydanticObjectId
 from hipposerve.database import Group, Privilege
 
 
-class GroupNotCreated(Exception):
-    pass
-
-
 class GroupNotFound(Exception):
     pass
 
@@ -18,7 +14,7 @@ class GroupNotFound(Exception):
 async def create(
     name: str,
     description: str | None,
-    access_control: list[Privilege] | None,
+    access_control: list[Privilege],
 ) -> Group:
     group = Group(
         name=name,

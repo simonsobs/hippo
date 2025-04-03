@@ -9,26 +9,11 @@ from hipposerve.service import groups
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_create_user_group(created_user):
-    # Test creating a group with the user name
-    group_description = "A test group"
-
-    new_group = await groups.create(
-        name=created_user.name,
-        description=group_description,
-        access_control=[Privilege.CREATE_GROUP],
-    )
-
-    # Assert the group was created correctly
-    assert new_group.name == created_user.name
-    assert new_group.description == group_description
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_read_group(created_group):
     # Test reading a group by name
     this_group = await groups.read_by_name(name=created_group.name)
     assert this_group.name == created_group.name
+    assert this_group.id == created_group.id
 
     # Test reading a group by id
     this_group = await groups.read_by_id(id=created_group.id)

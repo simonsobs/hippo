@@ -1,0 +1,67 @@
+from fastapi import APIRouter, HTTPException, status
+from loguru import logger
+
+from hipposerve.api.auth import UserDependency, check_group_for_privilege
+from hipposerve.api.models.groups import (
+    CreateGroupRequest,
+    CreateGroupResponse,
+    ReadGroupResponse,
+)
+from hipposerve.service import groups
+
+groups_router = APIRouter(prefix="/groups")
+
+
+@groups_router.put("/{name}")
+async def create_group(
+    name: str,
+    request: CreateGroupRequest,
+    calling_user: UserDependency,
+) -> CreateGroupResponse:
+    """
+    Create a new group.
+    """
+    logger.info("Request to create group: {} from {}", name, calling_user.name)
+
+    await check_group_for_privilege(calling_user, groups.Privilege.CREATE_GROUP)
+
+    try:
+        group = await groups.read_by_name(name=name)
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Group already exists."
+        )
+    except groups.GroupNotFound:
+        group = await groups.create(
+            name=name,
+            description=request.description,
+            access_control=request.privileges,
+        )
+
+    logger.info("Group {} created for {}", group.name, calling_user.name)
+    return CreateGroupResponse(group_name=group.name)
+
+
+@groups_router.get("/{name}")
+async def read_group(name: str, calling_user: UserDependency) -> ReadGroupResponse:
+    """
+    Read a group.
+    """
+
+    logger.info("Request to read group: {} from {}", name, calling_user.name)
+
+    await check_group_for_privilege(calling_user, groups.Privilege.READ_GROUP)
+
+    try:
+        group = await groups.read_by_name(name=name)
+
+    except groups.GroupNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found."
+        )
+
+    return ReadGroupResponse(
+        name=group.name,
+        privileges=group.access_controls,
+        description=group.description,
+    )

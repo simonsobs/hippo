@@ -143,7 +143,7 @@ async def delete(name: str):
 
 
 async def user_from_api_key(api_key: str) -> User:
-    result = await User.find(User.api_key == api_key).first_or_none()
+    result = await User.find(User.api_key == api_key, fetch_links=True).first_or_none()
 
     if result is None:
         raise UserNotFound

@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from loguru import logger
 
-from hipposerve.service import users
+from hipposerve.service import groups, users
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 
@@ -33,6 +33,24 @@ async def check_user_for_privilege(
     user: users.User, privilege: users.Privilege
 ) -> None:
     if privilege not in user.privileges:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient privileges",
+        )
+
+
+async def check_group_for_privilege(
+    user: users.User, privilege: groups.Privilege
+) -> None:
+    from hipposerve.database import Group
+
+    group_ids = [group.id for group in user.groups]
+
+    group_matches = await Group.find(
+        {"_id": {"$in": group_ids}, "access_controls": privilege}
+    ).count()
+
+    if group_matches == 0:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient privileges",

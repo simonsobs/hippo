@@ -29,3 +29,11 @@ class UpdateGroupAccessRequest(BaseModel):
 
 class UpdateGroupAccessResponse(BaseModel):
     access_controls: list[Privilege]
+
+
+class UpdateGroupDescriptionRequest(BaseModel):
+    description: str | None = None
+
+
+class UpdateGroupDescriptionResponse(BaseModel):
+    description: str

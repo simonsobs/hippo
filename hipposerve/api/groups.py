@@ -8,6 +8,8 @@ from hipposerve.api.models.groups import (
     ReadGroupResponse,
     UpdateGroupAccessRequest,
     UpdateGroupAccessResponse,
+    UpdateGroupDescriptionRequest,
+    UpdateGroupDescriptionResponse,
 )
 from hipposerve.service import groups
 
@@ -93,3 +95,50 @@ async def update_group_access(
             status_code=status.HTTP_404_NOT_FOUND, detail="Group not found."
         )
     return UpdateGroupAccessResponse(access_controls=group.access_controls)
+
+
+@groups_router.post("/{name}/updatedescription")
+async def update_group_description(
+    name: str,
+    request: UpdateGroupDescriptionRequest,
+    calling_user: UserDependency,
+) -> UpdateGroupDescriptionResponse:
+    """
+    Update a group's access.
+    """
+    logger.info("Request to update group access: {} from {}", name, calling_user.name)
+
+    await check_group_for_privilege(calling_user, groups.Privilege.UPDATE_GROUP)
+
+    try:
+        group = await groups.update_desciption(
+            name=name,
+            description=request.description,
+        )
+    except groups.GroupNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found."
+        )
+    return UpdateGroupDescriptionResponse(description=group.description)
+
+
+@groups_router.delete("/{name}")
+async def delete_group(
+    name: str,
+    calling_user: UserDependency,
+) -> None:
+    """
+    Delete a group.
+    """
+    logger.info("Request to delete group: {} from {}", name, calling_user.name)
+
+    await check_group_for_privilege(calling_user, groups.Privilege.DELETE_GROUP)
+
+    try:
+        await groups.delete(name=name)
+    except groups.GroupNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found."
+        )
+    logger.info("Group {} deleted by {}", name, calling_user.name)
+    return

@@ -20,3 +20,12 @@ class ReadGroupResponse(BaseModel):
     name: str
     privileges: list[Privilege]
     description: str | None
+
+
+class UpdateGroupAccessRequest(BaseModel):
+    add_access_control: list[Privilege] | None = None
+    remove_access_control: list[Privilege] | None = None
+
+
+class UpdateGroupAccessResponse(BaseModel):
+    access_controls: list[Privilege]

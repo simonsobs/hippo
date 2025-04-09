@@ -6,6 +6,8 @@ from hipposerve.api.models.groups import (
     CreateGroupRequest,
     CreateGroupResponse,
     ReadGroupResponse,
+    UpdateGroupAccessRequest,
+    UpdateGroupAccessResponse,
 )
 from hipposerve.service import groups
 
@@ -65,3 +67,29 @@ async def read_group(name: str, calling_user: UserDependency) -> ReadGroupRespon
         privileges=group.access_controls,
         description=group.description,
     )
+
+
+@groups_router.post("/{name}/updateaccess")
+async def update_group_access(
+    name: str,
+    request: UpdateGroupAccessRequest,
+    calling_user: UserDependency,
+) -> UpdateGroupAccessResponse:
+    """
+    Update a group's access.
+    """
+    logger.info("Request to update group access: {} from {}", name, calling_user.name)
+
+    await check_group_for_privilege(calling_user, groups.Privilege.UPDATE_PRIVILEGES)
+
+    try:
+        group = await groups.update_access_control(
+            name=name,
+            add_access_control=request.add_access_control,
+            remove_access_control=request.remove_access_control,
+        )
+    except groups.GroupNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Group not found."
+        )
+    return UpdateGroupAccessResponse(access_controls=group.access_controls)

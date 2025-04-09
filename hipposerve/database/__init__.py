@@ -37,6 +37,7 @@ class Privilege(Enum):
     READ_USER = "read_user"
     UPDATE_USER = "update_user"
     DELETE_USER = "delete_user"
+    UPDATE_USER_GROUP = "update_user_group"
 
     # Group management
     CREATE_GROUP = "create_group"

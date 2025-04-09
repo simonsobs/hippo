@@ -115,6 +115,34 @@ async def update_user(
     )
 
 
+@users_router.post("/{name}/updategroups")
+async def update_user_groups(
+    name: str,
+    request: UpdateUserRequest,
+    calling_user: UserDependency,
+) -> UpdateUserResponse:
+    """
+    Update a user's groups.
+    """
+
+    logger.info("Request to update user groups: {} from {}", name, calling_user.name)
+
+    await check_user_for_privilege(calling_user, users.Privilege.UPDATE_USER_GROUP)
+
+    user = await users.update_groups(
+        name=name,
+        add_group=request.add_group,
+        remove_group=request.remove_group,
+    )
+
+    logger.info("User {} updated by {}", name, calling_user.name)
+
+    return UpdateUserResponse(
+        api_key=None,
+        compliance=user.compliance,
+    )
+
+
 @users_router.delete("/{name}")
 async def delete_user(name: str, calling_user: UserDependency) -> None:
     """

@@ -118,15 +118,17 @@ async def update(
     return user
 
 
-async def add_group(user: User, group_list: list[Group]) -> User:
-    user.groups.extend(group_list)
-    await user.set({User.groups: user.groups})
+async def update_groups(
+    user: User,
+    add_group: list[Group] | None = None,
+    remove_group: list[Group] | None = None,
+) -> User:
+    if add_group is not None:
+        user.groups.extend(add_group)
 
-    return user
+    if remove_group is not None:
+        user.groups = [group for group in user.groups if group not in remove_group]
 
-
-async def remove_group(user: User, group_list: list[Group]) -> User:
-    user.groups = [group for group in user.groups if group not in group_list]
     await user.set({User.groups: user.groups})
 
     return user

@@ -7,13 +7,13 @@ import secrets
 from beanie import PydanticObjectId
 from pwdlib import PasswordHash
 
+import hipposerve.service.groups as user_groups
 from hipposerve.database import (
     ComplianceInformation,
     Group,
     Privilege,
     User,
 )
-from hipposerve.service.groups import create as create_group
 
 # TODO: Settings
 API_KEY_BYTES = 128
@@ -63,12 +63,28 @@ async def create(
         privileges=privileges,
         compliance=compliance,
     )
-    group = await create_group(
+    group = await user_groups.create(
         name=name,
         description=f"Owner group for user {name}",
         access_control=privileges,
     )
     user.groups.append(group)
+
+    try:
+        common_group = await user_groups.read_by_name(Group.name == "Users")
+    except user_groups.GroupNotFound:
+        # Create the default group for all users
+        common_group = await user_groups.create(
+            name="Users",
+            description="Default group for all users",
+            access_control=[
+                Privilege.LIST_PRODUCT,
+                Privilege.DOWNLOAD_PRODUCT,
+                Privilege.READ_PRODUCT,
+                Privilege.READ_COLLECTION,
+            ],
+        )
+    user.groups.append(common_group)
     await user.create()
 
     return user

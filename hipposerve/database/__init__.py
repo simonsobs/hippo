@@ -147,7 +147,12 @@ class ProductMetadata(BaseModel):
     collections: list[PydanticObjectId]
 
 
-class Product(Document, ProductMetadata):
+class ProtectedDocument(Document):
+    readers: list[str] = ["Users"]
+    writers: list[str] = ["admin"]
+
+
+class Product(ProtectedDocument, ProductMetadata):
     name: Indexed(str, pymongo.TEXT)
 
     sources: list[File]

@@ -33,7 +33,7 @@ async def create_common_group(
     group = Group(
         name=name,
         description="Default group for all users",
-        access_control=[
+        access_controls=[
             Privilege.LIST_PRODUCT,
             Privilege.DOWNLOAD_PRODUCT,
             Privilege.READ_PRODUCT,

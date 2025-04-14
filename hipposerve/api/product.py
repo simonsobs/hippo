@@ -6,7 +6,6 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_user_for_privilege
 from hipposerve.api.models.product import (
     CreateProductRequest,
     CreateProductResponse,
@@ -17,6 +16,7 @@ from hipposerve.api.models.product import (
 )
 from hipposerve.database import Privilege, ProductMetadata
 from hipposerve.service import product, users
+from hipposerve.service.auth import UserDependency, check_group_for_privilege
 
 product_router = APIRouter(prefix="/product")
 
@@ -35,7 +35,7 @@ async def create_product(
 
     logger.info("Create product request: {} from {}", model.name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
 
     if await product.exists(name=model.name):
         raise HTTPException(
@@ -74,7 +74,7 @@ async def read_product(
 
     logger.info("Read product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
         item = (await product.read_by_id(id)).to_metadata()
@@ -110,7 +110,7 @@ async def read_tree(
 
     logger.info("Read product tree request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
         requested_item = await product.read_by_id(id)
@@ -154,7 +154,7 @@ async def read_files(
 
     logger.info("Read files request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
         item = await product.read_by_id(id=id)
@@ -193,7 +193,7 @@ async def update_product(
     logger.info("Update product request for {} from {}", id, calling_user.name)
 
     # For now only privileged users can update products, and they can update everyone's.
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_PRODUCT)
 
     try:
         item = await product.read_by_id(id=id)
@@ -252,7 +252,7 @@ async def confirm_product(
 
     logger.info("Confirm product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CONFIRM_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.CONFIRM_PRODUCT)
 
     try:
         item = await product.read_by_id(id=id)
@@ -287,7 +287,7 @@ async def delete_product(
 
     logger.info("Delete (single) product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
 
     try:
         item = await product.read_by_id(id=id)
@@ -324,7 +324,7 @@ async def delete_tree(
 
     logger.info("Delete (tree) product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
 
     try:
         item = await product.read_by_id(id=id)
@@ -360,7 +360,7 @@ async def search(
 
     logger.info("Search for product {} request from {}", text, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     items = await product.search_by_name(name=text)
 

@@ -7,7 +7,6 @@ TODO: Authentication.
 from fastapi import APIRouter, HTTPException, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_user_for_privilege
 from hipposerve.api.models.users import (
     CreateUserRequest,
     CreateUserResponse,
@@ -16,6 +15,7 @@ from hipposerve.api.models.users import (
     UpdateUserResponse,
 )
 from hipposerve.service import users
+from hipposerve.service.auth import UserDependency, check_group_for_privilege
 from hipposerve.settings import SETTINGS
 
 users_router = APIRouter(prefix="/users")
@@ -33,7 +33,7 @@ async def create_user(
 
     logger.info("Request to create user: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, users.Privilege.CREATE_USER)
+    await check_group_for_privilege(calling_user, users.Privilege.CREATE_USER)
 
     try:
         user = await users.read(name=name)
@@ -67,7 +67,7 @@ async def read_user(name: str, calling_user: UserDependency) -> ReadUserResponse
     logger.info("Request to read user: {} from {}", name, calling_user.name)
 
     if name != calling_user.name:
-        await check_user_for_privilege(calling_user, users.Privilege.READ_USER)
+        await check_group_for_privilege(calling_user, users.Privilege.READ_USER)
 
     user = await users.read(name=name)
 
@@ -90,7 +90,7 @@ async def update_user(
 
     logger.info("Request to update user: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, users.Privilege.UPDATE_USER)
+    await check_group_for_privilege(calling_user, users.Privilege.UPDATE_USER)
 
     user = await users.update(
         name=name,
@@ -127,7 +127,7 @@ async def update_user_groups(
 
     logger.info("Request to update user groups: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, users.Privilege.UPDATE_USER_GROUP)
+    await check_group_for_privilege(calling_user, users.Privilege.UPDATE_USER_GROUP)
 
     user = await users.update_groups(
         name=name,
@@ -151,7 +151,7 @@ async def delete_user(name: str, calling_user: UserDependency) -> None:
 
     logger.info("Request to delete user: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, users.Privilege.DELETE_USER)
+    await check_group_for_privilege(calling_user, users.Privilege.DELETE_USER)
 
     await users.delete(name=name)
 

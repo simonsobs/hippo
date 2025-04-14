@@ -6,7 +6,6 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_user_for_privilege
 from hipposerve.api.models.relationships import (
     CreateCollectionRequest,
     ReadCollectionProductResponse,
@@ -14,6 +13,7 @@ from hipposerve.api.models.relationships import (
 )
 from hipposerve.database import Privilege
 from hipposerve.service import collection, product
+from hipposerve.service.auth import UserDependency, check_group_for_privilege
 
 relationship_router = APIRouter(prefix="/relationships")
 
@@ -30,7 +30,7 @@ async def create_collection(
 
     logger.info("Request to create collection: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_COLLECTION)
 
     # TODO: What to do if collection exists?
     # TODO: Collections should have a 'manager' who can change their properties.
@@ -53,7 +53,7 @@ async def read_collection(
 
     logger.info("Request to read collection: {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.READ_COLLECTION)
 
     try:
         item = await collection.read(id=id)
@@ -94,7 +94,7 @@ async def search_collection(
 
     logger.info("Request to search for collection: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.READ_COLLECTION)
 
     results = await collection.search_by_name(name=name)
 
@@ -130,7 +130,7 @@ async def add_product_to_collection(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
 
     try:
         coll = await collection.read(id=collection_id)
@@ -166,7 +166,7 @@ async def remove_product_from_collection(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
 
     try:
         coll = await collection.read(id=collection_id)
@@ -196,7 +196,7 @@ async def delete_collection(
 
     logger.info("Request to delete collection: {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_COLLECTION)
 
     try:
         await collection.delete(id=id)
@@ -224,7 +224,7 @@ async def add_child_product(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
 
     try:
         source = await product.read_by_id(id=parent_id)
@@ -260,7 +260,7 @@ async def remove_child_product(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
 
     try:
         source = await product.read_by_id(id=parent_id)

@@ -27,6 +27,25 @@ async def create(
     return group
 
 
+async def create_common_group(
+    name: str,
+) -> Group:
+    group = Group(
+        name=name,
+        description="Default group for all users",
+        access_control=[
+            Privilege.LIST_PRODUCT,
+            Privilege.DOWNLOAD_PRODUCT,
+            Privilege.READ_PRODUCT,
+            Privilege.READ_COLLECTION,
+        ],
+    )
+
+    await group.create()
+
+    return group
+
+
 async def read_by_name(name: str) -> Group:
     result = await Group.find(Group.name == name).first_or_none()
 

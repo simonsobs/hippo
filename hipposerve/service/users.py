@@ -74,16 +74,7 @@ async def create(
         common_group = await user_groups.read_by_name(Group.name == "Users")
     except user_groups.GroupNotFound:
         # Create the default group for all users
-        common_group = await user_groups.create(
-            name="Users",
-            description="Default group for all users",
-            access_control=[
-                Privilege.LIST_PRODUCT,
-                Privilege.DOWNLOAD_PRODUCT,
-                Privilege.READ_PRODUCT,
-                Privilege.READ_COLLECTION,
-            ],
-        )
+        common_group = await user_groups.create_common_group(name="Users")
     user.groups.append(common_group)
     await user.create()
 

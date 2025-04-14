@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_group_for_privilege
 from hipposerve.api.models.groups import (
     CreateGroupRequest,
     CreateGroupResponse,
@@ -12,6 +11,7 @@ from hipposerve.api.models.groups import (
     UpdateGroupDescriptionResponse,
 )
 from hipposerve.service import groups
+from hipposerve.service.auth import UserDependency, check_group_for_privilege
 
 groups_router = APIRouter(prefix="/groups")
 

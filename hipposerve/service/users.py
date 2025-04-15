@@ -71,10 +71,10 @@ async def create(
     user.groups.append(group)
 
     try:
-        common_group = await user_groups.read_by_name(Group.name == "Users")
+        common_group = await user_groups.read_by_name(Group.name == "users")
     except user_groups.GroupNotFound:
         # Create the default group for all users
-        common_group = await user_groups.create_common_group(name="Users")
+        common_group = await user_groups.create_common_group(name="users")
     user.groups.append(common_group)
     await user.create()
 
@@ -91,7 +91,7 @@ async def read(name: str) -> User:
 
 
 async def read_by_id(id: PydanticObjectId) -> User:
-    result = await User.get(id)
+    result = await User.get(id, fetch_links=True)
 
     if result is None:
         raise UserNotFound

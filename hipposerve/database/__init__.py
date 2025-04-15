@@ -148,8 +148,8 @@ class ProductMetadata(BaseModel):
 
 
 class ProtectedDocument(Document):
-    readers: list[str] = ["Users"]
-    writers: list[str] = ["admin"]
+    readers: list[str] = Field(default_factory=list)
+    writers: list[str] = Field(default_factory=lambda: ["admin"])
 
 
 class Product(ProtectedDocument, ProductMetadata):

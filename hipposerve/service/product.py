@@ -94,6 +94,8 @@ async def create(
     sources: list[PreUploadFile],
     user: User,
     storage: Storage,
+    product_readers: list[str] | None = None,
+    product_writers: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
     presigned, pre_upload_sources = await presign_uploads(
         sources=sources, storage=storage, user=user
@@ -117,6 +119,14 @@ async def create(
         collections=[],
         collection_policies=[],
     )
+    product_readers = product_readers or []
+    product_writers = product_writers or []
+
+    if product_readers is not None:
+        product.readers.extend(product_readers)
+    if user.name not in product.writers:
+        product_writers.append(user.name)
+    product.writers.extend(product_writers)
 
     await product.create()
 

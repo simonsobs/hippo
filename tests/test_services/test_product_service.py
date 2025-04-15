@@ -16,6 +16,13 @@ from hipposerve.service import product, users, versioning
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_product_groups(created_full_product, database):
+    assert created_full_product.owner.name in created_full_product.writers
+    assert "admin" in created_full_product.writers[0]
+    assert created_full_product.readers == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_existing_file(created_full_product, database):
     selected_product = await product.read_by_id(created_full_product.id)
 

@@ -105,7 +105,7 @@ async def created_full_product(database, storage, created_user):
     yield data
 
     # Go get it again just in case someone mutated, revved, etc.
-    data = await product.read_by_name(name=data.name, version=None)
+    data = await product.read_by_name(name=data.name, version=None, user=created_user)
 
     await product.delete_tree(data, storage=storage, data=True)
 

@@ -22,6 +22,9 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
+from hipposerve.service.auth import (
+    check_product_read_access,
+)
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -133,7 +136,7 @@ async def create(
     return product, presigned
 
 
-async def read_by_name(name: str, version: str | None) -> Product:
+async def read_by_name(name: str, version: str | None, user: User) -> Product:
     """
     If version is None, we grab the latest version of a product.
     """
@@ -154,10 +157,12 @@ async def read_by_name(name: str, version: str | None) -> Product:
     if potential is None:
         raise ProductNotFound
 
+    await check_product_read_access(user=user, target_product=potential)
+
     return potential
 
 
-async def read_by_id(id: PydanticObjectId) -> Product:
+async def read_by_id(id: PydanticObjectId, user: User) -> Product:
     try:
         potential = await Product.get(document_id=id, **LINK_POLICY)
     except (InvalidId, ValidationError):
@@ -165,6 +170,8 @@ async def read_by_id(id: PydanticObjectId) -> Product:
 
     if potential is None:
         raise ProductNotFound
+
+    await check_product_read_access(user=user, target_product=potential)
 
     return potential
 
@@ -215,7 +222,7 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     return versions
 
 
-async def walk_to_current(product: Product) -> Product:
+async def walk_to_current(product: Product, user: User) -> Product:
     """
     Walk the list of products until you get to the one
     marked 'current'.
@@ -223,7 +230,7 @@ async def walk_to_current(product: Product) -> Product:
 
     # Re-read the product from the database, in case it
     # is stale!
-    product = await read_by_id(id=product.id)
+    product = await read_by_id(id=product.id, user=user)
 
     while not product.current:
         product = await Product.find_one(
@@ -269,18 +276,22 @@ async def read_files(product: Product, storage: Storage) -> list[PostUploadFile]
 
 
 async def read_most_recent(
-    fetch_links: bool = False, maximum: int = 16, current_only: bool = False
+    user: User, fetch_links: bool = False, maximum: int = 16, current_only: bool = False
 ) -> list[Product]:
-    if current_only:
-        found = Product.find(
-            Product.current == True,  # noqa: E712
-            fetch_links=fetch_links,
-        )
-    else:
-        found = Product.find(
-            fetch_links=fetch_links,
-        )
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
 
+    if current_only:
+        query = {"$and": [{"current": True}, access_query]}
+    else:
+        query = access_query
+
+    found = Product.find(
+        query,
+        fetch_links=fetch_links,
+    )
     return await found.sort(-Product.updated).to_list(maximum)
 
 
@@ -440,7 +451,8 @@ async def update(
     # b) Beanie won't allow fetching specific links on that object. fetch_link()
     #    or .fetch() fails silently.
     # So we just re-fetch our object from the database.
-    new_product = await read_by_id(new_product.id)
+
+    new_product = await read_by_id(new_product.id, new_product.owner)
 
     if any([len(new_sources) > 0, len(replace_sources) > 0, len(drop_sources) > 0]):
         try:

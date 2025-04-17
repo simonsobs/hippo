@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from loguru import logger
 
-from hipposerve.service import groups, users
+from hipposerve.service import groups, product, users
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 
@@ -32,11 +32,9 @@ UserDependency = Annotated[users.User, Depends(get_user)]
 async def check_group_for_privilege(
     user: users.User, privilege: groups.Privilege
 ) -> None:
-    from hipposerve.database import Group
-
     group_ids = [group.id for group in user.groups]
 
-    group_matches = await Group.find(
+    group_matches = await groups.Group.find(
         {"_id": {"$in": group_ids}, "access_controls": privilege}
     ).count()
 
@@ -44,4 +42,29 @@ async def check_group_for_privilege(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient privileges",
+        )
+
+
+async def check_product_read_access(
+    user: users.User, target_product: product.Product
+) -> None:
+    has_access = any(
+        group.name in target_product.readers or group.name in target_product.writers
+        for group in user.groups
+    )
+    if has_access is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient privileges for product access",
+        )
+
+
+async def check_product_write_access(
+    user: users.User, target_product: product.Product
+) -> None:
+    has_access = any(group.name in target_product.writers for group in user.groups)
+    if has_access is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient privileges for product access",
         )

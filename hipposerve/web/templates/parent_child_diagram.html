@@ -1,0 +1,207 @@
+{% set parent_length = parents|length %}
+{% set child_length = children|length %}
+<!-- we only render 5 items but, if necessary, we render a 6th element for overflow data -->
+{% set max_items_rendered = 6 %}
+<!-- spacing is calculated based on number of items rendered + 1 -->
+{% set max_num_of_equal_spacing = max_items_rendered + 1 %}
+<!-- arbitrarily set item height at 40px -->
+{% set item_height = 40 %}
+{% set max_svg_height = max_items_rendered * item_height %}
+{% set svg_width = 300 %}
+{% set svg_height = ((parent_length if parent_length > child_length else child_length) * item_height) if (parent_length < max_items_rendered and child_length < max_items_rendered) else max_svg_height %}
+{% set item_width = 95 %}
+{% set horizontal_line_length = 20 %}
+{% set parent_x_adjustment = -1 * item_width if parent_length == 0 else item_width %}
+{% set x_margin = 10 %}
+{% set x_adjustment = parent_x_adjustment + x_margin %}
+{% set text_item_padding = 15 %}
+{% set line_y_centering_adjustment = 5 %}
+{% set circle_radius = 5 %}
+<svg width="{{ svg_width }}" height="{{ svg_height }}" class="font-monospace">
+    <!--BEGIN SVG ELEMENTS FOR PARENT(S) -->
+    {% if parent_length %}
+        <!-- used to divide up the svg_height when calculating y position of items' text and lines -->
+        {% set num_of_parent_equal_spaces = max_num_of_equal_spacing if parent_length >= max_items_rendered else (parent_length + 1) %}
+        {% set y1 = svg_height / num_of_parent_equal_spaces %}
+        {% for index in range(parent_length) %}
+            {% set y2 = y1 * (index + 1) %}
+            <!-- render links to items up until the max -->
+            {% if index < (max_items_rendered - 1) %}
+                <text
+                    x="{{x_margin}}"
+                    y="{{y2}}"
+                    data-bs-toggle="tooltip"
+                    title="{{ parents[index].name }}"
+                >
+                    <a href="{{ web_root }}/{{relationship_type}}s/{{parents[index].id | e}}">{{parents[index].name|truncate(11, True)}}</a>
+                </text>
+            {% endif %}
+            <!-- with multiple parents, we need some lines to show the connection -->
+            {% if parent_length > 1 and index < max_items_rendered %}
+                <circle 
+                    r="{{circle_radius}}"
+                    cx="{{x_adjustment + text_item_padding}}"
+                    cy="{{y2 - line_y_centering_adjustment}}"
+                    fill="{{cmap.get(parents[index].id|string, '#000000')}}"
+                />
+                <!-- draw a horizontal line from parents to the the vertical line connecting the parents -->
+                <path
+                    stroke-width="2"
+                    stroke="black"
+                    d="M{{x_adjustment + text_item_padding}},{{y2 - line_y_centering_adjustment}} 
+                    {{x_adjustment + text_item_padding + horizontal_line_length + 1}},{{y2 - line_y_centering_adjustment}}"
+                />
+                <!-- draw a vertical line that connects to each parent's horizontal line -->
+                <path
+                    stroke-width="2"
+                    stroke="black"
+                    d="M{{x_adjustment + horizontal_line_length + text_item_padding}},{{y1 - line_y_centering_adjustment}} 
+                    {{x_adjustment + horizontal_line_length + text_item_padding}},{{y2 - line_y_centering_adjustment}}"
+                />
+            {% endif %}
+        {% endfor %}
+        <!-- create the "overflow" item that renders the remaining items as links in a Bootstrap popover -->
+        {% if parent_length >= max_items_rendered %}
+            <text
+                x="{{x_margin}}"
+                y="{{ y1 * max_items_rendered }}"
+                data-bs-toggle="popover"
+                data-bs-title="Additional parent {{relationship_type}}{{'' if parent_length == max_items_rendered else 's'}}"
+                data-bs-html="true"
+                data-bs-trigger="click hover"
+                data-bs-content="{{parents_overflow_content}}"
+            >
+                <!--Using a link with a noop function will allow keyboard accessibility to toggle popover-->
+                <a
+                    href="#"
+                    onclick="noop(event)"
+                >...</a>
+            </text>
+        {% endif %}
+        {% if parent_length == 1 %}
+        <circle
+            r="{{circle_radius}}"
+            cx="{{x_adjustment + text_item_padding}}"
+            cy="{{svg_height / 2 - line_y_centering_adjustment}}"
+            fill="{{cmap.get(parents[0].id|string, '#000000')}}"
+        />
+        {% endif %}
+    {% endif %}
+    <!-- END -->
+
+    <!-- BEGIN SVG ELEMENTS FOR CURRENT ITEM -->
+    {% set current_item_starting_x_position = x_margin if parent_length == 0 else (x_margin + item_width + (2 * horizontal_line_length) + (2 * text_item_padding)) %}
+    {% set parent_to_current_line_length = (horizontal_line_length * 2) if parent_length == 1 else horizontal_line_length %}
+    <!-- render line from parent to current item if necessary -->
+    {% if parent_length %}
+        <circle
+            r="{{circle_radius}}"
+            cx="{{current_item_starting_x_position - text_item_padding}}"
+            cy="{{svg_height / 2 - line_y_centering_adjustment}}"
+            fill="{{cmap.get(current_item_id|string, '#000000')}}"
+        />
+        <path
+            stroke-width='2'
+            stroke='black'
+            d="M{{current_item_starting_x_position - text_item_padding}},{{svg_height / 2 - line_y_centering_adjustment}} 
+            {{current_item_starting_x_position - parent_to_current_line_length - text_item_padding}},{{svg_height / 2 - line_y_centering_adjustment}}"
+        />
+    {% endif %}
+    <!-- render text for current item -->
+    <text
+        x="{{ current_item_starting_x_position }}"
+        y="{{ svg_height / 2 }}"
+        data-bs-toggle="tooltip"
+        title="{{ current_item_name }}"
+        class="fw-bold"
+        >{{current_item_name|truncate(11, True)}}</text>
+    <!-- render line from current item to child(ren) if necessary -->
+    {% if child_length %}
+        {% set current_to_children_line_length = (horizontal_line_length * 2) if child_length == 1 else horizontal_line_length %}
+        <circle
+            r="{{circle_radius}}"
+            cx="{{current_item_starting_x_position + item_width + text_item_padding}}"
+            cy="{{svg_height / 2 - line_y_centering_adjustment}}"
+            fill="{{cmap.get(current_item_id|string, '#000000')}}"
+        />
+        <path
+            stroke-width='2'
+            stroke='black'
+            d="M{{current_item_starting_x_position + item_width + text_item_padding}},{{svg_height / 2 - line_y_centering_adjustment}}
+            {{current_item_starting_x_position + item_width + current_to_children_line_length + text_item_padding}},{{svg_height / 2 - line_y_centering_adjustment}}"
+        />
+    {% endif %}
+    <!-- END -->
+
+    <!-- BEGIN SVG ELEMENTS FOR CHILD(REN) -->
+    {% if child_length %}
+        {% set section_width_with_lines = item_width + (2 * horizontal_line_length) + (2 * text_item_padding) %}
+        {% set child_starting_x_position = x_margin + (section_width_with_lines if parent_length == 0 else (2 * section_width_with_lines)) - horizontal_line_length - text_item_padding %}
+        <!-- used to divide up the svg_height when calculating y position of items' text and lines -->
+        {% set num_of_child_equal_spaces = max_num_of_equal_spacing if child_length >= max_items_rendered else (child_length + 1) %}
+        {% set y1 = svg_height / num_of_child_equal_spaces %}
+        {% for index in range(child_length) %}
+            {% set y2 = y1 * (index + 1) %}
+            {% if child_length > 1 and index < max_items_rendered %}
+                <circle
+                    r="{{circle_radius}}"
+                    cx="{{child_starting_x_position + horizontal_line_length}}"
+                    cy="{{y2 - line_y_centering_adjustment}}"
+                    fill="{{cmap.get(children[index].id|string, '#000000')}}"
+                />
+                <!-- draw a horizontal line from the vertical line to each child text -->
+                <path
+                    stroke-width='2'
+                    stroke='black'
+                    d="M{{child_starting_x_position - 1}},{{y2 - line_y_centering_adjustment}} 
+                    {{child_starting_x_position + horizontal_line_length}},{{y2 - line_y_centering_adjustment}}"
+                />
+                <!-- draw a vertical line that connects to the horizontal lines of each child -->
+                <path
+                    stroke-width="2"
+                    stroke="black"
+                    d="M{{child_starting_x_position}},{{y1 - line_y_centering_adjustment}} 
+                    {{child_starting_x_position}},{{y2 - line_y_centering_adjustment}}"
+                />
+            {% endif %}
+            <!-- render links to items up until the max -->
+            {% if index < (max_items_rendered - 1) %}
+                <text
+                    x="{{child_starting_x_position + horizontal_line_length + text_item_padding}}"
+                    y="{{y2}}"
+                    data-bs-toggle="tooltip"
+                    title="{{ children[index].name }}"
+                >
+                    <a href="{{ web_root }}/{{relationship_type}}s/{{children[index].id | e}}">{{children[index].name|truncate(11, True)}}</a>
+                </text>
+            {% endif %}
+        {% endfor %}
+        <!-- create the "overflow" item that renders the remaining items as links in a Bootstrap popover -->
+        {% if child_length >= max_items_rendered %}
+            <text
+                x="{{child_starting_x_position + horizontal_line_length + text_item_padding}}"
+                y="{{ y1 * max_items_rendered }}"
+                data-bs-toggle="popover"
+                data-bs-title="Additional child {{relationship_type}}{{'' if child_length == max_items_rendered else 's'}}"
+                data-bs-html="true"
+                data-bs-trigger="click hover"
+                data-bs-content="{{children_overflow_content}}"
+            >
+                <!--Using a link with a noop function will allow keyboard accessibility to toggle popover-->
+                <a
+                    href="#"
+                    onclick="noop(event)"
+                >...</a>
+            </text>
+        {% endif %}
+        {% if child_length == 1 %}
+            <circle
+                r="{{circle_radius}}"
+                cx="{{child_starting_x_position + horizontal_line_length}}"
+                cy="{{svg_height / 2 - line_y_centering_adjustment}}"
+                fill="{{cmap.get(children[0].id|string, '#000000')}}"
+            />
+        {% endif %}
+    {% endif %}
+    <!-- END -->
+</svg>

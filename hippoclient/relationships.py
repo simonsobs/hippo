@@ -103,7 +103,7 @@ def add_child_collection(client: Client, parent: str, child: str) -> bool:
         If a request to the API fails
     """
 
-    response = client.put(f"/relationships/collection/{child}/child_of/{parent}")
+    response = client.put(f"/relationships/collection/{parent}/child_of/{child}")
 
     response.raise_for_status()
 

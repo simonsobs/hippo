@@ -54,6 +54,9 @@
         document.querySelector('.jump-to-top').style.display = 'none';
       }
     }
+    function noop(e) {
+        e.preventDefault()
+    }
   </script>
   <body class="position-relative small h-100 bg-light" onscroll="debounce(onScroll, 100)">
     {% include "navigation.html" %}

@@ -2,27 +2,66 @@
 {% block content %}
 <div class="container-fluid fs-base">
 <h2>{{ collection.name }}</h2>
-<span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
+<div class="d-flex align-items-center gap-1">
+    <div class="rounded-circle" style="height: 12px; width: 12px; background-color: {{cmap.get(collection.id|string)}};"></div>
+    <span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
+</div>
 {% markdown %}
 {{ collection.description }}
 {% endmarkdown %}
-    <table class="table table-sm border border-secondary-subtle shadow-sm" style="max-width: 800px;">
-        <thead class="table-secondary">
-            <tr>
-                <th>Product</th>
-                <th>Uploaded</th>
-                <th>Version</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for product in collection.products %}
-            <tr class="small">
-                <td><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></td>
-                <td>{{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                <td>{{ product.version }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div>
+        <h3>Products</h3>
+        <table class="table table-sm border border-secondary-subtle shadow-sm" style="max-width: 800px;">
+            <thead class="table-secondary">
+                <tr>
+                    <th>Product</th>
+                    <th>Uploaded</th>
+                    <th>Version</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if collection.products | length > 0 %}
+                    {% for product in collection.products %}
+                    <tr class="small">
+                        <td><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></td>
+                        <td>{{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ product.version }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                <tr class="small">
+                    <td class="fst-italic">No products</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% if collection.parent_collections | length > 0 or collection.child_collections | length > 0 %}
+    <div class="row">
+        <h3>Collections</h3>
+        {% set parents = collection.parent_collections %}
+        {% set children = collection.child_collections %}
+        {% set current_item_name = collection.name %}
+        {% set current_item_id = collection.id %}
+        {% set relationship_type = "collection" %}
+        {% include "parent_child_diagram.html" %}
+    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+    const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl)
+    })
+</script>
 {% endblock %}

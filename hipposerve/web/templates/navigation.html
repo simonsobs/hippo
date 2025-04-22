@@ -11,13 +11,13 @@
 >
     <div class="d-flex align-items-center gap-3">
       <div class="rounded-circle shadow-sm" title="Click to return to home page">
-        <a class="nav-link color-light" href="/web">
-          <img alt="HIPPO logo" src="/web/static/logo.svg" width="55" height="auto" />
+        <a class="nav-link color-light" href="{{ web_root }}">
+          <img alt="HIPPO logo" src="{{ web_root }}/static/logo.svg" width="55" height="auto" />
         </a>
       </div>
       <form
         role="search"
-        action="/web/search/results"
+        action="{{ web_root }}/search/results"
         method="get"
         style="min-width: 400px; max-width: 750px"
       >
@@ -61,21 +61,21 @@
     </div>
     <ul class="nav gap-4 align-items-center full-menu flex-nowrap">
       <li class="nav-item">
-        <a class="btn btn-outline-dark btn-sm d-flex align-items-center shadow-sm text-nowrap" style="height: 40px;" href="/web/searchmetadata">Search by metadata</a>
+        <a class="btn btn-outline-dark btn-sm d-flex align-items-center shadow-sm text-nowrap" style="height: 40px;" href="{{ web_root }}/searchmetadata">Search by metadata</a>
       </li>
       <li class="nav-item">
         {% if user %}
           {% if user.avatar_url %}
-            <a href="/web/user">
+            <a href="{{ web_root }}/user">
               <img class="border rounded-circle shadow-sm" src="{{ user.avatar_url }}" alt="User's GitHub avatar" width="45" height="auto"/>
             </a>
           {% else %}
-            <a class="btn btn-primary btn-sm d-flex align-items-center shadow-sm" style="height: 40px;" href="/web/user">
+            <a class="btn btn-primary btn-sm d-flex align-items-center shadow-sm" style="height: 40px;" href="{{ web_root }}/user">
               My profile
             </a>
           {% endif %}
         {% else %}
-          <a class="btn btn-primary btn-sm d-flex align-items-center shadow-sm text-nowrap" style="height: 40px;" href="/web/login">
+          <a class="btn btn-primary btn-sm d-flex align-items-center shadow-sm text-nowrap" style="height: 40px;" href="{{ web_root }}/login">
             Log in
           </a>
         {% endif %}

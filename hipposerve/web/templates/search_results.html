@@ -19,7 +19,7 @@
             <tbody>
                 {% for result in results %}
                     <tr>
-                        <td><a href='./{{ filter }}/{{ result.id | e}}'>{{ result.name }}</td>
+                        <td><a href='{{ web_root }}/{{ filter }}/{{ result.id | e}}'>{{ result.name }}</td>
                         <td>{{ result.description | truncate }}</td>
                     </tr>
                 {% endfor %}

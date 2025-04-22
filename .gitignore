@@ -12,3 +12,7 @@ env*
 
 examples/*.fits
 
+# Secrets
+.jwt_secret
+.github_client_id
+.github_client_secret

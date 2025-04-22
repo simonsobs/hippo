@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
 
 from hipposerve.api.models.product import (
+    CompleteProductRequest,
     CreateProductRequest,
     CreateProductResponse,
     ReadFilesResponse,
@@ -49,17 +50,56 @@ async def create_product(
         sources=model.sources,
         user=calling_user,
         storage=request.app.storage,
+        mutlipart_size=model.multipart_batch_size,
     )
 
     logger.info(
         "Successfully created {} pre-signed URL(s) for product upload {} (id: {}) from {}",
-        len(presigned),
+        sum(len(x) for x in presigned.values()),
         model.name,
         item.id,
         calling_user.name,
     )
 
     return CreateProductResponse(id=item.id, upload_urls=presigned)
+
+
+@product_router.post("/{id}/complete")
+async def complete_product(
+    id: PydanticObjectId,
+    request: Request,
+    model: CompleteProductRequest,
+    calling_user: UserDependency,
+) -> None:
+    """
+    Complete a product's upload. Must be called before the sources are available.
+    """
+
+    logger.info("Complete product request for {} from {}", id, calling_user.name)
+
+    await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
+
+    try:
+        item = await product.read_by_id(id=id)
+    except product.ProductNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
+        )
+
+    success = await product.complete(
+        product=item,
+        storage=request.app.storage,
+        headers=model.headers,
+        sizes=model.sizes,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Not all sources were present.",
+        )
+
+    logger.info("Successfully completed product {} (id: {})", item.name, item.id)
 
 
 @product_router.get("/{id}")

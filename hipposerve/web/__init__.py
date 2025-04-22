@@ -10,6 +10,7 @@ from beanie import PydanticObjectId
 from fastapi import Request
 
 from hipposerve.service import collection, product
+from hipposerve.settings import SETTINGS
 
 from .auth import PotentialLoggedInUser
 from .auth import router as auth_router
@@ -33,6 +34,7 @@ async def index(request: Request, user: PotentialLoggedInUser):
             "products": products,
             "collections": collections,
             "user": user,
+            "web_root": SETTINGS.web_root,
         },
     )
 
@@ -53,6 +55,7 @@ async def product_view(request: Request, id: str, user: PotentialLoggedInUser):
             "sources": sources,
             "versions": version_history,
             "user": user,
+            "web_root": SETTINGS.web_root,
         },
     )
 
@@ -65,5 +68,10 @@ async def collection_view(
 
     return templates.TemplateResponse(
         "collection.html",
-        {"request": request, "collection": collection_instance, "user": user},
+        {
+            "request": request,
+            "collection": collection_instance,
+            "user": user,
+            "web_root": SETTINGS.web_root,
+        },
     )

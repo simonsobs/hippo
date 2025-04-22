@@ -1,0 +1,63 @@
+#details-tab {
+    layout: grid;
+    grid-size: 3;
+    grid-gutter: 0;
+}
+
+#tab-buttons {
+    column-span: 3;
+}
+
+.title {
+    column-span: 3;
+}
+
+.description {
+    row-span: 2;
+    column-span: 2;
+}
+
+.versioning {
+    row-span: 2;
+    column-span: 1;
+}
+
+.save-or-cancel {
+    column-span: 3;
+    align: center middle;
+}
+
+#save {
+    margin-right: 3;
+}
+
+.sources {
+    layout: grid;
+}
+
+.existing-source {
+    grid-size: 4;
+    border: solid grey;
+    grid-columns: 1.5fr 1fr 0.75fr 0.75fr;
+}
+
+.new-source {
+    grid-size: 3;
+    border: solid green;
+    grid-columns: 1.25fr 1fr 0.75fr;
+}
+
+.delete-source {
+    column-span: 3;
+    margin-left: 1;
+}
+
+.metadata-inputs-container {
+    layout: grid;
+    grid-size: 3;
+}
+
+.metadata-textarea {
+    column-span: 3;
+    row-span: 2;
+}

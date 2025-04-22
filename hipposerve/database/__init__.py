@@ -105,6 +105,13 @@ class FileMetadata(BaseModel):
 
 
 class File(Document, FileMetadata):
+    # Information for multi-part uploads (private)
+    multipart: bool = False
+    number_of_parts: int = 1
+    upload_id: str | None = None
+    multipart_batch_size: int | None = None
+    multipart_closed: bool = False
+
     def to_metadata(self) -> FileMetadata:
         return FileMetadata(
             id=self.id,
@@ -187,12 +194,31 @@ class Product(ProtectedDocument, ProductMetadata):
         )
 
 
-class Collection(Document):
-    # TODO: Implement updated time for collections.
-    name: Indexed(str, pymongo.TEXT)
+class CollectionMetadata(BaseModel):
+    """
+    Base model for a collection.
+    """
+
+    id: PydanticObjectId
+
+    name: str
     description: str
+
+    products: list[ProductMetadata]
+    child_collections: list[PydanticObjectId]
+    parent_collections: list[PydanticObjectId]
+
+
+class Collection(Document, CollectionMetadata):
+    # TODO: Implement updated time for collections.
+
+    name: Indexed(str, pymongo.TEXT)
     products: list[BackLink[Product]] = Field(
         json_schema_extra={"original_field": "collections"}
+    )
+    child_collections: list[Link["Collection"]] = []
+    parent_collections: list[BackLink["Collection"]] = Field(
+        json_schema_extra={"original_field": "child_collections"}
     )
 
 

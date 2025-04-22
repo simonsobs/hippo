@@ -1,0 +1,9 @@
+{% extends "core.html" %}
+{% block content %}
+<div class="container-fluid fs-base">
+    <h2>Page Not Found</h2>
+    {% if error_details.type != 'generic' %}
+        <p>A <span class="fw-bold">{{error_details.type}}</span> with ID <span class="fw-bold">{{error_details.requested_id}}</span> does not exist.</p>
+    {% endif %}
+</div>
+{% endblock %}

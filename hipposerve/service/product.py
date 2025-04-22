@@ -8,6 +8,7 @@ from typing import Any, Literal
 from beanie import Link, PydanticObjectId, WriteRules
 from beanie.operators import Text
 from bson.errors import InvalidId
+from loguru import logger
 from pydantic import BaseModel
 from pydantic_core import ValidationError
 
@@ -61,13 +62,16 @@ class PostUploadFile(BaseModel):
 
 
 async def presign_uploads(
-    sources: list[PreUploadFile], storage: Storage, user: User
-) -> tuple[dict[str, str], list[File]]:
+    sources: list[PreUploadFile],
+    storage: Storage,
+    user: User,
+    mutlipart_size: int = 50 * 1024 * 1024,
+) -> tuple[dict[str, list[str]], list[File]]:
     presigned = {}
     pre_upload_sources = []
 
     for source in sources:
-        pre_upload_source, presigned_url = await storage_service.create(
+        pre_upload_source, presigned_urls = await storage_service.create(
             name=source.name,
             description=source.description,
             uploader=user.name,
@@ -76,7 +80,7 @@ async def presign_uploads(
             storage=storage,
         )
 
-        presigned[source.name] = presigned_url
+        presigned[source.name] = presigned_urls
         pre_upload_sources.append(pre_upload_source)
 
     return presigned, pre_upload_sources
@@ -100,9 +104,10 @@ async def create(
     storage: Storage,
     product_readers: list[str] | None = None,
     product_writers: list[str] | None = None,
-) -> tuple[Product, dict[str, str]]:
+    mutlipart_size: int = 50 * 1024 * 1024,
+) -> tuple[Product, dict[str, list[str]]]:
     presigned, pre_upload_sources = await presign_uploads(
-        sources=sources, storage=storage, user=user
+        sources=sources, storage=storage, user=user, mutlipart_size=mutlipart_size
     )
 
     current_utc_time = datetime.datetime.now(datetime.timezone.utc)
@@ -244,9 +249,33 @@ async def walk_to_current(product: Product, user: User) -> Product:
     return product
 
 
+async def complete(
+    product: Product,
+    storage: Storage,
+    headers: dict[str, list[dict[str, str]]],
+    sizes: dict[str, list[int]],
+) -> bool:
+    for file in product.sources:
+        if file.multipart_closed:
+            continue
+
+        await storage_service.complete(
+            file=file,
+            storage=storage,
+            response_headers=headers[file.name],
+            sizes=sizes[file.name],
+        )
+
+        file.multipart_closed = True
+        await file.save()
+
+    return True
+
+
 async def confirm(product: Product, storage: Storage) -> bool:
     for file in product.sources:
         if not await storage_service.confirm(file=file, storage=storage):
+            logger.debug(f"File {file.name} not confirmed")
             return False
 
     return True

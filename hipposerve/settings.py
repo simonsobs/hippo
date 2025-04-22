@@ -6,11 +6,16 @@ from datetime import timedelta
 
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     minio_url: str
+    minio_presign_url: str | None = None
+    minio_upgrade_presign_url_to_https: bool = False
+    minio_secure: bool = False
+    minio_cert_check: bool = False
+
     minio_access: str
     minio_secret: str
 
@@ -33,6 +38,7 @@ class Settings(BaseSettings):
 
     web: bool = False
     "Serve the web frontend."
+    web_root: str = "/web"
 
     web_jwt_secret: str | None = None
     "Secret key for JWT (32 bytes hex)"
@@ -53,6 +59,8 @@ class Settings(BaseSettings):
     "GitHub client secret"
     web_github_required_organisation_membership: str | None = None
     "Required GitHub organisation membership for login, if None any organisation is allowed."
+
+    model_config = SettingsConfigDict(secrets_dir="/run/secrets")
 
 
 SETTINGS = Settings()

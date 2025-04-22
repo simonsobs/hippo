@@ -14,7 +14,7 @@
             <tbody>
                 {% for collection in collections %}
                 <tr>
-                    <td class="px-2"><a href='collections/{{ collection.id | e }}'>{{ collection.name }}</a></td>
+                    <td class="px-2"><a href='{{ web_root }}/collections/{{ collection.id | e }}'>{{ collection.name }}</a></td>
                     <td class="px-2" colspan="2">{{ collection.description | truncate }}</td>
                     <td class="px-2">{{ collection.products|length }}</td>
                 </tr>
@@ -36,7 +36,7 @@
             <tbody>
                 {% for product in products %}
                 <tr>
-                    <td class="px-2"><a href='products/{{ product.id | e }}'>{{ product.name }}</a></td>
+                    <td class="px-2"><a href='{{ web_root }}/products/{{ product.id | e }}'>{{ product.name }}</a></td>
                     <td class="px-2" colspan="2">{{ product.description }}</td>
                     <td class="px-2">{{ product.uploaded.strftime("%Y-%m-%d") }}</td>
                     <td class="px-2">{{ product.owner.name }}</td>

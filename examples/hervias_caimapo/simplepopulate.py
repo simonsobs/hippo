@@ -2,6 +2,7 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
+import os
 from pathlib import Path
 
 from hippoclient import Client
@@ -10,8 +11,13 @@ from hippoclient.collections import create as create_collection
 from hippoclient.product import create as create_product
 from hippometa import CatalogMetadata
 
-API_KEY = "TEST_API_KEY"
-SERVER_LOCATION = "http://127.0.0.1:8000"
+API_KEY = os.getenv("HIPPO_API_KEY")
+SERVER_LOCATION = os.getenv("HIPPO_HOST")
+
+if API_KEY is None:
+    API_KEY = "TEST_API_KEY"
+    SERVER_LOCATION = "http://127.0.0.1:8000"
+
 COLLECTION_NAME = "ACT Targeted Transient Flux Constraints"
 
 COLLECTION_DESCRIPTION = """

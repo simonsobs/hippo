@@ -6,7 +6,7 @@
             <p class="fs-6 text-danger mb-1">{{ unauthorized_details }}. Please log in.</p>
         {% endif %}
         {% if not only_allow_github_login %}
-            <form action="./token" method="post">
+            <form action="{{ web_root }}/token" method="post">
                 <div class="mb-3">
                     <label for="username" class="form-label">User name</label>
                     <input type="text" class="form-control" id="username" name="username" required>

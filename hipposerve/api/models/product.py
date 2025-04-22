@@ -15,11 +15,17 @@ class CreateProductRequest(BaseModel):
     description: str
     metadata: ALL_METADATA_TYPE
     sources: list[PreUploadFile]
+    multipart_batch_size: int = 50 * 1024 * 1024
 
 
 class CreateProductResponse(BaseModel):
     id: PydanticObjectId
-    upload_urls: dict[str, str]
+    upload_urls: dict[str, list[str]]
+
+
+class CompleteProductRequest(BaseModel):
+    headers: dict[str, list[dict[str, str]]]
+    sizes: dict[str, list[int]]
 
 
 class ReadProductResponse(BaseModel):

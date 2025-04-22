@@ -32,6 +32,17 @@ class ReadCollectionProductResponse(BaseModel):
     metadata: ALL_METADATA_TYPE
 
 
+class ReadCollectionCollectionResponse(BaseModel):
+    """
+    Response model for reading a collection (i.e. a parent or child)
+    as part of a collection request.
+    """
+
+    id: PydanticObjectId
+    name: str
+    description: str
+
+
 class ReadCollectionResponse(BaseModel):
     """
     Response model for reading a collection.
@@ -41,3 +52,5 @@ class ReadCollectionResponse(BaseModel):
     name: str
     description: str
     products: list[ReadCollectionProductResponse] | None
+    child_collections: list[ReadCollectionCollectionResponse] | None
+    parent_collections: list[ReadCollectionCollectionResponse] | None

@@ -5,9 +5,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 exclude=["*tests*", "*examples*", "*htmlcov*"]
 
+[tool.setuptools.package-data]
+static = ["hipposerve/web/static/*.svg", "hipposerve/web/templates/*.html"]
+
 [project]
 name = "hipposerve"
-version = "0.0.1a1"
+version = "0.0.1a7"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic",
@@ -30,6 +33,8 @@ dependencies = [
     "pwdlib[argon2]",
     "python-multipart",
     "loguru",
+    "tqdm",
+    "textual[syntax]"
 ]
 
 [project.optional-dependencies]
@@ -39,7 +44,8 @@ dev = [
     "testcontainers",
     "coverage",
     "pytest-cov",
-    "pytest-asyncio"
+    "pytest-asyncio",
+    "pytest-xprocess"
 ]
 
 [project.scripts]

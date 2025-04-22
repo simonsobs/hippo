@@ -5,11 +5,13 @@ The main FastAPI endpoints.
 from contextlib import asynccontextmanager
 
 from beanie import init_beanie
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.datastructures import URL
+from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from hipposerve.api.groups import groups_router
@@ -17,10 +19,13 @@ from hipposerve.api.product import product_router
 from hipposerve.api.relationships import relationship_router
 from hipposerve.api.users import users_router
 from hipposerve.database import BEANIE_MODELS
+from hipposerve.service.collection import CollectionNotFound
+from hipposerve.service.product import ProductNotFound
 from hipposerve.service.users import UserNotFound
 from hipposerve.settings import SETTINGS
 from hipposerve.storage import Storage
-from hipposerve.web.auth import UnauthorizedException
+from hipposerve.web.auth import PotentialLoggedInUser, UnauthorizedException
+from hipposerve.web.router import templates
 
 
 @asynccontextmanager
@@ -30,6 +35,10 @@ async def lifespan(app: FastAPI):
     await init_beanie(app.db, document_models=BEANIE_MODELS)
     app.storage = Storage(
         url=SETTINGS.minio_url,
+        presign_url=SETTINGS.minio_presign_url,
+        upgrade_presign_url_to_https=SETTINGS.minio_upgrade_presign_url_to_https,
+        secure=SETTINGS.minio_secure,
+        cert_check=SETTINGS.minio_cert_check,
         access_key=SETTINGS.minio_access,
         secret_key=SETTINGS.minio_secret,
     )
@@ -94,6 +103,74 @@ if SETTINGS.web:  # pragma: no cover
         login_url_with_params = URL(login_url).include_query_params(detail=exc.detail)
         response = RedirectResponse(str(login_url_with_params))
         return response
+
+    def not_found_template(
+        request: Request,
+        type: str,
+        requested_id: str | None,
+        user: PotentialLoggedInUser,
+    ):
+        error_details = {
+            "type": type,
+        }
+
+        if error_details["type"] != "generic":
+            error_details["requested_id"] = requested_id
+
+        return templates.TemplateResponse(
+            "404.html",
+            {
+                "request": request,
+                "error_details": error_details,
+                "user": user,
+                "web_root": SETTINGS.web_root,
+            },
+            status_code=404,
+        )
+
+    @app.exception_handler(HTTPException)
+    async def page_not_found_handler(
+        request: Request,
+        exc: HTTPException,
+        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
+    ):
+        return not_found_template(request, "generic", None, user)
+
+    @app.exception_handler(CollectionNotFound)
+    async def collection_not_found_handler(
+        request: Request,
+        exc: CollectionNotFound,
+        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
+    ):
+        requested_id = request.path_params["id"]
+        return not_found_template(request, "collection", requested_id, user)
+
+    @app.exception_handler(ProductNotFound)
+    async def product_not_found_handler(
+        request: Request,
+        exc: ProductNotFound,
+        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
+    ):
+        requested_id = request.path_params["id"]
+        return not_found_template(request, "product", requested_id, user)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request,
+        exc: RequestValidationError,
+        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
+    ):
+        requested_item_type = "generic"
+        requested_id = None
+        try:
+            requested_id = request.path_params["id"]
+            if request.url.path.find("collections"):
+                requested_item_type = "collection"
+            elif request.url.path.find("products"):
+                requested_item_type = "product"
+            return not_found_template(request, requested_item_type, requested_id, user)
+        except KeyError:
+            return not_found_template(request, requested_item_type, requested_id, user)
 
 
 if SETTINGS.add_cors:

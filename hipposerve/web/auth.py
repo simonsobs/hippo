@@ -7,6 +7,7 @@ Authentication layer for the Web UI. Provides two core dependencies:
 
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 import jwt
@@ -23,6 +24,57 @@ from hipposerve.service import users as users_service
 from hipposerve.settings import SETTINGS
 
 from .router import templates
+
+
+def replace_path_component(url: str, old: str, new: str) -> str:
+    """
+    Replace a path component in a URL.
+
+    Parameters
+    ----------
+    url : str
+        The URL to modify.
+    old : str
+        The old path component.
+    new : str
+        The new path component.
+
+    Returns
+    -------
+    str
+        The modified URL.
+    """
+
+    parsed = urlparse(url)
+    fixed = parsed._replace(path=parsed.path.replace(old, new))
+    return urlunparse(fixed)
+
+
+def generate_redirect_response(
+    request: Request, old: str, new: str
+) -> RedirectResponse:
+    """
+    Generate a redirect response with a path component replaced.
+
+    Parameters
+    ----------
+    request : Request
+        The request object.
+    old : str
+        The old path component.
+    new : str
+        The new path component.
+
+    Returns
+    -------
+    RedirectResponse
+        The redirection response (code 302)
+    """
+    url = str(request.url)
+    new_url = replace_path_component(url, old, new)
+
+    return RedirectResponse(url=new_url, status_code=302)
+
 
 router = APIRouter()
 
@@ -138,6 +190,14 @@ async def get_current_user(
     except ValueError:
         # Unable to split
         raise UnauthorizedException()
+
+    if SETTINGS.web_jwt_check_origin:
+        # Don't use the Origin header as it's often not set (e.g. it is never set
+        # on GET requests as the browser already checked that). Let's just use the
+        # Sec-Fetch-Site header instead.
+        potential_origin = request.headers.get("Sec-Fetch-Site")
+        if potential_origin == "cross-origin":
+            raise UnauthorizedException()
 
     if SETTINGS.web_jwt_check_origin:
         # Don't use the Origin header as it's often not set (e.g. it is never set
@@ -277,10 +337,7 @@ async def login_with_github_for_access_token(
         origin=request.headers.get("Origin"),
     )
 
-    new_response = RedirectResponse(
-        url=request.url.path.replace("/github", "/user"), status_code=302
-    )
-
+    new_response = generate_redirect_response(request, "/github", "/user")
     new_response.set_cookie(key="access_token", value=access_token, httponly=True)
     return new_response
 
@@ -315,18 +372,14 @@ async def login_for_access_token(
         origin=request.headers.get("Origin"),
     )
 
-    new_response = RedirectResponse(
-        url=request.url.path.replace("/token", "/user"), status_code=302
-    )
+    new_response = generate_redirect_response(request, "/token", "/user")
     new_response.set_cookie(key="access_token", value=access_token, httponly=True)
     return new_response
 
 
 @router.get("/logout")
 async def logout(request: Request) -> RedirectResponse:
-    new_response = RedirectResponse(
-        url=request.url.path.replace("/logout", ""), status_code=302
-    )
+    new_response = generate_redirect_response(request, "/logout", "")
     new_response.delete_cookie(key="access_token")
     return new_response
 
@@ -342,7 +395,12 @@ async def read_apikey(request: Request, user: LoggedInUser):
         refresh_key=True,
     )
     return templates.TemplateResponse(
-        "apikey.html", {"request": request, "user": updated_user}
+        "apikey.html",
+        {
+            "request": request,
+            "user": updated_user,
+            "web_root": SETTINGS.web_root,
+        },
     )
 
 
@@ -358,21 +416,26 @@ async def update_compliance(request: Request, user: LoggedInUser):
         compliance={"nersc_username": compliance_info},
         refresh_key=False,
     )
-    new_response = RedirectResponse(
-        url=request.url.path.replace("/user/update", "/user"), status_code=302
-    )
+    new_response = generate_redirect_response(request, "/user/update", "/user")
     return new_response
 
 
 @router.get("/user")
 async def read_user(request: Request, user: LoggedInUser):
-    return templates.TemplateResponse("user.html", {"request": request, "user": user})
+    return templates.TemplateResponse(
+        "user.html", {"request": request, "user": user, "web_root": SETTINGS.web_root}
+    )
 
 
 @router.get("/login", name="login")
 async def login(request: Request):
     query_params = dict(request.query_params)
     unauthorized_details = query_params.get("detail", None)
+    if SETTINGS.web_only_allow_github_login:
+        return RedirectResponse(
+            url=f"https://github.com/login/oauth/authorize?client_id={SETTINGS.web_github_client_id}",
+            status_code=302,
+        )
     return templates.TemplateResponse(
         "login.html",
         {
@@ -381,5 +444,6 @@ async def login(request: Request):
             "only_allow_github_login": SETTINGS.web_only_allow_github_login,
             "allow_github_login": SETTINGS.web_allow_github_login,
             "unauthorized_details": unauthorized_details,
+            "web_root": SETTINGS.web_root,
         },
     )

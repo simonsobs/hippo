@@ -2,16 +2,25 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
+import os
 from pathlib import Path
 
 from hippoclient import Client
 from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
+from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
 from hippometa import CatalogMetadata, MapSet, MapSetMap
 
-API_KEY = "TEST_API_KEY"
-SERVER_LOCATION = "http://127.0.0.1:8000"
+settings = ClientSettings()
+
+API_KEY = os.getenv("HIPPO_API_KEY")
+SERVER_LOCATION = os.getenv("HIPPO_HOST")
+
+if API_KEY is None:
+    API_KEY = "TEST_API_KEY"
+    SERVER_LOCATION = "http://localhost:8000"
+
 COLLECTION_NAME = "ACT DR5 SZ Cluster Catalog"
 
 COLLECTION_DESCRIPTION = """

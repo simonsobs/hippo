@@ -2,8 +2,8 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Hidden elements for logout, requesting new API key, and providing compliance info -->
-    <form class="d-none" method="get" action="/web/logout" id="logout"></form>
-    <form class="d-none" method="get" action="/web/user/apikey" id="newApiKey"></form>
+    <form class="d-none" method="get" action="{{ web_root }}/logout" id="logout"></form>
+    <form class="d-none" method="get" action="{{ web_root }}/user/apikey" id="newApiKey"></form>
     <span id="compliance-check" class="d-none">{{ user.compliance }}</span>
     <!-- End hidden elements -->
     <div class="d-flex align-items-start mt-4 h-100">
@@ -137,7 +137,7 @@
             <p>
                 In order to upload products, please provide your NERSC user name.
               </p>
-             <form method="post" action="/web/user/update" id="compliance-info">
+             <form method="post" action="{{ web_root }}/user/update" id="compliance-info">
                 <label class="form-label small fw-bold" style="width: 300px">
                     NERSC user name
                     <input

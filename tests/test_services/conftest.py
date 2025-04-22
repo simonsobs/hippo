@@ -94,15 +94,26 @@ async def created_full_product(database, storage, created_user):
 
     assert not await product.confirm(data, storage)
 
+    headers = {}
+    sizes = {}
+
     with io.BytesIO(FILE_CONTENTS) as f:
-        for put in file_puts.values():
+        for file_name, put in file_puts.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            requests.put(put, f)
+            headers[file_name] = [requests.put(put[0], f).headers]
+            sizes[file_name] = [len(FILE_CONTENTS)]
+
+    await product.complete(
+        product=data,
+        storage=storage,
+        headers=headers,
+        sizes=sizes,
+    )
 
     assert await product.confirm(data, storage)
 
-    yield data
+    yield await product.read_by_id(data.id)
 
     # Go get it again just in case someone mutated, revved, etc.
     data = await product.read_by_name(name=data.name, version=None, user=created_user)

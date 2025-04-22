@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 
 from hippometa import ALL_METADATA
 from hipposerve.service import collection, product
+from hipposerve.settings import SETTINGS
 
 from .auth import PotentialLoggedInUser
 from .router import templates
@@ -37,6 +38,7 @@ async def search_results_view(
             "filter": filter,
             "results": results,
             "user": user,
+            "web_root": SETTINGS.web_root,
         },
     )
 
@@ -115,6 +117,7 @@ async def searchmetadata_results_view(
             "metadata_filters": metadata_filters,
             "metadata_type": query_params["metadata_type"],
             "user": user,
+            "web_root": SETTINGS.web_root,
         },
     )
 
@@ -182,5 +185,10 @@ async def search_metadata_view(
 
     return templates.TemplateResponse(
         "search_metadata.html",
-        {"request": request, "metadata": metadata_info, "user": user},
+        {
+            "request": request,
+            "metadata": metadata_info,
+            "user": user,
+            "web_root": SETTINGS.web_root,
+        },
     )

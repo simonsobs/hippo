@@ -87,7 +87,7 @@
                     Parents:
                     <ul>
                         {% for parent in product.child_of %}
-                        <li><a href='{{ parent.id | e}}'>{{ parent.name }}</a></li>
+                        <li><a href='{{ web_root }}/product/{{ parent.id | e}}'>{{ parent.name }}</a></li>
                         {% endfor %}
                     </ul>
                 </p>
@@ -100,7 +100,7 @@
                     Children:
                     <ul>
                         {% for child in product.parent_of %}
-                        <li><a href='{{ child.id | e }}'>{{ child.name }}</a></li>
+                        <li><a href='{{ web_root }}/product/{{ child.id | e }}'>{{ child.name }}</a></li>
                         {% endfor %}
                     </ul>
                 </p>
@@ -114,7 +114,7 @@
                     <ul class="list-group d-inline-flex p-2 small ps-0">
                         {% for collection in product.collections %}
                         <li class="list-group-item">
-                            <a href="../collections/{{ collection.id | e }}">
+                            <a href="{{ web_root }}/collections/{{ collection.id | e }}">
                             {{ collection.name }}
                             </a>
                         </li>
@@ -141,7 +141,7 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <div class='{{ "rounded-circle bg-success" if version == product.version else "" }}' style="width: 0.75em; height: 0.75em;"></div>
                                         {% if version != product.version %}
-                                            <a href='{{ metadata.id | e }}'>{{ version }}</a>
+                                            <a href='{{ web_root }}/product/{{ metadata.id | e }}'>{{ version }}</a>
                                         {% else %}
                                             <span>{{ version }}</span>
                                         {% endif %}

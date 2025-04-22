@@ -32,9 +32,7 @@ async def create(
 async def read(
     id: PydanticObjectId,
 ):
-    collection = await Collection.find(
-        Collection.id == id, fetch_links=True
-    ).first_or_none()
+    collection = await Collection.find_one(Collection.id == id, fetch_links=True)
 
     if collection is None:
         raise CollectionNotFound
@@ -73,6 +71,36 @@ async def update(
         await collection.set({Collection.description: description})
 
     return collection
+
+
+async def add_child(
+    parent_id: PydanticObjectId,
+    child_id: PydanticObjectId,
+) -> Collection:
+    parent = await read(id=parent_id)
+    child = await read(id=child_id)
+
+    parent.child_collections.append(child)
+    await parent.save()
+
+    return parent
+
+
+async def remove_child(
+    parent_id: PydanticObjectId,
+    child_id: PydanticObjectId,
+) -> Collection:
+    parent = await read(id=parent_id)
+
+    await parent.set(
+        {
+            Collection.child_collections: [
+                x for x in parent.child_collections if x.id != child_id
+            ]
+        }
+    )
+
+    return parent
 
 
 async def delete(

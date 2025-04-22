@@ -147,3 +147,68 @@ def test_remove_child_product_from_non_existent_parent(test_api_client):
         f"/relationships/product/{'7' * 24}/child_of/{'7' * 24}"
     )
     assert response.status_code == 404
+
+
+def test_add_child_relationship_for_collection(test_api_client):
+    collection_a = test_api_client.put(
+        "/relationships/collection/Collection_A",
+        json={"description": "test_description"},
+    ).json()
+
+    collection_b = test_api_client.put(
+        "/relationships/collection/Collection_B",
+        json={"description": "test_description"},
+    ).json()
+
+    collection_c = test_api_client.put(
+        "/relationships/collection/Collection_C",
+        json={"description": "test_description"},
+    ).json()
+
+    # Make link A -> B -> C
+
+    response = test_api_client.put(
+        f"/relationships/collection/{collection_a}/child_of/{collection_b}"
+    )
+    assert response.status_code == 200
+
+    response = test_api_client.put(
+        f"/relationships/collection/{collection_b}/child_of/{collection_c}"
+    )
+    assert response.status_code == 200
+
+    response = test_api_client.get(f"/relationships/collection/{collection_a}")
+    assert response.status_code == 200
+
+    assert len(response.json()["child_collections"]) == 1
+
+    response = test_api_client.get(f"/relationships/collection/{collection_b}")
+    assert response.status_code == 200
+
+    assert response.json()["parent_collections"][0]["id"] == collection_a
+    assert len(response.json()["child_collections"]) == 1
+
+    response = test_api_client.get(f"/relationships/collection/{collection_c}")
+    assert response.status_code == 200
+    assert response.json()["parent_collections"][0]["id"] == collection_b
+
+    # Now delete B, and see what happens!
+
+    response = test_api_client.delete(f"/relationships/collection/{collection_b}")
+    assert response.status_code == 200
+
+    # We should have NO collection relationships left.
+    response = test_api_client.get(f"/relationships/collection/{collection_a}")
+    assert response.status_code == 200
+    assert len(response.json()["child_collections"]) == 0
+
+    response = test_api_client.get(f"/relationships/collection/{collection_c}")
+    assert response.status_code == 200
+    assert not response.json()["parent_collections"]
+
+    # Clean up A and C
+    response = test_api_client.delete(f"/relationships/collection/{collection_a}")
+    assert response.status_code == 200
+
+    response = test_api_client.delete(f"/relationships/collection/{collection_c}")
+    assert response.status_code == 200

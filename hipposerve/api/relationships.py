@@ -8,6 +8,7 @@ from loguru import logger
 
 from hipposerve.api.models.relationships import (
     CreateCollectionRequest,
+    ReadCollectionCollectionResponse,
     ReadCollectionProductResponse,
     ReadCollectionResponse,
 )
@@ -78,6 +79,22 @@ async def read_collection(
             )
             for x in item.products
         ],
+        child_collections=[
+            ReadCollectionCollectionResponse(
+                id=x.id,
+                name=x.name,
+                description=x.description,
+            )
+            for x in item.child_collections
+        ],
+        parent_collections=[
+            ReadCollectionCollectionResponse(
+                id=x.id,
+                name=x.name,
+                description=x.description,
+            )
+            for x in item.parent_collections
+        ],
     )
 
 
@@ -88,8 +105,9 @@ async def search_collection(
     calling_user: UserDependency,
 ) -> list[ReadCollectionResponse]:
     """
-    Search for collections by name. Products are not returned; these should be
-    fetched separately through the read_collection endpoint.
+    Search for collections by name. Products and sub-collections are not
+    returned; these should be fetched separately through the read_collection
+    endpoint.
     """
 
     logger.info("Request to search for collection: {} from {}", name, calling_user.name)
@@ -199,6 +217,13 @@ async def delete_collection(
     await check_group_for_privilege(calling_user, Privilege.DELETE_COLLECTION)
 
     try:
+        # Check if we have a parent; if we do, we need to remove its link to us.
+        coll = await collection.read(id=id)
+
+        if coll.parent_collections:
+            for parent in coll.parent_collections:
+                await collection.remove_child(parent_id=parent.id, child_id=id)
+
         await collection.delete(id=id)
         logger.info("Successfully deleted collection {} from {}", id, calling_user.name)
     except collection.CollectionNotFound:
@@ -276,4 +301,60 @@ async def remove_child_product(
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
+        )
+
+
+@relationship_router.put("/collection/{parent_id}/child_of/{child_id}")
+async def add_child_collection(
+    parent_id: PydanticObjectId,
+    child_id: PydanticObjectId,
+    calling_user: UserDependency,
+) -> None:
+    """
+    Add a child collection to a parent collection.
+    """
+
+    logger.info(
+        "Request to add collection {} as child of {} from {}",
+        child_id,
+        parent_id,
+        calling_user.name,
+    )
+
+    await check_group_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
+
+    try:
+        await collection.add_child(parent_id=parent_id, child_id=child_id)
+        logger.info("Successfully added {} as child of {}", child_id, parent_id)
+    except collection.CollectionNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
+        )
+
+
+@relationship_router.delete("/collection/{parent_id}/child_of/{child_id}")
+async def remove_child_collection(
+    parent_id: PydanticObjectId,
+    child_id: PydanticObjectId,
+    calling_user: UserDependency,
+) -> None:
+    """
+    Remove a parent-child relationship between two collections.
+    """
+
+    logger.info(
+        "Request to remove collection {} as child of {} from {}",
+        child_id,
+        parent_id,
+        calling_user.name,
+    )
+
+    await check_group_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
+
+    try:
+        await collection.remove_child(parent_id=parent_id, child_id=child_id)
+        logger.info("Successfully removed {} as child of {}", child_id, parent_id)
+    except collection.CollectionNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )

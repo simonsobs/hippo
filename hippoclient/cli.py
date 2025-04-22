@@ -9,6 +9,7 @@ import hippoclient as sc
 
 from . import helper
 from .core import ClientSettings, MultiCache
+from .textedit import edit_product
 
 CLIENT: sc.Client
 CACHE: MultiCache
@@ -103,6 +104,16 @@ def product_uncache(id: str):
     sc.product.uncache(client=CLIENT, cache=CACHE, id=id)
 
     CONSOLE.print(f"Uncached product {id}")
+
+
+@product_app.command("edit")
+def product_edit(id: str):
+    """
+    Edit a product by its ID.
+    """
+    global CLIENT
+
+    edit_product(client=CLIENT, id=id)
 
 
 @collection_app.command("read")

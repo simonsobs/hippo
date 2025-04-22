@@ -1,0 +1,3 @@
+rm ilc_actplanck_ymap.fits
+rm wide_mask_GAL070_apod_1.50_deg_wExtended.fits
+rm ilc_beam.txt

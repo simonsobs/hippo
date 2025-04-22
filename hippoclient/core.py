@@ -24,12 +24,14 @@ class Client(httpx.Client):
     """
 
     verbose: bool
+    use_multipart_upload: bool = False
 
     def __init__(
         self,
         api_key: str,
         host: str,
         verbose: bool = False,
+        use_multipart_upload: bool = False,
     ):
         """
         Parameters
@@ -46,6 +48,7 @@ class Client(httpx.Client):
         """
 
         self.verbose = verbose
+        self.use_multipart_upload = use_multipart_upload
         super().__init__(base_url=host, headers={"X-API-Key": api_key})
 
 
@@ -59,8 +62,13 @@ class ClientSettings(BaseSettings):
     """
 
     api_key: str
+    "Your API key for the HIPPO service you are connected to"
     host: str
+    "The hostname of the HIPPO service you are connected to"
     verbose: bool = False
+    "Verbosity control: set to true for extra info"
+    use_multipart_upload: bool = False
+    "The size of the multipart upload parts in bytes. If set to zero, no multipart uploads will be used."
 
     caches: list[Cache] = []
 
@@ -80,8 +88,8 @@ class ClientSettings(BaseSettings):
         return (
             init_settings,
             dotenv_settings,
-            JsonConfigSettingsSource(settings_cls),
             env_settings,
+            JsonConfigSettingsSource(settings_cls),
             file_secret_settings,
         )
 

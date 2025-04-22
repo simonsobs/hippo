@@ -17,7 +17,7 @@
         <tbody>
             {% for product in collection.products %}
             <tr class="small">
-                <td><a href='../products/{{ product.id | e}}'>{{ product.name }}</a></td>
+                <td><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></td>
                 <td>{{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                 <td>{{ product.version }}</td>
             </tr>

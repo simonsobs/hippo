@@ -1,0 +1,50 @@
+services:
+  core:
+    build: .
+    ports: 
+    - "44776:44776"
+    environment:
+      MINIO_URL: "minio:9000"
+      MINIO_ACCESS: "minio"
+      MINIO_SECRET: "minio"
+      MONGO_URI: "mongodb://root:example@mongodb:27017"
+      TITLE: "Example HIPPO"
+      DESCRIPTION: "A containerised example of the HIPPO service"
+      ADD_CORS: false
+      DEBUG: true
+      WEB: true
+      WEB_ALLOW_GITHUB_LOGIN: true
+      WEB_GITHUB_REQUIRED_ORGANISATION_MEMBERSHIP: "simonsobs"
+    secrets:
+      - WEB_JWT_SECRET
+      - WEB_GITHUB_CLIENT_ID
+      - WEB_GITHUB_CLIENT_SECRET
+  mongodb:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+  minio:
+    ports:
+    - 9000:9000
+    volumes:
+    - ./data:/data
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: "minio"
+      MINIO_ROOT_PASSWORD: "minio"
+    command: server /data --console-address ":9001"
+
+
+    
+secrets:
+  WEB_JWT_SECRET:
+    file: ./.jwt_secret
+  WEB_GITHUB_CLIENT_ID:
+    file: ./.github_client_id
+  WEB_GITHUB_CLIENT_SECRET:
+    file: ./.github_client_secret
+  MINIO_CONFIG:
+    file: ./.minio_config
+
+  

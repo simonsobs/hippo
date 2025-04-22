@@ -2,6 +2,7 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
+import os
 from pathlib import Path
 
 import astropy.io.fits as fits
@@ -12,8 +13,13 @@ from hippoclient.collections import create as create_collection
 from hippoclient.product import create as create_product
 from hippometa import MapSet, MapSetMap
 
-API_KEY = "TEST_API_KEY"
-SERVER_LOCATION = "http://127.0.0.1:8000"
+API_KEY = os.getenv("HIPPO_API_KEY")
+SERVER_LOCATION = os.getenv("HIPPO_HOST")
+
+if API_KEY is None:
+    API_KEY = "TEST_API_KEY"
+    SERVER_LOCATION = "http://127.0.0.1:8000"
+
 COLLECTION_NAME = (
     "ACT DR4 Frequency Maps at 98 and 150 GHz presented in Aiola et al. 2020"
 )

@@ -66,11 +66,24 @@ async def test_create_file_with_multiple_sources(database, created_user, storage
 
     FILE_CONTENTS = b"0x0" * 128
 
+    responses = {}
+    sizes = {}
+
     with io.BytesIO(FILE_CONTENTS) as f:
-        for put in uploads.values():
+        for file_name, put in uploads.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            requests.put(put, f)
+            response = requests.put(put[0], f)
+
+            responses[file_name] = [response.headers]
+            sizes[file_name] = [len(FILE_CONTENTS)]
+
+    # Not ready yet - must be completed!
+    assert not await product.confirm(created_product, storage=storage)
+
+    await product.complete(
+        created_product, storage=storage, headers=responses, sizes=sizes
+    )
 
     assert await product.confirm(created_product, storage=storage)
 
@@ -222,11 +235,15 @@ async def test_update_sources(created_full_product, database, storage, created_u
         level=versioning.VersionRevision.MINOR,
     )
 
+    headers = {}
+    sizes = {}
+
     with io.BytesIO(FILE_CONTENTS) as f:
-        for put in uploads.values():
+        for file_name, put in uploads.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            requests.put(put, f)
+            headers[file_name] = [requests.put(put[0], f).headers]
+            sizes[file_name] = [len(FILE_CONTENTS)]
 
     # Grab it back and check
     new_product = await product.read_by_name(
@@ -468,12 +485,22 @@ async def test_product_middle_deletion(database, created_user, storage):
 
     FILE_CONTENTS = b"0x0" * 128
 
+    headers = {}
+    sizes = {}
+
     with io.BytesIO(FILE_CONTENTS) as f:
-        for put in uploads.values():
+        for file_name, put in uploads.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            requests.put(put, f)
+            headers[file_name] = [requests.put(put[0], f).headers]
+            sizes[file_name] = [len(FILE_CONTENTS)]
 
+    await product.complete(
+        product=middle,
+        storage=storage,
+        headers=headers,
+        sizes=sizes,
+    )
     assert await product.confirm(middle, storage)
 
     final, _ = await product.update(

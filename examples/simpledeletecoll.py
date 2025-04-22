@@ -6,7 +6,7 @@ to the example hippo server running at 127.0.0.1:8000.
 import os
 
 from hippoclient import Client
-from hippoclient.product import delete
+from hippoclient.collections import delete
 
 API_KEY = os.getenv("HIPPO_API_KEY")
 SERVER_LOCATION = os.getenv("HIPPO_HOST")

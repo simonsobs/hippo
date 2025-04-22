@@ -123,7 +123,9 @@ async def test_add_to_collection(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_update_metadata(created_full_product, database, storage, created_user):
+async def test_update_metadata(
+    created_full_product, database, storage, created_user, created_group
+):
     new_user = await users.create(
         name="new_user",
         privileges=[users.Privilege.LIST_PRODUCT],
@@ -139,6 +141,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
 
     await product.update(
         created_full_product,
+        created_user,
         name=None,
         description="New description",
         owner=new_user,
@@ -148,6 +151,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
         replace_sources=[],
         drop_sources=[],
         storage=storage,
+        add_readers=[created_group.name],
     )
 
     new_product = await product.read_by_name(
@@ -159,7 +163,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
     assert new_product.owner.name == new_user.name
     assert new_product.version != existing_version
     assert new_product.replaces.id == created_full_product.id
-
+    assert created_group.name in new_product.readers
     # try to read old version
     metadata = await product.read_by_name(
         name=created_full_product.name, version=existing_version, user=created_user
@@ -170,6 +174,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
     assert metadata.description == created_full_product.description
     assert metadata.owner.name == created_full_product.owner.name
     assert metadata.version == existing_version
+    assert created_group.name not in metadata.readers
 
     with pytest.raises(versioning.VersioningError):
         await product.update_metadata(
@@ -205,6 +210,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
 
     new_product_created, uploads = await product.update(
         created_full_product,
+        created_user,
         None,
         "Updated version of the created_full_product",
         None,
@@ -254,6 +260,7 @@ async def test_update_sources_failure_modes(
     with pytest.raises(FileExistsError):
         await product.update(
             await product.walk_to_current(created_full_product, user=created_user),
+            created_user,
             None,
             None,
             None,
@@ -274,6 +281,7 @@ async def test_update_sources_failure_modes(
     with pytest.raises(FileNotFoundError):
         await product.update(
             await product.walk_to_current(created_full_product, user=created_user),
+            created_user,
             None,
             None,
             None,
@@ -294,6 +302,7 @@ async def test_update_sources_failure_modes(
     with pytest.raises(FileNotFoundError):
         await product.update(
             await product.walk_to_current(created_full_product, user=created_user),
+            created_user,
             None,
             None,
             None,
@@ -439,6 +448,7 @@ async def test_product_middle_deletion(database, created_user, storage):
 
     middle, uploads = await product.update(
         initial,
+        created_user,
         None,
         None,
         None,
@@ -468,6 +478,7 @@ async def test_product_middle_deletion(database, created_user, storage):
 
     final, _ = await product.update(
         middle,
+        created_user,
         None,
         None,
         None,

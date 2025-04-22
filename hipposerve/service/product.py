@@ -24,6 +24,7 @@ from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
 from hipposerve.service.auth import (
     check_product_read_access,
+    check_product_write_access,
 )
 from hipposerve.storage import Storage
 
@@ -302,6 +303,10 @@ async def update_metadata(
     metadata: ALL_METADATA_TYPE | None,
     owner: User | None,
     level: versioning.VersionRevision,
+    add_readers: list[str] | None = None,
+    remove_readers: list[str] | None = None,
+    add_writers: list[str] | None = None,
+    remove_writers: list[str] | None = None,
 ) -> Product:
     """
     Update only the metadata of a product. Note that you can call this with all
@@ -314,9 +319,21 @@ async def update_metadata(
             "Attempting to update a non-current product. You must always "
             "make changes to the head of the list"
         )
-
+    readers = product.readers.copy()
+    writers = product.writers.copy()
     # We don't actually 'update' the database; we actually create a new
     # product and link it in.
+    if owner is not None:
+        writers.remove(product.owner.name)
+        writers.append(owner.name)
+    if add_readers is not None:
+        readers.extend(add_readers)
+    if remove_readers is not None:
+        readers = [x for x in readers if x not in remove_readers]
+    if add_writers is not None:
+        writers.extend(add_writers)
+    if remove_writers is not None:
+        writers = [x for x in writers if x not in remove_writers]
 
     new = Product(
         name=product.name if name is None else name,
@@ -344,6 +361,8 @@ async def update_metadata(
             if p
             in [CollectionPolicy.ALL, CollectionPolicy.NEW, CollectionPolicy.CURRENT]
         ],
+        readers=readers,
+        writers=writers,
     )
 
     # Need to perform a small number of modifications on the original
@@ -426,6 +445,7 @@ async def update_sources(
 
 async def update(
     product: Product,
+    access_user: User,
     name: str | None,
     description: str | None,
     metadata: ALL_METADATA_TYPE | None,
@@ -435,7 +455,12 @@ async def update(
     drop_sources: list[str],
     storage: Storage,
     level: versioning.VersionRevision,
+    add_readers: list[str] | None = None,
+    remove_readers: list[str] | None = None,
+    add_writers: list[str] | None = None,
+    remove_writers: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
+    await check_product_write_access(user=access_user, target_product=product)
     new_product = await update_metadata(
         product=product,
         name=name,
@@ -443,6 +468,10 @@ async def update(
         metadata=metadata,
         owner=owner,
         level=level,
+        add_readers=add_readers,
+        remove_readers=remove_readers,
+        add_writers=add_writers,
+        remove_writers=remove_writers,
     )
 
     # For some reason:
@@ -452,7 +481,9 @@ async def update(
     #    or .fetch() fails silently.
     # So we just re-fetch our object from the database.
 
-    new_product = await read_by_id(new_product.id, new_product.owner)
+    new_product = await read_by_id(
+        new_product.id, new_product.owner
+    )  # who should read this product?
 
     if any([len(new_sources) > 0, len(replace_sources) > 0, len(drop_sources) > 0]):
         try:

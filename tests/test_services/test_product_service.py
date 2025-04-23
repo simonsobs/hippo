@@ -136,12 +136,10 @@ async def test_add_to_collection(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_update_metadata(
-    created_full_product, database, storage, created_user, created_group
-):
+async def test_update_metadata(created_full_product, database, storage, created_user):
     new_user = await users.create(
         name="new_user",
-        privileges=[users.Privilege.LIST_PRODUCT],
+        privileges=[users.Privilege.READ_PRODUCT, users.Privilege.UPDATE_PRODUCT],
         password="password",
         hasher=PasswordHash([Argon2Hasher()]),
         email=None,
@@ -164,7 +162,6 @@ async def test_update_metadata(
         replace_sources=[],
         drop_sources=[],
         storage=storage,
-        add_readers=[created_group.name],
     )
 
     new_product = await product.read_by_name(
@@ -176,7 +173,6 @@ async def test_update_metadata(
     assert new_product.owner.name == new_user.name
     assert new_product.version != existing_version
     assert new_product.replaces.id == created_full_product.id
-    assert created_group.name in new_product.readers
     # try to read old version
     metadata = await product.read_by_name(
         name=created_full_product.name, version=existing_version, user=created_user
@@ -187,7 +183,6 @@ async def test_update_metadata(
     assert metadata.description == created_full_product.description
     assert metadata.owner.name == created_full_product.owner.name
     assert metadata.version == existing_version
-    assert created_group.name not in metadata.readers
 
     with pytest.raises(versioning.VersioningError):
         await product.update_metadata(
@@ -197,6 +192,59 @@ async def test_update_metadata(
     assert new_product.current
     await product.delete_one(new_product, storage=storage, data=True)
     await users.delete(new_user.name)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_product_groups(
+    created_full_product, database, storage, created_user, created_group
+):
+    created_full_product = await product.walk_to_current(
+        product=created_full_product, user=created_user
+    )
+    assert created_full_product.current
+    await product.update(
+        created_full_product,
+        created_user,
+        name=None,
+        description=None,
+        owner=None,
+        metadata={"metadata_type": "simple"},
+        level=versioning.VersionRevision.MAJOR,
+        new_sources=[],
+        replace_sources=[],
+        drop_sources=[],
+        storage=storage,
+        add_readers=[created_group.name],
+    )
+    updated_product = await product.read_by_name(
+        name=created_full_product.name, version=None, user=created_user
+    )
+    assert created_group.name in updated_product.readers
+
+    created_full_product = await product.walk_to_current(
+        product=created_full_product, user=created_user
+    )
+    assert created_full_product.current
+    await product.update(
+        created_full_product,
+        created_user,
+        name=None,
+        description=None,
+        owner=None,
+        metadata={"metadata_type": "simple"},
+        level=versioning.VersionRevision.MAJOR,
+        new_sources=[],
+        replace_sources=[],
+        drop_sources=[],
+        storage=storage,
+        remove_readers=[created_group.name],
+    )
+    updated_product = await product.read_by_name(
+        name=created_full_product.name, version=None, user=created_user
+    )
+    assert created_group.name not in updated_product.readers
+
+    await product.delete_one(updated_product, storage=storage, data=True)
 
 
 @pytest.mark.asyncio(loop_scope="session")

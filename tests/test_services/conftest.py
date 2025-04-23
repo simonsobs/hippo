@@ -113,7 +113,7 @@ async def created_full_product(database, storage, created_user):
 
     assert await product.confirm(data, storage)
 
-    yield await product.read_by_id(data.id)
+    yield await product.read_by_id(data.id, created_user)
 
     # Go get it again just in case someone mutated, revved, etc.
     data = await product.read_by_name(name=data.name, version=None, user=created_user)

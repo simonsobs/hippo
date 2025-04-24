@@ -9,7 +9,8 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from loguru import logger
 
-from hipposerve.service import groups, product, users
+from hipposerve.database import Product
+from hipposerve.service import groups, users
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 
@@ -42,9 +43,7 @@ async def check_group_for_privilege(
     )
 
 
-async def check_product_read_access(
-    user: users.User, target_product: product.Product
-) -> None:
+async def check_product_read_access(user: users.User, target_product: Product) -> None:
     product_groups = target_product.readers + target_product.writers
     for group in user.groups:
         if (
@@ -59,9 +58,7 @@ async def check_product_read_access(
     )
 
 
-async def check_product_write_access(
-    user: users.User, target_product: product.Product
-) -> None:
+async def check_product_write_access(user: users.User, target_product: Product) -> None:
     product_groups = target_product.writers
     for group in user.groups:
         if (

@@ -158,7 +158,7 @@ async def add_product_to_collection(
         )
 
     try:
-        item = await product.read_by_id(id=product_id)
+        item = await product.read_by_id(id=product_id, user=calling_user)
         await product.add_collection(product=item, collection=coll)
         logger.info("Successfully added {} to collection {}", item.name, coll.name)
     except product.ProductNotFound:
@@ -194,7 +194,7 @@ async def remove_product_from_collection(
         )
 
     try:
-        item = await product.read_by_id(id=product_id)
+        item = await product.read_by_id(id=product_id, user=calling_user)
         await product.remove_collection(product=item, collection=coll)
         logger.info("Successfully removed {} from collection {}", item.name, coll.name)
     except product.ProductNotFound:
@@ -252,8 +252,8 @@ async def add_child_product(
     await check_group_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
 
     try:
-        source = await product.read_by_id(id=parent_id)
-        destination = await product.read_by_id(id=child_id)
+        source = await product.read_by_id(id=parent_id, user=calling_user)
+        destination = await product.read_by_id(id=child_id, user=calling_user)
         await product.add_relationship(
             source=source,
             destination=destination,
@@ -288,8 +288,8 @@ async def remove_child_product(
     await check_group_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
 
     try:
-        source = await product.read_by_id(id=parent_id)
-        destination = await product.read_by_id(id=child_id)
+        source = await product.read_by_id(id=parent_id, user=calling_user)
+        destination = await product.read_by_id(id=child_id, user=calling_user)
         await product.remove_relationship(
             source=source,
             destination=destination,

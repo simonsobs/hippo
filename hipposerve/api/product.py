@@ -80,7 +80,7 @@ async def complete_product(
     await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -117,7 +117,7 @@ async def read_product(
     await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
-        item = (await product.read_by_id(id)).to_metadata()
+        item = (await product.read_by_id(id, calling_user)).to_metadata()
 
         response = ReadProductResponse(
             current_present=item.current,
@@ -153,8 +153,8 @@ async def read_tree(
     await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
-        requested_item = await product.read_by_id(id)
-        current_item = await product.walk_to_current(requested_item)
+        requested_item = await product.read_by_id(id, calling_user)
+        current_item = await product.walk_to_current(requested_item, calling_user)
         history = await product.walk_history(current_item)
 
         if not current_item.current:
@@ -197,7 +197,7 @@ async def read_files(
     await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -236,7 +236,7 @@ async def update_product(
     await check_group_for_privilege(calling_user, Privilege.UPDATE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -254,6 +254,7 @@ async def update_product(
 
     new_product, upload_urls = await product.update(
         item,
+        calling_user,
         name=model.name,
         description=model.description,
         metadata=model.metadata,
@@ -295,7 +296,7 @@ async def confirm_product(
     await check_group_for_privilege(calling_user, Privilege.CONFIRM_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
         success = await product.confirm(
             product=item,
             storage=request.app.storage,
@@ -330,7 +331,7 @@ async def delete_product(
     await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
@@ -367,7 +368,7 @@ async def delete_tree(
     await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."

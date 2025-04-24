@@ -339,6 +339,7 @@ async def delete_product(
 
     await product.delete_one(
         item,
+        access_user=calling_user,
         storage=request.app.storage,
         data=data,
     )
@@ -376,6 +377,7 @@ async def delete_tree(
 
     await product.delete_tree(
         item,
+        access_user=calling_user,
         storage=request.app.storage,
         data=data,
     )

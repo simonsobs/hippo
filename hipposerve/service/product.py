@@ -525,7 +525,9 @@ async def update(
             )
         except Exception as e:
             # Need to roll-back our new product. Full transactions when?
-            await delete_one(new_product, storage=storage, data=False)
+            await delete_one(
+                new_product, new_product.owner, storage=storage, data=False
+            )
             raise e
     else:
         presigned = {}
@@ -535,6 +537,7 @@ async def update(
 
 async def delete_one(
     product: Product,
+    access_user: User,
     storage: Storage,
     data: bool = False,
 ):
@@ -543,7 +546,7 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-
+    await check_product_write_access(user=access_user, target_product=product)
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -591,6 +594,7 @@ async def delete_one(
 
 async def delete_tree(
     product: Product,
+    access_user: User,
     storage: Storage,
     data: bool = False,
 ):
@@ -598,7 +602,7 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-
+    await check_product_write_access(user=access_user, target_product=product)
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -634,11 +638,12 @@ async def delete_tree(
 async def add_relationship(
     source: Product,
     destination: Product,
+    access_user: User,
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = source.child_of + [destination]
-
+    await check_product_write_access(user=access_user, target_product=source)
     await source.save()
 
     return
@@ -647,27 +652,30 @@ async def add_relationship(
 async def remove_relationship(
     source: Product,
     destination: Product,
+    access_user: User,
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-
+    await check_product_write_access(user=access_user, target_product=source)
     await source.save()
 
     return
 
 
-async def add_collection(product: Product, collection: Collection):
+async def add_collection(product: Product, access_user: User, collection: Collection):
     product.collections = product.collections + [collection]
-
+    await check_product_write_access(user=access_user, target_product=product)
     await product.save()
 
     return
 
 
-async def remove_collection(product: Product, collection: Collection):
+async def remove_collection(
+    product: Product, access_user: User, collection: Collection
+):
     product.collections = [c for c in product.collections if c.id != collection.id]
-
+    await check_product_write_access(user=access_user, target_product=product)
     await product.save()
 
     return product

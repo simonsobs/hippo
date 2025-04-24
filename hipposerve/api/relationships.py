@@ -159,7 +159,9 @@ async def add_product_to_collection(
 
     try:
         item = await product.read_by_id(id=product_id, user=calling_user)
-        await product.add_collection(product=item, collection=coll)
+        await product.add_collection(
+            product=item, access_user=calling_user, collection=coll
+        )
         logger.info("Successfully added {} to collection {}", item.name, coll.name)
     except product.ProductNotFound:
         raise HTTPException(
@@ -195,7 +197,9 @@ async def remove_product_from_collection(
 
     try:
         item = await product.read_by_id(id=product_id, user=calling_user)
-        await product.remove_collection(product=item, collection=coll)
+        await product.remove_collection(
+            product=item, access_user=calling_user, collection=coll
+        )
         logger.info("Successfully removed {} from collection {}", item.name, coll.name)
     except product.ProductNotFound:
         raise HTTPException(
@@ -257,6 +261,7 @@ async def add_child_product(
         await product.add_relationship(
             source=source,
             destination=destination,
+            access_user=calling_user,
             type="child",
         )
         logger.info(
@@ -293,6 +298,7 @@ async def remove_child_product(
         await product.remove_relationship(
             source=source,
             destination=destination,
+            access_user=calling_user,
             type="child",
         )
         logger.info(

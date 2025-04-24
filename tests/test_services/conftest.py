@@ -118,7 +118,7 @@ async def created_full_product(database, storage, created_user):
     # Go get it again just in case someone mutated, revved, etc.
     data = await product.read_by_name(name=data.name, version=None, user=created_user)
 
-    await product.delete_tree(data, storage=storage, data=True)
+    await product.delete_tree(data, created_user, storage=storage, data=True)
 
 
 @pytest_asyncio.fixture(scope="session")

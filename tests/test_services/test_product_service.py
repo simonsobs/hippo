@@ -87,7 +87,7 @@ async def test_create_file_with_multiple_sources(database, created_user, storage
 
     assert await product.confirm(created_product, storage=storage)
 
-    await product.delete_one(created_product, storage=storage, data=True)
+    await product.delete_one(created_product, created_user, storage=storage, data=True)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -118,6 +118,7 @@ async def test_add_to_collection(
 ):
     await product.add_collection(
         product=created_full_product,
+        access_user=created_user,
         collection=created_collection,
     )
 
@@ -127,6 +128,7 @@ async def test_add_to_collection(
 
     await product.remove_collection(
         product=selected_product,
+        access_user=created_user,
         collection=created_collection,
     )
 
@@ -190,7 +192,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
         )
 
     assert new_product.current
-    await product.delete_one(new_product, storage=storage, data=True)
+    await product.delete_one(new_product, new_product.owner, storage=storage, data=True)
     await users.delete(new_user.name)
 
 
@@ -244,7 +246,9 @@ async def test_update_product_groups(
     )
     assert created_group.name not in updated_product.readers
 
-    await product.delete_one(updated_product, storage=storage, data=True)
+    await product.delete_one(
+        updated_product, updated_product.owner, storage=storage, data=True
+    )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -429,6 +433,7 @@ async def test_read_most_recent_products(database, created_user, storage):
             product=await product.read_by_name(
                 name=f"product_{i}", version=None, user=created_user
             ),
+            access_user=created_user,
             storage=storage,
             data=True,
         )
@@ -463,6 +468,7 @@ async def test_add_relationships(database, created_user, created_full_product, s
     await product.add_relationship(
         source=secondary_product,
         destination=created_full_product,
+        access_user=created_user,
         type="child",
     )
 
@@ -482,6 +488,7 @@ async def test_add_relationships(database, created_user, created_full_product, s
     await product.remove_relationship(
         source=secondary_product,
         destination=created_full_product,
+        access_user=created_user,
         type="child",
     )
 
@@ -495,6 +502,7 @@ async def test_add_relationships(database, created_user, created_full_product, s
         product=await product.read_by_name(
             name=secondary_product.name, version=None, user=created_user
         ),
+        access_user=created_user,
         storage=storage,
         data=True,
     )
@@ -566,9 +574,11 @@ async def test_product_middle_deletion(database, created_user, storage):
     )
 
     with pytest.raises(versioning.VersioningError):
-        await product.delete_tree(product=middle, storage=storage, data=False)
+        await product.delete_tree(
+            product=middle, access_user=created_user, storage=storage, data=False
+        )
 
-    await product.delete_one(middle, storage, data=True)
+    await product.delete_one(middle, created_user, storage, data=True)
 
     # Refresh them from the database to give this the best chance
     initial = await product.read_by_id(initial.id, created_user)
@@ -619,5 +629,5 @@ async def test_text_name_search(database, created_user, storage):
 
     # Clean up.
 
-    await product.delete_one(product_A, storage=storage, data=True)
-    await product.delete_one(product_B, storage=storage, data=True)
+    await product.delete_one(product_A, created_user, storage=storage, data=True)
+    await product.delete_one(product_B, created_user, storage=storage, data=True)

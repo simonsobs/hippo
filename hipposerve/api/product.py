@@ -50,6 +50,8 @@ async def create_product(
         sources=model.sources,
         user=calling_user,
         storage=request.app.storage,
+        product_readers=model.product_readers,
+        product_writers=model.product_writers,
         mutlipart_size=model.multipart_batch_size,
     )
 
@@ -264,6 +266,10 @@ async def update_product(
         drop_sources=model.drop_sources,
         storage=request.app.storage,
         level=model.level,
+        add_readers=model.add_readers,
+        remove_readers=model.remove_readers,
+        add_writers=model.add_writers,
+        remove_writers=model.remove_writers,
     )
 
     logger.info(

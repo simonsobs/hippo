@@ -157,13 +157,13 @@ class ProductMetadata(BaseModel):
 class ProtectedDocument(Document):
     readers: list[str] = Field(default_factory=list)
     writers: list[str] = Field(default_factory=lambda: ["admin"])
+    owner: Link[User]
 
 
 class Product(ProtectedDocument, ProductMetadata):
     name: Indexed(str, pymongo.TEXT)
 
     sources: list[File]
-    owner: Link[User]
 
     replaces: Link["Product"] | None = None
 
@@ -209,7 +209,7 @@ class CollectionMetadata(BaseModel):
     parent_collections: list[PydanticObjectId]
 
 
-class Collection(Document, CollectionMetadata):
+class Collection(ProtectedDocument, CollectionMetadata):
     # TODO: Implement updated time for collections.
 
     name: Indexed(str, pymongo.TEXT)

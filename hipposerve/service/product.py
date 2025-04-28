@@ -353,7 +353,6 @@ async def update_metadata(
     # We don't actually 'update' the database; we actually create a new
     # product and link it in.
     if owner is not None:
-        writers.remove(product.owner.name)
         writers.append(owner.name)
     if add_readers is not None:
         readers.extend(add_readers)

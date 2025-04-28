@@ -122,7 +122,7 @@ async def created_full_product(database, storage, created_user):
 
 
 @pytest_asyncio.fixture(scope="session")
-async def created_collection(database):
+async def created_collection(database, created_user):
     from hipposerve.service import collection
 
     COLLECTION_NAME = "My Favourite Collection"
@@ -130,6 +130,7 @@ async def created_collection(database):
 
     data = await collection.create(
         name=COLLECTION_NAME,
+        user=created_user,
         description=COLLECTION_DESCRIPTION,
     )
 
@@ -137,4 +138,5 @@ async def created_collection(database):
 
     await collection.delete(
         id=data.id,
+        user=created_user,
     )

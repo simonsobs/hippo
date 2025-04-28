@@ -35,7 +35,9 @@ async def create_collection(
 
     # TODO: What to do if collection exists?
     # TODO: Collections should have a 'manager' who can change their properties.
-    coll = await collection.create(name=name, description=model.description)
+    coll = await collection.create(
+        name=name, user=calling_user, description=model.description
+    )
 
     logger.info("Collection {} ({}) created for {}", coll.id, name, calling_user.name)
 
@@ -57,7 +59,7 @@ async def read_collection(
     await check_group_for_privilege(calling_user, Privilege.READ_COLLECTION)
 
     try:
-        item = await collection.read(id=id)
+        item = await collection.read(id=id, user=calling_user)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -114,7 +116,7 @@ async def search_collection(
 
     await check_group_for_privilege(calling_user, Privilege.READ_COLLECTION)
 
-    results = await collection.search_by_name(name=name)
+    results = await collection.search_by_name(name=name, user=calling_user)
 
     logger.info(
         "Found {} collections for {} from {}", len(results), name, calling_user.name
@@ -151,7 +153,7 @@ async def add_product_to_collection(
     await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
 
     try:
-        coll = await collection.read(id=collection_id)
+        coll = await collection.read(id=collection_id, user=calling_user)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -189,7 +191,7 @@ async def remove_product_from_collection(
     await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
 
     try:
-        coll = await collection.read(id=collection_id)
+        coll = await collection.read(id=collection_id, user=calling_user)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -222,13 +224,15 @@ async def delete_collection(
 
     try:
         # Check if we have a parent; if we do, we need to remove its link to us.
-        coll = await collection.read(id=id)
+        coll = await collection.read(id=id, user=calling_user)
 
         if coll.parent_collections:
             for parent in coll.parent_collections:
-                await collection.remove_child(parent_id=parent.id, child_id=id)
+                await collection.remove_child(
+                    parent_id=parent.id, child_id=id, user=calling_user
+                )
 
-        await collection.delete(id=id)
+        await collection.delete(id=id, user=calling_user)
         logger.info("Successfully deleted collection {} from {}", id, calling_user.name)
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -330,7 +334,9 @@ async def add_child_collection(
     await check_group_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
 
     try:
-        await collection.add_child(parent_id=parent_id, child_id=child_id)
+        await collection.add_child(
+            parent_id=parent_id, child_id=child_id, user=calling_user
+        )
         logger.info("Successfully added {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -358,7 +364,9 @@ async def remove_child_collection(
     await check_group_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
 
     try:
-        await collection.remove_child(parent_id=parent_id, child_id=child_id)
+        await collection.remove_child(
+            parent_id=parent_id, child_id=child_id, user=calling_user
+        )
         logger.info("Successfully removed {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
         raise HTTPException(

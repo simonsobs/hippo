@@ -27,10 +27,21 @@ async def test_update(created_collection, created_user):
         access_user=created_user,
         owner=None,
         description="New description",
+        add_readers=["Reader 1"],
     )
 
     assert updated.name == created_collection.name
     assert updated.description == "New description"
+    assert "Reader 1" in updated.readers
+
+    updated = await collection.update(
+        id=created_collection.id,
+        access_user=created_user,
+        owner=None,
+        description=None,
+        add_writers=["Writer 1"],
+    )
+    assert "Writer 1" in updated.writers
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -12,6 +12,7 @@ from hipposerve.database import Collection, User
 from hipposerve.service.auth import (
     check_collection_read_access,
     check_collection_write_access,
+    check_product_read_access,
 )
 
 
@@ -53,6 +54,9 @@ async def read(
     if collection is None:
         raise CollectionNotFound
     await check_collection_read_access(user, collection)
+    if collection.products:
+        collection_list = await collection_product_filter(user, [collection])
+        collection = collection_list[0]
     return collection
 
 
@@ -66,8 +70,11 @@ async def read_most_recent(
     access_query = {
         "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
     }
-
-    return await Collection.find(access_query, fetch_links=fetch_links).to_list(maximum)
+    collection_list = await Collection.find(
+        access_query, fetch_links=fetch_links
+    ).to_list(maximum)
+    filtered_collection_list = await collection_product_filter(user, collection_list)
+    return filtered_collection_list
 
 
 async def search_by_name(
@@ -86,7 +93,8 @@ async def search_by_name(
         .to_list()
     )
 
-    return results
+    filtered_collection_list = await collection_product_filter(user, results)
+    return filtered_collection_list
 
 
 async def update(
@@ -167,3 +175,19 @@ async def delete(
     await collection.delete()
 
     return
+
+
+async def collection_product_filter(
+    user: User,
+    collection_list: list[Collection],
+) -> list[Collection]:
+    filtered_collection_list = []
+    for collection in collection_list:
+        if collection.products:
+            product_list = []
+            for product in collection.products:
+                await check_product_read_access(user, product)
+                product_list.append(product)
+            collection.products = product_list
+        filtered_collection_list.append(collection)
+    return filtered_collection_list

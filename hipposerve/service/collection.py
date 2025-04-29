@@ -7,6 +7,7 @@ the product service.
 
 from beanie import PydanticObjectId
 from beanie.operators import Text
+from fastapi import HTTPException
 
 from hipposerve.database import Collection, User
 from hipposerve.service.auth import (
@@ -186,8 +187,11 @@ async def collection_product_filter(
         if collection.products:
             product_list = []
             for product in collection.products:
-                await check_product_read_access(user, product)
-                product_list.append(product)
+                try:
+                    await check_product_read_access(user, product)
+                    product_list.append(product)
+                except HTTPException:
+                    continue
             collection.products = product_list
         filtered_collection_list.append(collection)
     return filtered_collection_list

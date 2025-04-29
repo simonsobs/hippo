@@ -621,7 +621,7 @@ async def test_text_name_search(database, created_user, storage):
 
     # Search for them
 
-    results = await product.search_by_name("my favorite")
+    results = await product.search_by_name("my favorite", created_user)
 
     assert len(results) == 2
 

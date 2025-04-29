@@ -9,6 +9,10 @@ from beanie import PydanticObjectId
 from beanie.operators import Text
 
 from hipposerve.database import Collection, User
+from hipposerve.service.auth import (
+    check_collection_read_access,
+    check_collection_write_access,
+)
 
 
 class CollectionNotFound(Exception):
@@ -48,7 +52,7 @@ async def read(
 
     if collection is None:
         raise CollectionNotFound
-
+    await check_collection_read_access(user, collection)
     return collection
 
 
@@ -58,7 +62,12 @@ async def read_most_recent(
     maximum: int = 16,
 ) -> list[Collection]:
     # TODO: Implement updated time for collections.
-    return await Collection.find(fetch_links=fetch_links).to_list(maximum)
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
+
+    return await Collection.find(access_query, fetch_links=fetch_links).to_list(maximum)
 
 
 async def search_by_name(
@@ -67,9 +76,12 @@ async def search_by_name(
     """
     Search for Collections by name using the text index.
     """
-
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
     results = (
-        await Collection.find(Text(name), fetch_links=fetch_links)  # noqa: E712
+        await Collection.find(access_query, Text(name), fetch_links=fetch_links)  # noqa: E712
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
@@ -88,7 +100,7 @@ async def update(
     remove_writers: list[str] | None = None,
 ):
     collection = await read(id=id, user=access_user)
-
+    await check_collection_write_access(access_user, collection)
     readers = collection.readers.copy()
     writers = collection.writers.copy()
     # We don't actually 'update' the database; we actually create a new
@@ -121,7 +133,7 @@ async def add_child(
 ) -> Collection:
     parent = await read(id=parent_id, user=user)
     child = await read(id=child_id, user=user)
-
+    await check_collection_write_access(user, parent)
     parent.child_collections.append(child)
     await parent.save()
 
@@ -134,7 +146,7 @@ async def remove_child(
     user: User,
 ) -> Collection:
     parent = await read(id=parent_id, user=user)
-
+    await check_collection_write_access(user, parent)
     await parent.set(
         {
             Collection.child_collections: [
@@ -151,7 +163,7 @@ async def delete(
     user: User,
 ):
     collection = await read(id=id, user=user)
-
+    await check_collection_write_access(user, collection)
     await collection.delete()
 
     return

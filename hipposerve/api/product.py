@@ -411,7 +411,7 @@ async def search(
 
     await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
-    items = await product.search_by_name(name=text)
+    items = await product.search_by_name(name=text, user=calling_user)
 
     logger.info(
         "Successfully found {} product(s) matching {} requested by {}",

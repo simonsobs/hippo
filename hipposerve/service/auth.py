@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from loguru import logger
 
-from hipposerve.database import Product
+from hipposerve.database import Collection, Product
 from hipposerve.service import groups, users
 
 api_key_header = APIKeyHeader(name="X-API-Key")
@@ -70,4 +70,38 @@ async def check_product_write_access(user: users.User, target_product: Product) 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Insufficient privileges for product access",
+    )
+
+
+async def check_collection_read_access(
+    user: users.User, target_collection: Collection
+) -> None:
+    collection_groups = target_collection.readers + target_collection.writers
+    for group in user.groups:
+        if (
+            group.name in collection_groups
+            and groups.Privilege.READ_COLLECTION in group.access_controls
+        ):
+            return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Insufficient privileges for collection access",
+    )
+
+
+async def check_collection_write_access(
+    user: users.User, target_collection: Collection
+) -> None:
+    collection_groups = target_collection.writers
+    for group in user.groups:
+        if (
+            group.name in collection_groups
+            and groups.Privilege.UPDATE_COLLECTION in group.access_controls
+        ):
+            return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Insufficient privileges for collection access",
     )

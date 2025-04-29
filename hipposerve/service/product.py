@@ -182,13 +182,23 @@ async def read_by_id(id: PydanticObjectId, user: User) -> Product:
     return potential
 
 
-async def search_by_name(name: str, fetch_links: bool = True) -> list[Product]:
+async def search_by_name(
+    name: str, user: User, fetch_links: bool = True
+) -> list[Product]:
     """
     Search for products by name using the text index.
     """
-
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
     results = (
-        await Product.find(Text(name), Product.current == True, fetch_links=fetch_links)  # noqa: E712
+        await Product.find(
+            access_query,
+            Text(name),
+            Product.current == True,  # noqa: E712
+            fetch_links=fetch_links,
+        )
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
@@ -197,17 +207,20 @@ async def search_by_name(name: str, fetch_links: bool = True) -> list[Product]:
 
 
 async def search_by_metadata(
-    metadata_filters: dict[str, Any], fetch_links: bool = True
+    metadata_filters: dict[str, Any], user: User, fetch_links: bool = True
 ) -> list[Product]:
     """
     Search for products by metadata.
     """
-
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
     # Construct the query by embedding metadata field names and values
     query = {f"metadata.{key}": value for key, value in metadata_filters.items()}
 
     # Execute the query
-    results = await Product.find(query, fetch_links=fetch_links).to_list()
+    results = await Product.find(access_query, query, fetch_links=fetch_links).to_list()
     return results
 
 

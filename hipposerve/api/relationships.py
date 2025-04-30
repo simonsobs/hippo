@@ -11,6 +11,7 @@ from hipposerve.api.models.relationships import (
     ReadCollectionCollectionResponse,
     ReadCollectionProductResponse,
     ReadCollectionResponse,
+    UpdateCollectionRequest,
 )
 from hipposerve.database import Privilege
 from hipposerve.service import collection, product
@@ -36,7 +37,11 @@ async def create_collection(
     # TODO: What to do if collection exists?
     # TODO: Collections should have a 'manager' who can change their properties.
     coll = await collection.create(
-        name=name, user=calling_user, description=model.description
+        name=name,
+        user=calling_user,
+        description=model.description,
+        collection_readers=model.readers,
+        collection_writers=model.writers,
     )
 
     logger.info("Collection {} ({}) created for {}", coll.id, name, calling_user.name)
@@ -69,6 +74,9 @@ async def read_collection(
         id=item.id,
         name=item.name,
         description=item.description,
+        owner=item.owner.name,
+        readers=item.readers,
+        writers=item.writers,
         products=[
             ReadCollectionProductResponse(
                 id=x.id,
@@ -86,6 +94,9 @@ async def read_collection(
                 id=x.id,
                 name=x.name,
                 description=x.description,
+                owner=x.owner.name,
+                readers=x.readers,
+                writers=x.writers,
             )
             for x in item.child_collections
         ],
@@ -94,6 +105,9 @@ async def read_collection(
                 id=x.id,
                 name=x.name,
                 description=x.description,
+                owner=x.owner.name,
+                readers=x.readers,
+                writers=x.writers,
             )
             for x in item.parent_collections
         ],
@@ -127,6 +141,9 @@ async def search_collection(
             id=item.id,
             name=item.name,
             description=item.description,
+            owner=item.owner.name,
+            readers=item.readers,
+            writers=item.writers,
             products=None,
         )
         for item in results
@@ -207,6 +224,28 @@ async def remove_product_from_collection(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
         )
+
+
+@relationship_router.post("/collection/{id}")
+async def update_collection(
+    id: PydanticObjectId,
+    model: UpdateCollectionRequest,
+    calling_user: UserDependency,
+) -> PydanticObjectId:
+    logger.info("Request to update collection: {} from {}", id, calling_user.name)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
+    coll = await collection.update(
+        id=id,
+        access_user=calling_user,
+        owner=model.owner,
+        description=model.description,
+        add_readers=model.add_readers,
+        remove_readers=model.remove_readers,
+        add_writers=model.add_writers,
+        remove_writers=model.remove_writers,
+    )
+    logger.info("Successfully updated collection {} from {}", id, calling_user.name)
+    return coll.id
 
 
 @relationship_router.delete("/collection/{id}")

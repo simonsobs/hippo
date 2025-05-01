@@ -23,6 +23,10 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
+from hipposerve.service.auth import (
+    check_product_read_access,
+    check_product_write_access,
+)
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -98,6 +102,8 @@ async def create(
     sources: list[PreUploadFile],
     user: User,
     storage: Storage,
+    product_readers: list[str] | None = None,
+    product_writers: list[str] | None = None,
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[Product, dict[str, list[str]]]:
     presigned, pre_upload_sources = await presign_uploads(
@@ -122,13 +128,21 @@ async def create(
         collections=[],
         collection_policies=[],
     )
+    product_readers = product_readers or []
+    product_writers = product_writers or []
+
+    if product_readers is not None:
+        product.readers.extend(product_readers)
+    if user.name not in product.writers:
+        product_writers.append(user.name)
+    product.writers.extend(product_writers)
 
     await product.create()
 
     return product, presigned
 
 
-async def read_by_name(name: str, version: str | None) -> Product:
+async def read_by_name(name: str, version: str | None, user: User) -> Product:
     """
     If version is None, we grab the latest version of a product.
     """
@@ -149,10 +163,12 @@ async def read_by_name(name: str, version: str | None) -> Product:
     if potential is None:
         raise ProductNotFound
 
+    await check_product_read_access(user=user, target_product=potential)
+
     return potential
 
 
-async def read_by_id(id: PydanticObjectId) -> Product:
+async def read_by_id(id: PydanticObjectId, user: User) -> Product:
     try:
         potential = await Product.get(document_id=id, **LINK_POLICY)
     except (InvalidId, ValidationError):
@@ -161,16 +177,28 @@ async def read_by_id(id: PydanticObjectId) -> Product:
     if potential is None:
         raise ProductNotFound
 
+    await check_product_read_access(user=user, target_product=potential)
+
     return potential
 
 
-async def search_by_name(name: str, fetch_links: bool = True) -> list[Product]:
+async def search_by_name(
+    name: str, user: User, fetch_links: bool = True
+) -> list[Product]:
     """
     Search for products by name using the text index.
     """
-
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
     results = (
-        await Product.find(Text(name), Product.current == True, fetch_links=fetch_links)  # noqa: E712
+        await Product.find(
+            access_query,
+            Text(name),
+            Product.current == True,  # noqa: E712
+            fetch_links=fetch_links,
+        )
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
@@ -179,17 +207,20 @@ async def search_by_name(name: str, fetch_links: bool = True) -> list[Product]:
 
 
 async def search_by_metadata(
-    metadata_filters: dict[str, Any], fetch_links: bool = True
+    metadata_filters: dict[str, Any], user: User, fetch_links: bool = True
 ) -> list[Product]:
     """
     Search for products by metadata.
     """
-
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
     # Construct the query by embedding metadata field names and values
     query = {f"metadata.{key}": value for key, value in metadata_filters.items()}
 
     # Execute the query
-    results = await Product.find(query, fetch_links=fetch_links).to_list()
+    results = await Product.find(access_query, query, fetch_links=fetch_links).to_list()
     return results
 
 
@@ -210,7 +241,7 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     return versions
 
 
-async def walk_to_current(product: Product) -> Product:
+async def walk_to_current(product: Product, user: User) -> Product:
     """
     Walk the list of products until you get to the one
     marked 'current'.
@@ -218,7 +249,7 @@ async def walk_to_current(product: Product) -> Product:
 
     # Re-read the product from the database, in case it
     # is stale!
-    product = await read_by_id(id=product.id)
+    product = await read_by_id(id=product.id, user=user)
 
     while not product.current:
         product = await Product.find_one(
@@ -288,18 +319,22 @@ async def read_files(product: Product, storage: Storage) -> list[PostUploadFile]
 
 
 async def read_most_recent(
-    fetch_links: bool = False, maximum: int = 16, current_only: bool = False
+    user: User, fetch_links: bool = False, maximum: int = 16, current_only: bool = False
 ) -> list[Product]:
-    if current_only:
-        found = Product.find(
-            Product.current == True,  # noqa: E712
-            fetch_links=fetch_links,
-        )
-    else:
-        found = Product.find(
-            fetch_links=fetch_links,
-        )
+    group_names = [group.name for group in user.groups]
+    access_query = {
+        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
+    }
 
+    if current_only:
+        query = {"$and": [{"current": True}, access_query]}
+    else:
+        query = access_query
+
+    found = Product.find(
+        query,
+        fetch_links=fetch_links,
+    )
     return await found.sort(-Product.updated).to_list(maximum)
 
 
@@ -310,6 +345,10 @@ async def update_metadata(
     metadata: ALL_METADATA_TYPE | None,
     owner: User | None,
     level: versioning.VersionRevision,
+    add_readers: list[str] | None = None,
+    remove_readers: list[str] | None = None,
+    add_writers: list[str] | None = None,
+    remove_writers: list[str] | None = None,
 ) -> Product:
     """
     Update only the metadata of a product. Note that you can call this with all
@@ -322,9 +361,20 @@ async def update_metadata(
             "Attempting to update a non-current product. You must always "
             "make changes to the head of the list"
         )
-
+    readers = product.readers.copy()
+    writers = product.writers.copy()
     # We don't actually 'update' the database; we actually create a new
     # product and link it in.
+    if owner is not None:
+        writers.append(owner.name)
+    if add_readers is not None:
+        readers.extend(add_readers)
+    if remove_readers is not None:
+        readers = [x for x in readers if x not in remove_readers]
+    if add_writers is not None:
+        writers.extend(add_writers)
+    if remove_writers is not None:
+        writers = [x for x in writers if x not in remove_writers]
 
     new = Product(
         name=product.name if name is None else name,
@@ -352,6 +402,8 @@ async def update_metadata(
             if p
             in [CollectionPolicy.ALL, CollectionPolicy.NEW, CollectionPolicy.CURRENT]
         ],
+        readers=readers,
+        writers=writers,
     )
 
     # Need to perform a small number of modifications on the original
@@ -434,6 +486,7 @@ async def update_sources(
 
 async def update(
     product: Product,
+    access_user: User,
     name: str | None,
     description: str | None,
     metadata: ALL_METADATA_TYPE | None,
@@ -443,7 +496,12 @@ async def update(
     drop_sources: list[str],
     storage: Storage,
     level: versioning.VersionRevision,
+    add_readers: list[str] | None = None,
+    remove_readers: list[str] | None = None,
+    add_writers: list[str] | None = None,
+    remove_writers: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
+    await check_product_write_access(user=access_user, target_product=product)
     new_product = await update_metadata(
         product=product,
         name=name,
@@ -451,6 +509,10 @@ async def update(
         metadata=metadata,
         owner=owner,
         level=level,
+        add_readers=add_readers,
+        remove_readers=remove_readers,
+        add_writers=add_writers,
+        remove_writers=remove_writers,
     )
 
     # For some reason:
@@ -459,7 +521,10 @@ async def update(
     # b) Beanie won't allow fetching specific links on that object. fetch_link()
     #    or .fetch() fails silently.
     # So we just re-fetch our object from the database.
-    new_product = await read_by_id(new_product.id)
+
+    new_product = await read_by_id(
+        new_product.id, new_product.owner
+    )  # who should read this product?
 
     if any([len(new_sources) > 0, len(replace_sources) > 0, len(drop_sources) > 0]):
         try:
@@ -472,7 +537,9 @@ async def update(
             )
         except Exception as e:
             # Need to roll-back our new product. Full transactions when?
-            await delete_one(new_product, storage=storage, data=False)
+            await delete_one(
+                new_product, new_product.owner, storage=storage, data=False
+            )
             raise e
     else:
         presigned = {}
@@ -482,6 +549,7 @@ async def update(
 
 async def delete_one(
     product: Product,
+    access_user: User,
     storage: Storage,
     data: bool = False,
 ):
@@ -490,7 +558,7 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-
+    await check_product_write_access(user=access_user, target_product=product)
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -538,6 +606,7 @@ async def delete_one(
 
 async def delete_tree(
     product: Product,
+    access_user: User,
     storage: Storage,
     data: bool = False,
 ):
@@ -545,7 +614,7 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-
+    await check_product_write_access(user=access_user, target_product=product)
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -581,11 +650,12 @@ async def delete_tree(
 async def add_relationship(
     source: Product,
     destination: Product,
+    access_user: User,
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = source.child_of + [destination]
-
+    await check_product_write_access(user=access_user, target_product=source)
     await source.save()
 
     return
@@ -594,27 +664,30 @@ async def add_relationship(
 async def remove_relationship(
     source: Product,
     destination: Product,
+    access_user: User,
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-
+    await check_product_write_access(user=access_user, target_product=source)
     await source.save()
 
     return
 
 
-async def add_collection(product: Product, collection: Collection):
+async def add_collection(product: Product, access_user: User, collection: Collection):
     product.collections = product.collections + [collection]
-
+    await check_product_write_access(user=access_user, target_product=product)
     await product.save()
 
     return
 
 
-async def remove_collection(product: Product, collection: Collection):
+async def remove_collection(
+    product: Product, access_user: User, collection: Collection
+):
     product.collections = [c for c in product.collections if c.id != collection.id]
-
+    await check_product_write_access(user=access_user, target_product=product)
     await product.save()
 
     return product

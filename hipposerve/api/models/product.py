@@ -15,6 +15,8 @@ class CreateProductRequest(BaseModel):
     description: str
     metadata: ALL_METADATA_TYPE
     sources: list[PreUploadFile]
+    product_readers: list[str] = []
+    product_writers: list[str] = []
     multipart_batch_size: int = 50 * 1024 * 1024
 
 
@@ -49,6 +51,10 @@ class UpdateProductRequest(BaseModel):
     replace_sources: list[PreUploadFile] = []
     drop_sources: list[str] = []
     level: VersionRevision = VersionRevision.MINOR
+    add_readers: list[str] = []
+    remove_readers: list[str] = []
+    add_writers: list[str] = []
+    remove_writers: list[str] = []
 
 
 class UpdateProductResponse(BaseModel):

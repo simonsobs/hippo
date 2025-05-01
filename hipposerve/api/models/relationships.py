@@ -16,6 +16,21 @@ class CreateCollectionRequest(BaseModel):
     """
 
     description: str
+    readers: list[str] | None = None
+    writers: list[str] | None = None
+
+
+class UpdateCollectionRequest(BaseModel):
+    """
+    Request model for updating a collection.
+    """
+
+    description: str | None = None
+    owner: str | None = None
+    add_readers: list[str] | None = None
+    remove_readers: list[str] | None = None
+    add_writers: list[str] | None = None
+    remove_writers: list[str] | None = None
 
 
 class ReadCollectionProductResponse(BaseModel):
@@ -41,6 +56,9 @@ class ReadCollectionCollectionResponse(BaseModel):
     id: PydanticObjectId
     name: str
     description: str
+    owner: str
+    readers: list[str]
+    writers: list[str]
 
 
 class ReadCollectionResponse(BaseModel):
@@ -54,3 +72,6 @@ class ReadCollectionResponse(BaseModel):
     products: list[ReadCollectionProductResponse] | None
     child_collections: list[ReadCollectionCollectionResponse] | None
     parent_collections: list[ReadCollectionCollectionResponse] | None
+    readers: list[str]
+    writers: list[str]
+    owner: str

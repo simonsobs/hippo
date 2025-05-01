@@ -14,6 +14,7 @@ from starlette.datastructures import URL
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from hipposerve.api.groups import groups_router
 from hipposerve.api.product import product_router
 from hipposerve.api.relationships import relationship_router
 from hipposerve.api.users import users_router
@@ -82,6 +83,7 @@ app = FastAPI(
 
 # Routers
 app.include_router(users_router)
+app.include_router(groups_router)
 app.include_router(product_router)
 app.include_router(relationship_router)
 

@@ -37,6 +37,16 @@ class Privilege(Enum):
     READ_USER = "read_user"
     UPDATE_USER = "update_user"
     DELETE_USER = "delete_user"
+    UPDATE_USER_GROUP = "update_user_group"
+
+    # Group management
+    CREATE_GROUP = "create_group"
+    READ_GROUP = "read_group"
+    UPDATE_GROUP = "update_group"
+    DELETE_GROUP = "delete_group"
+
+    # Update Privileges
+    UPDATE_PRIVILEGES = "update_privileges"
 
 
 class CollectionPolicy(Enum):
@@ -59,6 +69,12 @@ class ComplianceInformation(BaseModel):
     nersc_username: str | None
 
 
+class Group(Document):
+    name: str
+    description: str = None
+    access_controls: list[Privilege]
+
+
 class User(Document):
     name: Indexed(str, unique=True)
     hashed_password: str
@@ -69,6 +85,7 @@ class User(Document):
     privileges: list[Privilege]
 
     compliance: ComplianceInformation | None
+    groups: list[Link[Group]] = []
 
 
 class FileMetadata(BaseModel):
@@ -137,11 +154,16 @@ class ProductMetadata(BaseModel):
     collections: list[PydanticObjectId]
 
 
-class Product(Document, ProductMetadata):
+class ProtectedDocument(Document):
+    readers: list[str] = Field(default_factory=list)
+    writers: list[str] = Field(default_factory=lambda: ["admin"])
+    owner: Link[User]
+
+
+class Product(ProtectedDocument, ProductMetadata):
     name: Indexed(str, pymongo.TEXT)
 
     sources: list[File]
-    owner: Link[User]
 
     replaces: Link["Product"] | None = None
 
@@ -187,7 +209,7 @@ class CollectionMetadata(BaseModel):
     parent_collections: list[PydanticObjectId]
 
 
-class Collection(Document, CollectionMetadata):
+class Collection(ProtectedDocument, CollectionMetadata):
     # TODO: Implement updated time for collections.
 
     name: Indexed(str, pymongo.TEXT)
@@ -200,4 +222,4 @@ class Collection(Document, CollectionMetadata):
     )
 
 
-BEANIE_MODELS = [User, File, Product, Collection]
+BEANIE_MODELS = [User, Group, File, Product, Collection]

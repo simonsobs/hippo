@@ -88,6 +88,50 @@ def read(
     return model
 
 
+def add_reader(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/relationships/collection/{id}", json={"add_readers": [user]}
+    )
+    response.raise_for_status()
+    if client.verbose:
+        console.print(f"Successfully added {user} to collection {id} readers.")
+    this_collection_id = response.json()
+    return this_collection_id
+
+
+def remove_reader(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/relationships/collection/{id}", json={"remove_readers": [user]}
+    )
+    response.raise_for_status()
+    if client.verbose:
+        console.print(f"Successfully removed {user} from collection {id} readers.")
+    this_collection_id = response.json()
+    return this_collection_id
+
+
+def add_writer(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/relationships/collection/{id}", json={"add_writers": [user]}
+    )
+    response.raise_for_status()
+    if client.verbose:
+        console.print(f"Successfully added {user} to collection {id} writers.")
+    this_collection_id = response.json()
+    return this_collection_id
+
+
+def remove_writer(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/relationships/collection/{id}", json={"remove_writers": [user]}
+    )
+    response.raise_for_status()
+    if client.verbose:
+        console.print(f"Successfully removed {user} from collection {id} writers.")
+    this_collection_id = response.json()
+    return this_collection_id
+
+
 def search(client: Client, name: str) -> list[ReadCollectionResponse]:
     """
     Search for collections in hippo.

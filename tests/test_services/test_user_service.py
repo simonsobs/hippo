@@ -13,7 +13,10 @@ from hipposerve.service import users
 async def test_read_user(created_user):
     this_user = await users.read(name=created_user.name)
     assert this_user.name == created_user.name
-
+    # ordering of groups are changing between tests when read.
+    assert this_user.groups[0] in created_user.groups
+    assert this_user.groups[1] in created_user.groups
+    assert len(this_user.groups) == len(created_user.groups)
     this_user = await users.read_by_id(id=created_user.id)
     assert this_user.name == created_user.name
 
@@ -43,6 +46,14 @@ async def test_update_user(created_user):
 
     assert this_user.name == created_user.name
     assert this_user.privileges == [users.Privilege.LIST_PRODUCT]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_group(created_user, created_group):
+    this_user = await users.update_groups(created_user, add_group=[created_group])
+    assert created_group in this_user.groups
+    this_user = await users.update_groups(created_user, remove_group=[created_group])
+    assert created_group not in this_user.groups
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -80,11 +91,9 @@ async def test_update_password():
     )
 
     # Check we can validate
-    assert (
-        await users.read_with_password_verification(
-            user.name, "new_password", PasswordHash([Argon2Hasher()])
-        )
-        == user
+    updated_user = await users.read_with_password_verification(
+        user.name, "new_password", PasswordHash([Argon2Hasher()])
     )
+    assert updated_user.id == user.id
 
     await users.delete(name=user.name)

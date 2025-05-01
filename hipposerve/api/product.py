@@ -6,7 +6,6 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_user_for_privilege
 from hipposerve.api.models.product import (
     CompleteProductRequest,
     CreateProductRequest,
@@ -18,6 +17,7 @@ from hipposerve.api.models.product import (
 )
 from hipposerve.database import Privilege, ProductMetadata
 from hipposerve.service import product, users
+from hipposerve.service.auth import UserDependency, check_group_for_privilege
 
 product_router = APIRouter(prefix="/product")
 
@@ -36,7 +36,7 @@ async def create_product(
 
     logger.info("Create product request: {} from {}", model.name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
 
     if await product.exists(name=model.name):
         raise HTTPException(
@@ -50,6 +50,8 @@ async def create_product(
         sources=model.sources,
         user=calling_user,
         storage=request.app.storage,
+        product_readers=model.product_readers,
+        product_writers=model.product_writers,
         mutlipart_size=model.multipart_batch_size,
     )
 
@@ -77,10 +79,10 @@ async def complete_product(
 
     logger.info("Complete product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -114,10 +116,10 @@ async def read_product(
 
     logger.info("Read product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
-        item = (await product.read_by_id(id)).to_metadata()
+        item = (await product.read_by_id(id, calling_user)).to_metadata()
 
         response = ReadProductResponse(
             current_present=item.current,
@@ -150,11 +152,11 @@ async def read_tree(
 
     logger.info("Read product tree request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
-        requested_item = await product.read_by_id(id)
-        current_item = await product.walk_to_current(requested_item)
+        requested_item = await product.read_by_id(id, calling_user)
+        current_item = await product.walk_to_current(requested_item, calling_user)
         history = await product.walk_history(current_item)
 
         if not current_item.current:
@@ -194,10 +196,10 @@ async def read_files(
 
     logger.info("Read files request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -233,10 +235,10 @@ async def update_product(
     logger.info("Update product request for {} from {}", id, calling_user.name)
 
     # For now only privileged users can update products, and they can update everyone's.
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -254,6 +256,7 @@ async def update_product(
 
     new_product, upload_urls = await product.update(
         item,
+        calling_user,
         name=model.name,
         description=model.description,
         metadata=model.metadata,
@@ -263,6 +266,10 @@ async def update_product(
         drop_sources=model.drop_sources,
         storage=request.app.storage,
         level=model.level,
+        add_readers=model.add_readers,
+        remove_readers=model.remove_readers,
+        add_writers=model.add_writers,
+        remove_writers=model.remove_writers,
     )
 
     logger.info(
@@ -292,10 +299,10 @@ async def confirm_product(
 
     logger.info("Confirm product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CONFIRM_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.CONFIRM_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
         success = await product.confirm(
             product=item,
             storage=request.app.storage,
@@ -327,10 +334,10 @@ async def delete_product(
 
     logger.info("Delete (single) product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
@@ -338,6 +345,7 @@ async def delete_product(
 
     await product.delete_one(
         item,
+        access_user=calling_user,
         storage=request.app.storage,
         data=data,
     )
@@ -364,10 +372,10 @@ async def delete_tree(
 
     logger.info("Delete (tree) product request for {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
 
     try:
-        item = await product.read_by_id(id=id)
+        item = await product.read_by_id(id=id, user=calling_user)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
@@ -375,6 +383,7 @@ async def delete_tree(
 
     await product.delete_tree(
         item,
+        access_user=calling_user,
         storage=request.app.storage,
         data=data,
     )
@@ -400,9 +409,9 @@ async def search(
 
     logger.info("Search for product {} request from {}", text, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
 
-    items = await product.search_by_name(name=text)
+    items = await product.search_by_name(name=text, user=calling_user)
 
     logger.info(
         "Successfully found {} product(s) matching {} requested by {}",

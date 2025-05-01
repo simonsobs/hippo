@@ -7,7 +7,13 @@ import secrets
 from beanie import PydanticObjectId
 from pwdlib import PasswordHash
 
-from hipposerve.database import ComplianceInformation, Privilege, User
+import hipposerve.service.groups as user_groups
+from hipposerve.database import (
+    ComplianceInformation,
+    Group,
+    Privilege,
+    User,
+)
 
 # TODO: Settings
 API_KEY_BYTES = 128
@@ -57,14 +63,26 @@ async def create(
         privileges=privileges,
         compliance=compliance,
     )
+    group = await user_groups.create(
+        name=name,
+        description=f"Owner group for user {name}",
+        access_control=privileges,
+    )
+    user.groups.append(group)
 
+    try:
+        common_group = await user_groups.read_by_name(Group.name == "users")
+    except user_groups.GroupNotFound:
+        # Create the default group for all users
+        common_group = await user_groups.create_common_group(name="users")
+    user.groups.append(common_group)
     await user.create()
 
     return user
 
 
 async def read(name: str) -> User:
-    result = await User.find(User.name == name).first_or_none()
+    result = await User.find(User.name == name, fetch_links=True).first_or_none()
 
     if result is None:
         raise UserNotFound
@@ -73,7 +91,7 @@ async def read(name: str) -> User:
 
 
 async def read_by_id(id: PydanticObjectId) -> User:
-    result = await User.get(id)
+    result = await User.get(id, fetch_links=True)
 
     if result is None:
         raise UserNotFound
@@ -107,6 +125,22 @@ async def update(
     return user
 
 
+async def update_groups(
+    user: User,
+    add_group: list[Group] | None = None,
+    remove_group: list[Group] | None = None,
+) -> User:
+    if add_group is not None:
+        user.groups.extend(add_group)
+
+    if remove_group is not None:
+        user.groups = [group for group in user.groups if group not in remove_group]
+
+    await user.set({User.groups: user.groups})
+
+    return user
+
+
 async def delete(name: str):
     user = await read(name=name)
     await user.delete()
@@ -118,7 +152,7 @@ async def delete(name: str):
 
 
 async def user_from_api_key(api_key: str) -> User:
-    result = await User.find(User.api_key == api_key).first_or_none()
+    result = await User.find(User.api_key == api_key, fetch_links=True).first_or_none()
 
     if result is None:
         raise UserNotFound

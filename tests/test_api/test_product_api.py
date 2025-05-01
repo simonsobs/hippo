@@ -32,6 +32,8 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
             "description": TEST_PRODUCT_DESCRIPTION,
             "metadata": {"metadata_type": "simple"},
             "sources": TEST_PRODUCT_SOURCES,
+            "product_readers": [test_api_user],
+            "product_writers": [test_api_user],
         },
     )
 
@@ -148,6 +150,8 @@ def test_update_product(test_api_client: TestClient, test_api_product: tuple[str
             "description": "new_description",
             "metadata": {"metadata_type": "simple"},
             "level": versioning.VersionRevision.MAJOR.value,
+            "remove_readers": ["test_api_user"],
+            "add_readers": ["test_api_user_2"],
         },
     )
 

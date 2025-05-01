@@ -53,6 +53,21 @@ async def created_user(database):
 
 
 @pytest_asyncio.fixture(scope="session")
+async def created_group(database):
+    from hipposerve.service import groups
+
+    group = await groups.create(
+        name="test_group",
+        description="A test group",
+        access_control=list(groups.Privilege),
+    )
+
+    yield group
+
+    await groups.delete(group.name)
+
+
+@pytest_asyncio.fixture(scope="session")
 async def created_full_product(database, storage, created_user):
     from hipposerve.service import product
 
@@ -98,16 +113,16 @@ async def created_full_product(database, storage, created_user):
 
     assert await product.confirm(data, storage)
 
-    yield await product.read_by_id(data.id)
+    yield await product.read_by_id(data.id, created_user)
 
     # Go get it again just in case someone mutated, revved, etc.
-    data = await product.read_by_name(name=data.name, version=None)
+    data = await product.read_by_name(name=data.name, version=None, user=created_user)
 
-    await product.delete_tree(data, storage=storage, data=True)
+    await product.delete_tree(data, created_user, storage=storage, data=True)
 
 
 @pytest_asyncio.fixture(scope="session")
-async def created_collection(database):
+async def created_collection(database, created_user):
     from hipposerve.service import collection
 
     COLLECTION_NAME = "My Favourite Collection"
@@ -115,6 +130,7 @@ async def created_collection(database):
 
     data = await collection.create(
         name=COLLECTION_NAME,
+        user=created_user,
         description=COLLECTION_DESCRIPTION,
     )
 
@@ -122,4 +138,5 @@ async def created_collection(database):
 
     await collection.delete(
         id=data.id,
+        user=created_user,
     )

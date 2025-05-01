@@ -6,15 +6,16 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_user_for_privilege
 from hipposerve.api.models.relationships import (
     CreateCollectionRequest,
     ReadCollectionCollectionResponse,
     ReadCollectionProductResponse,
     ReadCollectionResponse,
+    UpdateCollectionRequest,
 )
 from hipposerve.database import Privilege
 from hipposerve.service import collection, product
+from hipposerve.service.auth import UserDependency, check_group_for_privilege
 
 relationship_router = APIRouter(prefix="/relationships")
 
@@ -31,11 +32,17 @@ async def create_collection(
 
     logger.info("Request to create collection: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_COLLECTION)
 
     # TODO: What to do if collection exists?
     # TODO: Collections should have a 'manager' who can change their properties.
-    coll = await collection.create(name=name, description=model.description)
+    coll = await collection.create(
+        name=name,
+        user=calling_user,
+        description=model.description,
+        collection_readers=model.readers,
+        collection_writers=model.writers,
+    )
 
     logger.info("Collection {} ({}) created for {}", coll.id, name, calling_user.name)
 
@@ -54,10 +61,10 @@ async def read_collection(
 
     logger.info("Request to read collection: {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.READ_COLLECTION)
 
     try:
-        item = await collection.read(id=id)
+        item = await collection.read(id=id, user=calling_user)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -67,6 +74,9 @@ async def read_collection(
         id=item.id,
         name=item.name,
         description=item.description,
+        owner=item.owner.name,
+        readers=item.readers,
+        writers=item.writers,
         products=[
             ReadCollectionProductResponse(
                 id=x.id,
@@ -84,6 +94,9 @@ async def read_collection(
                 id=x.id,
                 name=x.name,
                 description=x.description,
+                owner=x.owner.name,
+                readers=x.readers,
+                writers=x.writers,
             )
             for x in item.child_collections
         ],
@@ -92,6 +105,9 @@ async def read_collection(
                 id=x.id,
                 name=x.name,
                 description=x.description,
+                owner=x.owner.name,
+                readers=x.readers,
+                writers=x.writers,
             )
             for x in item.parent_collections
         ],
@@ -112,9 +128,9 @@ async def search_collection(
 
     logger.info("Request to search for collection: {} from {}", name, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.READ_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.READ_COLLECTION)
 
-    results = await collection.search_by_name(name=name)
+    results = await collection.search_by_name(name=name, user=calling_user)
 
     logger.info(
         "Found {} collections for {} from {}", len(results), name, calling_user.name
@@ -125,6 +141,9 @@ async def search_collection(
             id=item.id,
             name=item.name,
             description=item.description,
+            owner=item.owner.name,
+            readers=item.readers,
+            writers=item.writers,
             products=None,
         )
         for item in results
@@ -148,18 +167,20 @@ async def add_product_to_collection(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
 
     try:
-        coll = await collection.read(id=collection_id)
+        coll = await collection.read(id=collection_id, user=calling_user)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
 
     try:
-        item = await product.read_by_id(id=product_id)
-        await product.add_collection(product=item, collection=coll)
+        item = await product.read_by_id(id=product_id, user=calling_user)
+        await product.add_collection(
+            product=item, access_user=calling_user, collection=coll
+        )
         logger.info("Successfully added {} to collection {}", item.name, coll.name)
     except product.ProductNotFound:
         raise HTTPException(
@@ -184,23 +205,47 @@ async def remove_product_from_collection(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
 
     try:
-        coll = await collection.read(id=collection_id)
+        coll = await collection.read(id=collection_id, user=calling_user)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
 
     try:
-        item = await product.read_by_id(id=product_id)
-        await product.remove_collection(product=item, collection=coll)
+        item = await product.read_by_id(id=product_id, user=calling_user)
+        await product.remove_collection(
+            product=item, access_user=calling_user, collection=coll
+        )
         logger.info("Successfully removed {} from collection {}", item.name, coll.name)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
         )
+
+
+@relationship_router.post("/collection/{id}")
+async def update_collection(
+    id: PydanticObjectId,
+    model: UpdateCollectionRequest,
+    calling_user: UserDependency,
+) -> PydanticObjectId:
+    logger.info("Request to update collection: {} from {}", id, calling_user.name)
+    await check_group_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
+    coll = await collection.update(
+        id=id,
+        access_user=calling_user,
+        owner=model.owner,
+        description=model.description,
+        add_readers=model.add_readers,
+        remove_readers=model.remove_readers,
+        add_writers=model.add_writers,
+        remove_writers=model.remove_writers,
+    )
+    logger.info("Successfully updated collection {} from {}", id, calling_user.name)
+    return coll.id
 
 
 @relationship_router.delete("/collection/{id}")
@@ -214,17 +259,19 @@ async def delete_collection(
 
     logger.info("Request to delete collection: {} from {}", id, calling_user.name)
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_COLLECTION)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_COLLECTION)
 
     try:
         # Check if we have a parent; if we do, we need to remove its link to us.
-        coll = await collection.read(id=id)
+        coll = await collection.read(id=id, user=calling_user)
 
         if coll.parent_collections:
             for parent in coll.parent_collections:
-                await collection.remove_child(parent_id=parent.id, child_id=id)
+                await collection.remove_child(
+                    parent_id=parent.id, child_id=id, user=calling_user
+                )
 
-        await collection.delete(id=id)
+        await collection.delete(id=id, user=calling_user)
         logger.info("Successfully deleted collection {} from {}", id, calling_user.name)
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -249,14 +296,15 @@ async def add_child_product(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
 
     try:
-        source = await product.read_by_id(id=parent_id)
-        destination = await product.read_by_id(id=child_id)
+        source = await product.read_by_id(id=parent_id, user=calling_user)
+        destination = await product.read_by_id(id=child_id, user=calling_user)
         await product.add_relationship(
             source=source,
             destination=destination,
+            access_user=calling_user,
             type="child",
         )
         logger.info(
@@ -285,14 +333,15 @@ async def remove_child_product(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
 
     try:
-        source = await product.read_by_id(id=parent_id)
-        destination = await product.read_by_id(id=child_id)
+        source = await product.read_by_id(id=parent_id, user=calling_user)
+        destination = await product.read_by_id(id=child_id, user=calling_user)
         await product.remove_relationship(
             source=source,
             destination=destination,
+            access_user=calling_user,
             type="child",
         )
         logger.info(
@@ -321,10 +370,12 @@ async def add_child_collection(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
+    await check_group_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
 
     try:
-        await collection.add_child(parent_id=parent_id, child_id=child_id)
+        await collection.add_child(
+            parent_id=parent_id, child_id=child_id, user=calling_user
+        )
         logger.info("Successfully added {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -349,10 +400,12 @@ async def remove_child_collection(
         calling_user.name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
+    await check_group_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
 
     try:
-        await collection.remove_child(parent_id=parent_id, child_id=child_id)
+        await collection.remove_child(
+            parent_id=parent_id, child_id=child_id, user=calling_user
+        )
         logger.info("Successfully removed {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
         raise HTTPException(

@@ -116,6 +116,98 @@ def product_edit(id: str):
     edit_product(client=CLIENT, id=id)
 
 
+@product_app.command("add-reader")
+def product_add_reader(id: str, user: str):
+    """
+    Set the visibility level of a product.
+    Example:
+    $ hippo product add-reader <product-id> <user>
+    """
+
+    global CLIENT
+    updated_id = sc.product.product_add_reader(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Added {user} to {id} readers. New id is {updated_id}")
+
+
+@product_app.command("remove-reader")
+def product_remove_reader(id: str, user: str):
+    """
+    Set the visibility level of a product.
+    Example:
+    $ hippo product remove-reader <product-id> <user>
+    """
+
+    global CLIENT
+    updated_id = sc.product.product_remove_reader(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Removed {user} from {id} readers. New id is {updated_id}")
+
+
+@product_app.command("add-writer")
+def product_add_writer(id: str, user: str):
+    """
+    Set the visibility level of a product.
+    Example:
+    $ hippo product add-writer <product-id> <user>
+    """
+
+    global CLIENT
+    updated_id = sc.product.product_add_writer(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Added {user} to {id} writers. New id is {updated_id}")
+
+
+@product_app.command("remove-writer")
+def product_remove_writer(id: str, user: str):
+    """
+    Set the visibility level of a product.
+    Example:
+    $ hippo product remove-writer <product-id> <user>
+    """
+
+    global CLIENT
+    updated_id = sc.product.product_remove_writer(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Removed {user} from {id} writers. New id is {updated_id}")
+
+
+@collection_app.command("add-reader")
+def collection_add_reader(id: str, user: str):
+    """
+    Add a reader to a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.add_reader(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Added {user} to readers. Collection ID is {updated_id}")
+
+
+@collection_app.command("remove-reader")
+def collection_remove_reader(id: str, user: str):
+    """
+    Remove a reader from a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.remove_reader(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Removed {user} from readers. Collection ID is {updated_id}")
+
+
+@collection_app.command("add-writer")
+def collection_add_writer(id: str, user: str):
+    """
+    Add a writer to a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.add_writer(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Added {user} to writers. Collection ID is {updated_id}")
+
+
+@collection_app.command("remove-writer")
+def collection_remove_writer(id: str, user: str):
+    """
+    Remove a writer from a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.remove_writer(client=CLIENT, id=id, user=user)
+    CONSOLE.print(f"Removed {user} from writers. Collection ID is {updated_id}")
+
+
 @collection_app.command("read")
 def collection_read(id: str):
     """

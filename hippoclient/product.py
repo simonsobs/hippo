@@ -475,3 +475,93 @@ def uncache(client: Client, cache: MultiCache, id: str) -> None:
                 console.print(f"Removed file {source.name} ({source.uuid}) from cache")
 
     return
+
+
+def product_add_reader(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "name": None,
+            "description": None,
+            "level": 2,
+            "metadata": None,
+            "add_readers": [user],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if client.verbose:
+        console.print(
+            f"Successfully added {user} to product {id} readers.", style="bold green"
+        )
+
+    return this_product_id
+
+
+def product_remove_reader(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "name": None,
+            "description": None,
+            "level": 2,
+            "metadata": None,
+            "remove_readers": [user],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if client.verbose:
+        console.print(
+            f"Successfully removed {user} from product {id} readers.",
+            style="bold green",
+        )
+
+    return this_product_id
+
+
+def product_add_writer(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "name": None,
+            "description": None,
+            "level": 2,
+            "metadata": None,
+            "add_writers": [user],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if client.verbose:
+        console.print(
+            f"Successfully added {user} to product {id} writers.", style="bold green"
+        )
+
+    return this_product_id
+
+
+def product_remove_writer(client: Client, id: str, user: str) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "name": None,
+            "description": None,
+            "level": 2,
+            "metadata": None,
+            "remove_writers": [user],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if client.verbose:
+        console.print(
+            f"Successfully removed {user} from product {id} writers.",
+            style="bold green",
+        )
+
+    return this_product_id

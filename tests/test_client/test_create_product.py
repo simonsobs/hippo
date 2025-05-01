@@ -55,3 +55,55 @@ def test_upload_with_multipart(server, tmp_path):
     )
 
     product.delete(client, id)
+
+
+def test_groups_update_add_reader(server, tmp_path):
+    client = Client(
+        api_key=server["test_user_api_key"],
+        host=server["url"],
+        verbose=True,
+        use_multipart_upload=False,
+    )
+
+    with open(tmp_path / "test.bin", "wb") as f:
+        for _ in range(64):  # 64MB
+            f.write(random.randbytes(1024 * 1024))
+
+    id = product.create(
+        client=client,
+        name="test_product",
+        description="test_description",
+        metadata=SimpleMetadata(),
+        sources=[tmp_path / "test.bin"],
+        source_descriptions=[None],
+    )
+
+    updated_id = product.product_add_reader(
+        client=client,
+        id=id,
+        user="test_group",
+    )
+    product.delete(client, id)
+
+    updated_id_2 = product.product_add_writer(
+        client=client,
+        id=updated_id,
+        user="test_group",
+    )
+
+    product.delete(client, updated_id)
+
+    updated_id_3 = product.product_remove_reader(
+        client=client,
+        id=updated_id_2,
+        user="test_group",
+    )
+    product.delete(client, updated_id_2)
+
+    updated_id_4 = product.product_remove_writer(
+        client=client,
+        id=updated_id_3,
+        user="test_group",
+    )
+    product.delete(client, updated_id_3)
+    product.delete(client, updated_id_4)

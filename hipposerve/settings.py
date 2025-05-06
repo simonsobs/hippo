@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     "Required GitHub organisation membership for login, if None any organisation is allowed."
 
     model_config = SettingsConfigDict(secrets_dir="/run/secrets")
+    auth_system: str | None = None
+    soauth_service_url: str | None = None
+    soauth_app_id: str | None = None
+    soauth_public_key: str | None = None
+    soauth_base_url: str | None = None
+    soauth_client_secret: str | None = None
+    soauth_key_pair_type: str = "Ed25519"
 
 
 SETTINGS = Settings()

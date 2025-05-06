@@ -17,6 +17,7 @@ from starlette.middleware.cors import CORSMiddleware
 from hipposerve.api.groups import groups_router
 from hipposerve.api.product import product_router
 from hipposerve.api.relationships import relationship_router
+from hipposerve.api.soauth import setup_auth
 from hipposerve.api.users import users_router
 from hipposerve.database import BEANIE_MODELS
 from hipposerve.service.collection import CollectionNotFound
@@ -80,6 +81,7 @@ app = FastAPI(
     docs_url="/docs" if SETTINGS.debug else None,
     redoc_url="/redoc" if SETTINGS.debug else None,
 )
+app = setup_auth(app)
 
 # Routers
 app.include_router(users_router)

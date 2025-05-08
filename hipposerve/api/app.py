@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from beanie import init_beanie
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.datastructures import URL
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
         except UserNotFound:
             user = await users.create(
                 name="admin",
-                password=SETTINGS.test_user_password,
+                password=None,
                 email=None,
                 avatar_url=None,
                 gh_profile_url=None,
@@ -61,12 +61,9 @@ async def lifespan(app: FastAPI):
                 compliance=None,
             )
 
-        await user.set({users.User.api_key: SETTINGS.test_user_api_key})
         logger.warning(
-            "Created test user: {} with API key: {}, "
-            "you should NOT see this message in production",
+            "Created test user: {}  " "you should NOT see this message in production",
             user.name,
-            user.api_key,
         )
 
     logger.info("Startup complete")
@@ -74,14 +71,14 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown complete")
 
 
-app = FastAPI(
+baseapp = FastAPI(
     title=SETTINGS.title,
     description=SETTINGS.description,
     lifespan=lifespan,
     docs_url="/docs" if SETTINGS.debug else None,
     redoc_url="/redoc" if SETTINGS.debug else None,
 )
-app = setup_auth(app)
+app = setup_auth(baseapp)
 
 # Routers
 app.include_router(users_router)
@@ -105,6 +102,17 @@ if SETTINGS.web:  # pragma: no cover
         login_url_with_params = URL(login_url).include_query_params(detail=exc.detail)
         response = RedirectResponse(str(login_url_with_params))
         return response
+
+    @app.exception_handler(403)
+    async def forbidden_exception_handler(request: Request, exc: HTTPException):
+        if hasattr(request, "user") and request.user.is_authenticated:
+            return HTMLResponse(
+                content="You do not have permission to access this resource.",
+                status_code=403,
+            )
+        else:
+            login_url = app.login_url
+            return RedirectResponse(str(login_url))
 
     def not_found_template(
         request: Request,

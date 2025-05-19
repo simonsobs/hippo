@@ -13,17 +13,16 @@ view their metadata through the web frontend.
 """
 
 import os
+
+### -- Containers -- ###
+# In production, you would replace these test containers
+# with the actual connection information to separately
+# running ones.
 from subprocess import check_output
 
 import uvicorn
 from testcontainers.minio import MinioContainer
 from testcontainers.mongodb import MongoDbContainer
-
-### -- Containers -- ###
-
-# In production, you would replace these test containers
-# with the actual connection information to separately
-# running ones.
 
 database_kwargs = {
     "username": "root",
@@ -33,6 +32,12 @@ database_kwargs = {
 }
 
 storage_kwargs = {}
+
+client_secret = os.getenv("SOAUTH_CLIENT_SECRET")
+public_key_path = os.getenv("SOAUTH_PUBLIC_KEY_PATH")
+print("public_key_path", public_key_path)
+with open(public_key_path, "r") as file_handle:
+    public_key = file_handle.read()
 
 
 def containers_to_environment(
@@ -58,10 +63,10 @@ def containers_to_environment(
         "create_test_user": "yes",
         "auth_system": "soauth",
         "soauth_service_url": "https://ingress.simonsobs-identity.production.svc.spin.nersc.org",
-        "soauth_app_id": "068248f2-5439-76de-8000-66363113504b",
-        "soauth_public_key": "MCowBQYDK2VwAyEAmnENPDKYWU3P8SL0yCSsvOed7t3gMAeALsm5RKzIJfk=",
-        "soauth_base_url: str": "http://localhost:8000",
-        "soauth_client_secret": "glg2bduzHv9YyUTopd8SAVcwOfDS9vUzfzueXoeWm384uq8WYfdqbMN67Wy4_bdhKdfJpz2zD0dBHwemvrlHng",
+        "soauth_app_id": "06827360-6968-7daf-8000-f656e43d3d58",
+        "soauth_public_key": public_key,
+        "soauth_base_url: str": "http://localhost:8000/web",
+        "soauth_client_secret": client_secret,
         "soauth_key_pair_type": "Ed25519",
         "web_jwt_secret": check_output(["openssl", "rand", "-hex", "32"])
         .decode("utf-8")

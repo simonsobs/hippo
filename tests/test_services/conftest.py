@@ -5,13 +5,12 @@ web endpoints.
 """
 
 import io
+from dataclasses import dataclass
 
 import pytest_asyncio
 import requests
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
-from pwdlib import PasswordHash
-from pwdlib.hashers.argon2 import Argon2Hasher
 
 from hipposerve.database import BEANIE_MODELS
 
@@ -32,39 +31,19 @@ async def database(database_container):
 ### -- Data Service Fixtures -- ###
 
 
+@dataclass
+class TestUser:
+    display_name: str
+    groups: list[str]
+
+
 @pytest_asyncio.fixture(scope="session")
-async def created_user(database):
-    from hipposerve.service import users
-
-    user = await users.create(
-        name="test_user",
-        privileges=list(users.Privilege),
-        password="password",
-        hasher=PasswordHash([Argon2Hasher()]),
-        email=None,
-        avatar_url=None,
-        gh_profile_url=None,
-        compliance=None,
+async def created_user():
+    user = TestUser(
+        display_name="test_user",
+        groups=["test_user"],
     )
-
     yield user
-
-    await users.delete(user.name)
-
-
-@pytest_asyncio.fixture(scope="session")
-async def created_group(database):
-    from hipposerve.service import groups
-
-    group = await groups.create(
-        name="test_group",
-        description="A test group",
-        access_control=list(groups.Privilege),
-    )
-
-    yield group
-
-    await groups.delete(group.name)
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -88,7 +67,7 @@ async def created_full_product(database, storage, created_user):
         description=PRODUCT_DESCRIPTION,
         metadata=None,
         sources=SOURCES,
-        user=created_user,
+        user_name=created_user.display_name,
         storage=storage,
     )
 
@@ -113,12 +92,14 @@ async def created_full_product(database, storage, created_user):
 
     assert await product.confirm(data, storage)
 
-    yield await product.read_by_id(data.id, created_user)
+    yield await product.read_by_id(data.id, created_user.groups)
 
     # Go get it again just in case someone mutated, revved, etc.
-    data = await product.read_by_name(name=data.name, version=None, user=created_user)
+    data = await product.read_by_name(
+        name=data.name, version=None, groups=created_user.groups
+    )
 
-    await product.delete_tree(data, created_user, storage=storage, data=True)
+    await product.delete_tree(data, created_user.groups, storage=storage, data=True)
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -130,7 +111,7 @@ async def created_collection(database, created_user):
 
     data = await collection.create(
         name=COLLECTION_NAME,
-        user=created_user,
+        user=created_user.display_name,
         description=COLLECTION_DESCRIPTION,
     )
 
@@ -138,5 +119,5 @@ async def created_collection(database, created_user):
 
     await collection.delete(
         id=data.id,
-        user=created_user,
+        groups=created_user.groups,
     )

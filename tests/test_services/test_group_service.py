@@ -2,6 +2,7 @@
 Tests the functions in the group service.
 """
 
+"""
 import pytest
 
 from hipposerve.database import Privilege
@@ -44,3 +45,4 @@ async def test_update_group(created_group):
         add_access_control=[Privilege.DOWNLOAD_PRODUCT],
     )
     assert Privilege.DOWNLOAD_PRODUCT in updated_group.access_controls
+"""

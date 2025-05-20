@@ -157,7 +157,7 @@ class ProductMetadata(BaseModel):
 class ProtectedDocument(Document):
     readers: list[str] = Field(default_factory=list)
     writers: list[str] = Field(default_factory=lambda: ["admin"])
-    owner: Link[User]
+    owner: str
 
 
 class Product(ProtectedDocument, ProductMetadata):
@@ -186,7 +186,7 @@ class Product(ProtectedDocument, ProductMetadata):
             current=self.current,
             version=self.version,
             sources=[x.to_metadata() for x in self.sources],
-            owner=self.owner.name,
+            owner=self.owner,
             replaces=self.replaces.version if self.replaces is not None else None,
             child_of=[x.id for x in self.child_of],
             parent_of=[x.id for x in self.parent_of],

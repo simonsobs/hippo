@@ -47,6 +47,22 @@ async def created_user():
 
 
 @pytest_asyncio.fixture(scope="session")
+async def created_database_user():
+    from hipposerve.service import users
+
+    TEST_USER_NAME = "test_database_user"
+    TEST_EMAIL_ADDRESS = "bestemailaddress@ever.com"
+    user = await users.create(
+        name=TEST_USER_NAME,
+        email=TEST_EMAIL_ADDRESS,
+    )
+
+    yield user
+
+    await users.delete(name=TEST_USER_NAME)
+
+
+@pytest_asyncio.fixture(scope="session")
 async def created_full_product(database, storage, created_user):
     from hipposerve.service import product
 

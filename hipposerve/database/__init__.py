@@ -12,43 +12,6 @@ from pydantic import BaseModel, Field
 from hippometa import ALL_METADATA_TYPE
 
 
-class Privilege(Enum):
-    # Product management. Note that _for now_ users can update any other
-    # user's products.
-    CREATE_PRODUCT = "create_products"
-    LIST_PRODUCT = "list_products"
-    READ_PRODUCT = "read_products"
-    DOWNLOAD_PRODUCT = "download_products"
-    CONFIRM_PRODUCT = "confirm_product"
-    DELETE_PRODUCT = "delete_products"
-    UPDATE_PRODUCT = "update_products"
-
-    # Collection management. Note that _for now_ users can update any
-    # collection
-    CREATE_COLLECTION = "create_collection"
-    READ_COLLECTION = "read_collection"
-    UPDATE_COLLECTION = "update_collection"
-    DELETE_COLLECTION = "delete_collection"
-    CREATE_RELATIONSHIP = "create_relationship"
-    DELETE_RELATIONSHIP = "delete_relationship"
-
-    # User management
-    CREATE_USER = "create_user"
-    READ_USER = "read_user"
-    UPDATE_USER = "update_user"
-    DELETE_USER = "delete_user"
-    UPDATE_USER_GROUP = "update_user_group"
-
-    # Group management
-    CREATE_GROUP = "create_group"
-    READ_GROUP = "read_group"
-    UPDATE_GROUP = "update_group"
-    DELETE_GROUP = "delete_group"
-
-    # Update Privileges
-    UPDATE_PRIVILEGES = "update_privileges"
-
-
 class CollectionPolicy(Enum):
     # What to do when versions are revved of products.
     # Keep track of all versions of the product in the collection.
@@ -65,27 +28,10 @@ class CollectionPolicy(Enum):
     FIXED = "fixed"
 
 
-class ComplianceInformation(BaseModel):
-    nersc_username: str | None
-
-
-class Group(Document):
-    name: str
-    description: str = None
-    access_controls: list[Privilege]
-
-
 class User(Document):
     name: Indexed(str, unique=True)
-    hashed_password: str
     email: str | None
-    avatar_url: str | None
-    gh_profile_url: str | None
-    api_key: str
-    privileges: list[Privilege]
-
-    compliance: ComplianceInformation | None
-    groups: list[Link[Group]] = []
+    last_access_time: datetime | None
 
 
 class FileMetadata(BaseModel):
@@ -222,4 +168,4 @@ class Collection(ProtectedDocument, CollectionMetadata):
     )
 
 
-BEANIE_MODELS = [User, Group, File, Product, Collection]
+BEANIE_MODELS = [User, File, Product, Collection]

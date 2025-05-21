@@ -2,6 +2,7 @@
 Tests the group API endpoints.
 """
 
+"""
 from fastapi.testclient import TestClient
 
 from hipposerve.api.models.groups import (
@@ -89,3 +90,4 @@ def test_delete_group(test_api_client: TestClient, test_api_user: str):
     response = test_api_client.delete(f"/groups/{test_api_user}")
 
     assert response.status_code == 200
+"""

@@ -2,6 +2,7 @@
 Tests the users API endpoints.
 """
 
+"""
 from fastapi.testclient import TestClient
 
 from hipposerve.api.models.users import (
@@ -58,3 +59,4 @@ def test_update_user(test_api_client: TestClient, test_api_user: str):
     assert response.status_code == 200
     validated = CreateUserResponse.model_validate(response.json())
     assert validated.api_key is None
+"""

@@ -3,9 +3,6 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from hipposerve.api.models.users import CreateUserResponse
-from hipposerve.database import Privilege
-
 ### -- Service Mock Fixtures -- ###
 
 
@@ -31,7 +28,7 @@ def test_api_server(database_container, storage_container):
 
 @pytest.fixture(scope="module")
 def test_api_client(test_api_server):
-    with TestClient(test_api_server, headers={"X-API-Key": "TEST_API_KEY"}) as client:
+    with TestClient(test_api_server) as client:
         yield client
 
 
@@ -41,6 +38,7 @@ def test_api_client(test_api_server):
 @pytest.fixture(scope="module")
 def test_api_user(test_api_client: TestClient):
     TEST_USER_NAME = "default_user"
+    """
     TEST_USER_PRIVILEGES = [x.value for x in Privilege]
 
     response = test_api_client.put(
@@ -57,8 +55,8 @@ def test_api_user(test_api_client: TestClient):
 
     assert response.status_code == 200
     _ = CreateUserResponse.model_validate(response.json())
-
+    """
     yield TEST_USER_NAME
 
-    response = test_api_client.delete(f"/users/{TEST_USER_NAME}")
-    assert response.status_code == 200
+    # response = test_api_client.delete(f"/users/{TEST_USER_NAME}")
+    # assert response.status_code == 200

@@ -31,6 +31,15 @@ async def create(
     return user
 
 
+async def confirm_user(name: str) -> None:
+    user = await User.find(User.name == name, fetch_links=True).first_or_none()
+
+    if user is None:
+        raise UserNotFound
+
+    return
+
+
 async def read(name: str) -> User:
     result = await User.find(User.name == name, fetch_links=True).first_or_none()
 

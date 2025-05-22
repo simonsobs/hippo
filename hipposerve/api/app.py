@@ -10,19 +10,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
-from starlette.datastructures import URL
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from hipposerve.api.groups import groups_router
 from hipposerve.api.product import product_router
 from hipposerve.api.relationships import relationship_router
 from hipposerve.api.soauth import setup_auth
-from hipposerve.api.users import users_router
 from hipposerve.database import BEANIE_MODELS
 from hipposerve.service.collection import CollectionNotFound
 from hipposerve.service.product import ProductNotFound
-from hipposerve.service.users import UserNotFound
 from hipposerve.settings import SETTINGS
 from hipposerve.storage import Storage
 from hipposerve.web.auth import PotentialLoggedInUser, UnauthorizedException
@@ -44,28 +40,6 @@ async def lifespan(app: FastAPI):
         secret_key=SETTINGS.minio_secret,
     )
 
-    if SETTINGS.create_test_user:
-        from hipposerve.service import users
-
-        try:
-            user = await users.read(name="admin")
-        except UserNotFound:
-            user = await users.create(
-                name="admin",
-                password=None,
-                email=None,
-                avatar_url=None,
-                gh_profile_url=None,
-                privileges=list(users.Privilege),
-                hasher=SETTINGS.hasher,
-                compliance=None,
-            )
-
-        logger.warning(
-            "Created test user: {}  " "you should NOT see this message in production",
-            user.name,
-        )
-
     logger.info("Startup complete")
     yield
     logger.info("Shutdown complete")
@@ -81,8 +55,6 @@ baseapp = FastAPI(
 app = setup_auth(baseapp)
 
 # Routers
-app.include_router(users_router)
-app.include_router(groups_router)
 app.include_router(product_router)
 app.include_router(relationship_router)
 
@@ -98,14 +70,7 @@ if SETTINGS.web:  # pragma: no cover
     async def unauthorized_exception_handler(
         request: Request, exc: UnauthorizedException
     ):
-        login_url = app.url_path_for("login")
-        login_url_with_params = URL(login_url).include_query_params(detail=exc.detail)
-        response = RedirectResponse(str(login_url_with_params))
-        return response
-
-    @app.exception_handler(403)
-    async def forbidden_exception_handler(request: Request, exc: HTTPException):
-        if hasattr(request, "user") and request.user.is_authenticated:
+        if request.user.is_authenticated:
             return HTMLResponse(
                 content="You do not have permission to access this resource.",
                 status_code=403,

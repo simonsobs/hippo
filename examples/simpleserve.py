@@ -18,8 +18,6 @@ import os
 # In production, you would replace these test containers
 # with the actual connection information to separately
 # running ones.
-from subprocess import check_output
-
 import uvicorn
 from testcontainers.minio import MinioContainer
 from testcontainers.mongodb import MongoDbContainer
@@ -61,16 +59,13 @@ def containers_to_environment(
         "add_cors": "yes",
         "web": "yes",
         "create_test_user": "yes",
-        "auth_system": "soauth",
+        "auth_system": "none",
         "soauth_service_url": "https://ingress.simonsobs-identity.production.svc.spin.nersc.org",
         "soauth_app_id": "06827360-6968-7daf-8000-f656e43d3d58",
         "soauth_public_key": public_key,
         "soauth_base_url: str": "http://localhost:8000/web",
         "soauth_client_secret": client_secret,
         "soauth_key_pair_type": "Ed25519",
-        "web_jwt_secret": check_output(["openssl", "rand", "-hex", "32"])
-        .decode("utf-8")
-        .strip(),
     }
 
     os.environ.update(settings)

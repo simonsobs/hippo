@@ -104,7 +104,7 @@ async def complete_product(
 
 
 @product_router.get("/{id}")
-@requires(["hippo:admin", "hippo:read"])
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def read_product(
     id: PydanticObjectId,
     request: Request,
@@ -140,7 +140,7 @@ async def read_product(
 
 
 @product_router.get("/{id}/tree")
-@requires(["hippo:admin", "hippo:read"])
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def read_tree(
     id: PydanticObjectId,
     request: Request,
@@ -188,7 +188,7 @@ async def read_tree(
 
 
 @product_router.get("/{id}/files")
-@requires(["hippo:admin", "hippo:read"])
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesResponse:
     """
     Read a single product's including pre-signed URLs for downloads.
@@ -286,7 +286,7 @@ async def update_product(
 
 
 @product_router.post("/{id}/confirm")
-@requires(["hippo:admin", "hippo:write"])
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def confirm_product(id: PydanticObjectId, request: Request) -> None:
     """
     Confirm a product's sources.
@@ -353,6 +353,7 @@ async def delete_product(
 
 
 @product_router.delete("/{id}/tree")
+@requires(["hippo:admin", "hippo:write"])
 async def delete_tree(
     id: PydanticObjectId,
     request: Request,
@@ -390,6 +391,7 @@ async def delete_tree(
 
 
 @product_router.get("/search/{text}")
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def search(
     text: str,
     request: Request,

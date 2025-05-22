@@ -14,11 +14,13 @@ from hipposerve.api.models.relationships import (
     UpdateCollectionRequest,
 )
 from hipposerve.service import collection, product
+from hipposerve.service.auth import requires
 
 relationship_router = APIRouter(prefix="/relationships")
 
 
 @relationship_router.put("/collection/{name}")
+@requires(["hippo:admin", "hippo:write"])
 async def create_collection(
     name: str,
     model: CreateCollectionRequest,
@@ -50,6 +52,7 @@ async def create_collection(
 
 
 @relationship_router.get("/collection/{id}")
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def read_collection(
     id: PydanticObjectId,
     request: Request,
@@ -112,6 +115,7 @@ async def read_collection(
 
 
 @relationship_router.get("/collection/search/{name}")
+@requires(["hippo:admin", "hippo:write", "hippo:read"])
 async def search_collection(
     name: str,
     request: Request,
@@ -150,6 +154,7 @@ async def search_collection(
 
 
 @relationship_router.put("/collection/{collection_id}/{product_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def add_product_to_collection(
     collection_id: PydanticObjectId,
     product_id: PydanticObjectId,
@@ -186,6 +191,7 @@ async def add_product_to_collection(
 
 
 @relationship_router.delete("/collection/{collection_id}/{product_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def remove_product_from_collection(
     collection_id: PydanticObjectId,
     product_id: PydanticObjectId,
@@ -222,6 +228,7 @@ async def remove_product_from_collection(
 
 
 @relationship_router.post("/collection/{id}")
+@requires(["hippo:admin", "hippo:write"])
 async def update_collection(
     id: PydanticObjectId,
     model: UpdateCollectionRequest,
@@ -247,6 +254,7 @@ async def update_collection(
 
 
 @relationship_router.delete("/collection/{id}")
+@requires(["hippo:admin", "hippo:write"])
 async def delete_collection(
     id: PydanticObjectId,
     request: Request,
@@ -280,6 +288,7 @@ async def delete_collection(
 
 
 @relationship_router.put("/product/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def add_child_product(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
@@ -315,6 +324,7 @@ async def add_child_product(
 
 
 @relationship_router.delete("/product/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def remove_child_product(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
@@ -350,6 +360,7 @@ async def remove_child_product(
 
 
 @relationship_router.put("/collection/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def add_child_collection(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
@@ -378,6 +389,7 @@ async def add_child_collection(
 
 
 @relationship_router.delete("/collection/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def remove_child_collection(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,

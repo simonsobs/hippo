@@ -103,7 +103,7 @@ async def update(
     remove_writers: list[str] | None = None,
 ):
     collection = await read(id=id, groups=access_groups)
-    await check_collection_access(access_groups, collection)
+    await check_collection_access(access_groups, collection.writers)
     readers = collection.readers.copy()
     writers = collection.writers.copy()
     # We don't actually 'update' the database; we actually create a new
@@ -136,7 +136,7 @@ async def add_child(
 ) -> Collection:
     parent = await read(id=parent_id, groups=groups)
     child = await read(id=child_id, groups=groups)
-    await check_collection_access(groups, parent)
+    await check_collection_access(groups, parent.writers)
     parent.child_collections.append(child)
     await parent.save()
 
@@ -149,7 +149,7 @@ async def remove_child(
     groups: list[str],
 ) -> Collection:
     parent = await read(id=parent_id, groups=groups)
-    await check_collection_access(groups, parent)
+    await check_collection_access(groups, parent.writers)
     await parent.set(
         {
             Collection.child_collections: [
@@ -182,7 +182,9 @@ async def collection_product_filter(
             product_list = []
             for product in collection.products:
                 try:
-                    await check_product_access(groups, product)
+                    await check_product_access(
+                        groups, product.readers + product.writers
+                    )
                     product_list.append(product)
                 except HTTPException:
                     continue

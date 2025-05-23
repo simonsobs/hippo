@@ -5,7 +5,7 @@ The main FastAPI endpoints.
 from contextlib import asynccontextmanager
 
 from beanie import init_beanie
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
@@ -21,7 +21,7 @@ from hipposerve.service.collection import CollectionNotFound
 from hipposerve.service.product import ProductNotFound
 from hipposerve.settings import SETTINGS
 from hipposerve.storage import Storage
-from hipposerve.web.auth import PotentialLoggedInUser, UnauthorizedException
+from hipposerve.web.auth import UnauthorizedException
 from hipposerve.web.router import templates
 
 
@@ -83,7 +83,6 @@ if SETTINGS.web:  # pragma: no cover
         request: Request,
         type: str,
         requested_id: str | None,
-        user: PotentialLoggedInUser,
     ):
         error_details = {
             "type": type,
@@ -97,7 +96,7 @@ if SETTINGS.web:  # pragma: no cover
             {
                 "request": request,
                 "error_details": error_details,
-                "user": user,
+                "user": request.user.display_name,
                 "web_root": SETTINGS.web_root,
             },
             status_code=404,
@@ -107,33 +106,29 @@ if SETTINGS.web:  # pragma: no cover
     async def page_not_found_handler(
         request: Request,
         exc: HTTPException,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
-        return not_found_template(request, "generic", None, user)
+        return not_found_template(request, "generic", None)
 
     @app.exception_handler(CollectionNotFound)
     async def collection_not_found_handler(
         request: Request,
         exc: CollectionNotFound,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
         requested_id = request.path_params["id"]
-        return not_found_template(request, "collection", requested_id, user)
+        return not_found_template(request, "collection", requested_id)
 
     @app.exception_handler(ProductNotFound)
     async def product_not_found_handler(
         request: Request,
         exc: ProductNotFound,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
         requested_id = request.path_params["id"]
-        return not_found_template(request, "product", requested_id, user)
+        return not_found_template(request, "product", requested_id)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request,
         exc: RequestValidationError,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
         requested_item_type = "generic"
         requested_id = None
@@ -143,9 +138,9 @@ if SETTINGS.web:  # pragma: no cover
                 requested_item_type = "collection"
             elif request.url.path.find("products"):
                 requested_item_type = "product"
-            return not_found_template(request, requested_item_type, requested_id, user)
+            return not_found_template(request, requested_item_type, requested_id)
         except KeyError:
-            return not_found_template(request, requested_item_type, requested_id, user)
+            return not_found_template(request, requested_item_type, requested_id)
 
 
 if SETTINGS.add_cors:

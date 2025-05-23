@@ -5,38 +5,15 @@ authentication.
 
 import functools
 import inspect
-from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, Security, status
-from fastapi.security import APIKeyHeader
-from loguru import logger
+from fastapi import HTTPException, Request, status
 from starlette._utils import is_async_callable
-
-from hipposerve.service import users
 
 AVAILABLE_GRANTS = {
     "hippo:admin",
     "hippo:read",
     "hippo:write",
 }
-
-
-api_key_header = APIKeyHeader(name="X-API-Key")
-
-
-async def get_user(api_key_header: str = Security(api_key_header)) -> users.User:
-    try:
-        user = await users.user_from_api_key(api_key_header)
-        logger.info(f"Authenticated user using API key: {user.name}")
-        return user
-    except users.UserNotFound:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key",
-        )
-
-
-UserDependency = Annotated[users.User, Depends(get_user)]
 
 
 def has_required_scope(request: Request, scopes: list[str]) -> bool:

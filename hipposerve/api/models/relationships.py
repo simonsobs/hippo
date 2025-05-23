@@ -70,8 +70,8 @@ class ReadCollectionResponse(BaseModel):
     name: str
     description: str
     products: list[ReadCollectionProductResponse] | None
-    child_collections: list[ReadCollectionCollectionResponse] | None
-    parent_collections: list[ReadCollectionCollectionResponse] | None
+    child_collections: list[ReadCollectionCollectionResponse] | None = None
+    parent_collections: list[ReadCollectionCollectionResponse] | None = None
     readers: list[str]
     writers: list[str]
     owner: str

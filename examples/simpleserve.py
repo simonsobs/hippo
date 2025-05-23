@@ -13,17 +13,14 @@ view their metadata through the web frontend.
 """
 
 import os
-from subprocess import check_output
-
-import uvicorn
-from testcontainers.minio import MinioContainer
-from testcontainers.mongodb import MongoDbContainer
 
 ### -- Containers -- ###
-
 # In production, you would replace these test containers
 # with the actual connection information to separately
 # running ones.
+import uvicorn
+from testcontainers.minio import MinioContainer
+from testcontainers.mongodb import MongoDbContainer
 
 database_kwargs = {
     "username": "root",
@@ -33,6 +30,12 @@ database_kwargs = {
 }
 
 storage_kwargs = {}
+
+client_secret = os.getenv("SOAUTH_CLIENT_SECRET")
+public_key_path = os.getenv("SOAUTH_PUBLIC_KEY_PATH")
+print("public_key_path", public_key_path)
+with open(public_key_path, "r") as file_handle:
+    public_key = file_handle.read()
 
 
 def containers_to_environment(
@@ -56,9 +59,13 @@ def containers_to_environment(
         "add_cors": "yes",
         "web": "yes",
         "create_test_user": "yes",
-        "web_jwt_secret": check_output(["openssl", "rand", "-hex", "32"])
-        .decode("utf-8")
-        .strip(),
+        "auth_system": "soauth",
+        "soauth_service_url": "https://ingress.simonsobs-identity.production.svc.spin.nersc.org",
+        "soauth_app_id": "0683092e-0bd3-70dc-8000-c13e59255da8",
+        "soauth_public_key": public_key,
+        "soauth_base_url: str": "http://localhost:8000/web",
+        "soauth_client_secret": client_secret,
+        "soauth_key_pair_type": "Ed25519",
     }
 
     os.environ.update(settings)

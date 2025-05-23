@@ -22,7 +22,7 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.auth import check_product_access
+from hipposerve.service.auth import check_user_access
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -162,8 +162,8 @@ async def read_by_name(name: str, version: str | None, groups: list[str]) -> Pro
     if potential is None:
         raise ProductNotFound
 
-    await check_product_access(
-        groups=groups, product_groups=potential.readers + potential.writers
+    assert check_user_access(
+        user_groups=groups, document_groups=potential.readers + potential.writers
     )
 
     return potential
@@ -178,8 +178,8 @@ async def read_by_id(id: PydanticObjectId, groups: list[str]) -> Product:
     if potential is None:
         raise ProductNotFound
 
-    await check_product_access(
-        groups=groups, product_groups=potential.readers + potential.writers
+    assert check_user_access(
+        user_groups=groups, document_groups=potential.readers + potential.writers
     )
 
     return potential
@@ -498,7 +498,7 @@ async def update(
     add_writers: list[str] | None = None,
     remove_writers: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
-    await check_product_access(groups=access_groups, product_groups=product.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     new_product = await update_metadata(
         product=product,
         name=name,
@@ -555,7 +555,7 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-    await check_product_access(groups=access_groups, product_groups=product.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -611,7 +611,7 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-    await check_product_access(groups=access_groups, product_groups=product.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -652,7 +652,7 @@ async def add_relationship(
 ):
     if type == "child":
         source.child_of = source.child_of + [destination]
-    await check_product_access(groups=access_groups, product_groups=source.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=source.writers)
     await source.save()
 
     return
@@ -666,7 +666,7 @@ async def remove_relationship(
 ):
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-    await check_product_access(groups=access_groups, product_groups=source.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=source.writers)
     await source.save()
 
     return
@@ -676,7 +676,7 @@ async def add_collection(
     product: Product, access_groups: list[str], collection: Collection
 ):
     product.collections = product.collections + [collection]
-    await check_product_access(groups=access_groups, product_groups=product.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     await product.save()
 
     return
@@ -686,7 +686,7 @@ async def remove_collection(
     product: Product, access_groups: list[str], collection: Collection
 ):
     product.collections = [c for c in product.collections if c.id != collection.id]
-    await check_product_access(groups=access_groups, product_groups=product.writers)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     await product.save()
 
     return product

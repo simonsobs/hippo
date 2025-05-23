@@ -16,6 +16,10 @@ AVAILABLE_GRANTS = {
 }
 
 
+class AuthenticationError(Exception):
+    pass
+
+
 def has_required_scope(request: Request, scopes: list[str]) -> bool:
     allowed = set(scopes)
     if any(scope in allowed for scope in request.auth.scopes):
@@ -69,25 +73,11 @@ def requires(scopes: str | list[str]):
     return decorator
 
 
-async def check_product_access(groups: list[str], product_groups: list[str]) -> None:
-    allowed = set(product_groups)
-    if any(group in allowed for group in groups):
-        return
+def check_user_access(user_groups: list[str], document_groups: list[str]) -> bool:
+    allowed = set(document_groups)
+    if any(group in allowed for group in user_groups):
+        return True
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges for product access",
-    )
-
-
-async def check_collection_access(
-    groups: list[str], collection_groups: list[str]
-) -> None:
-    allowed = set(collection_groups)
-    if any(group in allowed for group in groups):
-        return
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges for collection access",
+    raise AuthenticationError(
+        "User does not have the required group access for this operation"
     )

@@ -45,14 +45,15 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown complete")
 
 
-baseapp = FastAPI(
-    title=SETTINGS.title,
-    description=SETTINGS.description,
-    lifespan=lifespan,
-    docs_url="/docs" if SETTINGS.debug else None,
-    redoc_url="/redoc" if SETTINGS.debug else None,
+app = setup_auth(
+    FastAPI(
+        title=SETTINGS.title,
+        description=SETTINGS.description,
+        lifespan=lifespan,
+        docs_url="/docs" if SETTINGS.debug else None,
+        redoc_url="/redoc" if SETTINGS.debug else None,
+    )
 )
-app = setup_auth(baseapp)
 
 # Routers
 app.include_router(product_router)
@@ -76,8 +77,7 @@ if SETTINGS.web:  # pragma: no cover
                 status_code=403,
             )
         else:
-            login_url = app.login_url
-            return RedirectResponse(str(login_url))
+            return RedirectResponse(app.login_url)
 
     def not_found_template(
         request: Request,

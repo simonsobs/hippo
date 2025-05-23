@@ -31,12 +31,6 @@ database_kwargs = {
 
 storage_kwargs = {}
 
-client_secret = os.getenv("SOAUTH_CLIENT_SECRET")
-public_key_path = os.getenv("SOAUTH_PUBLIC_KEY_PATH")
-print("public_key_path", public_key_path)
-with open(public_key_path, "r") as file_handle:
-    public_key = file_handle.read()
-
 
 def containers_to_environment(
     database_container: MongoDbContainer, storage_container: MinioContainer
@@ -60,12 +54,6 @@ def containers_to_environment(
         "web": "yes",
         "create_test_user": "yes",
         "auth_system": "none",
-        "soauth_service_url": "https://ingress.simonsobs-identity.production.svc.spin.nersc.org",
-        "soauth_app_id": "06827360-6968-7daf-8000-f656e43d3d58",
-        "soauth_public_key": public_key,
-        "soauth_base_url: str": "http://localhost:8000/web",
-        "soauth_client_secret": client_secret,
-        "soauth_key_pair_type": "Ed25519",
     }
 
     os.environ.update(settings)

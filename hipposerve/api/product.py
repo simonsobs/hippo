@@ -104,7 +104,7 @@ async def complete_product(
 
 
 @product_router.get("/{id}")
-@requires(["hippo:admin", "hippo:write", "hippo:read"])
+@requires(["hippo:admin", "hippo:read"])
 async def read_product(
     id: PydanticObjectId,
     request: Request,
@@ -140,7 +140,7 @@ async def read_product(
 
 
 @product_router.get("/{id}/tree")
-@requires(["hippo:admin", "hippo:write", "hippo:read"])
+@requires(["hippo:admin", "hippo:read"])
 async def read_tree(
     id: PydanticObjectId,
     request: Request,
@@ -154,11 +154,11 @@ async def read_tree(
     )
 
     try:
-        requested_item = await product.read_by_id(id, request.user.groups)
+        requested_item = await product.read_by_id(id=id, groups=request.user.groups)
         current_item = await product.walk_to_current(
-            requested_item, request.user.groups
+            product=requested_item, groups=request.user.groups
         )
-        history = await product.walk_history(current_item)
+        history = await product.walk_history(product=current_item)
 
         if not current_item.current:
             raise HTTPException(
@@ -188,7 +188,7 @@ async def read_tree(
 
 
 @product_router.get("/{id}/files")
-@requires(["hippo:admin", "hippo:write", "hippo:read"])
+@requires(["hippo:admin", "hippo:read"])
 async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesResponse:
     """
     Read a single product's including pre-signed URLs for downloads.
@@ -251,8 +251,8 @@ async def update_product(
         user = None
 
     new_product, upload_urls = await product.update(
-        item,
-        request.user.groups,
+        product=item,
+        access_groups=request.user.groups,
         name=model.name,
         description=model.description,
         metadata=model.metadata,
@@ -286,7 +286,7 @@ async def update_product(
 
 
 @product_router.post("/{id}/confirm")
-@requires(["hippo:admin", "hippo:write", "hippo:read"])
+@requires(["hippo:admin", "hippo:read"])
 async def confirm_product(id: PydanticObjectId, request: Request) -> None:
     """
     Confirm a product's sources.
@@ -337,7 +337,7 @@ async def delete_product(
         )
 
     await product.delete_one(
-        item,
+        product=item,
         access_groups=request.user.groups,
         storage=request.app.storage,
         data=data,
@@ -375,7 +375,7 @@ async def delete_tree(
         )
 
     await product.delete_tree(
-        item,
+        product=item,
         access_groups=request.user.groups,
         storage=request.app.storage,
         data=data,
@@ -391,7 +391,7 @@ async def delete_tree(
 
 
 @product_router.get("/search/{text}")
-@requires(["hippo:admin", "hippo:write", "hippo:read"])
+@requires(["hippo:admin", "hippo:read"])
 async def search(
     text: str,
     request: Request,

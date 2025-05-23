@@ -17,5 +17,5 @@ def setup_auth(app):
     else:
         from soauth.toolkit.fastapi import mock_global_setup
 
-        app = mock_global_setup(app=app, grants=["test", "grant"])
+        app = mock_global_setup(app=app, grants=["hippo:read", "hippo:write"])
     return app

@@ -40,11 +40,6 @@ UserDependency = Annotated[users.User, Depends(get_user)]
 
 
 def has_required_scope(request: Request, scopes: list[str]) -> bool:
-    from hipposerve.settings import SETTINGS
-
-    if SETTINGS.auth_system is None:
-        return True
-
     for scope in scopes:
         if scope not in request.auth.scopes:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)

@@ -40,11 +40,11 @@ UserDependency = Annotated[users.User, Depends(get_user)]
 
 
 def has_required_scope(request: Request, scopes: list[str]) -> bool:
-    for scope in scopes:
-        if scope not in request.auth.scopes:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    allowed = set(scopes)
+    if any(scope in allowed for scope in request.auth.scopes):
+        return True
 
-    return True
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
 def requires(scopes: str | list[str]):

@@ -54,7 +54,7 @@
           </div>
           <div class="tab-pane fade" id="v-pills-products" role="tabpanel" aria-labelledby="v-pills-products-tab" tabindex="0">TODO: fetch user's products</div>
           <div class="tab-pane fade" id="v-pills-privileges" role="tabpanel" aria-labelledby="v-pills-privileges-tab" tabindex="0">
-            {% if request.user and request.user.groups and request.user.groups | length > 0 %}
+            {% if request.user.groups %}
                 <ul class="list-group shadow-sm">
                     {% for group in request.user.groups %}
                     <li class="list-group-item small py-1">{{ group }}</li>

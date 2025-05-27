@@ -34,7 +34,8 @@ dependencies = [
     "python-multipart",
     "loguru",
     "tqdm",
-    "textual[syntax]"
+    "textual[syntax]",
+    "soauth @ git+https://github.com/simonsobs/soauth.git@main",
 ]
 
 [project.optional-dependencies]

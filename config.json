@@ -1,5 +1,5 @@
 {
-  "api_key": "TEST_API_KEY",
+  "token_tag": "TEST_API_TOKEN_TAG",
   "host": "http://127.0.0.1:8000",
   "verbose": true,
   "caches": [

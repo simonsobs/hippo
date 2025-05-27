@@ -10,6 +10,7 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 from rich.console import Console
+from soauth.toolkit.client import SOAuth
 
 from .caching import Cache, MultiCache
 
@@ -28,7 +29,7 @@ class Client(httpx.Client):
 
     def __init__(
         self,
-        api_key: str,
+        token_tag: str,
         host: str,
         verbose: bool = False,
         use_multipart_upload: bool = False,
@@ -36,9 +37,8 @@ class Client(httpx.Client):
         """
         Parameters
         ----------
-
-        api_key: str
-            The API key for the hippo API to use.
+        token_tag: str
+            The tag associated with the API key for the hippo API to use.
 
         host: str
             The host for the hippo API to use.
@@ -49,7 +49,8 @@ class Client(httpx.Client):
 
         self.verbose = verbose
         self.use_multipart_upload = use_multipart_upload
-        super().__init__(base_url=host, headers={"X-API-Key": api_key})
+        auth_provider = SOAuth(token_tag)
+        super().__init__(base_url=host, auth=auth_provider)
 
 
 class ClientSettings(BaseSettings):
@@ -61,8 +62,8 @@ class ClientSettings(BaseSettings):
     3. Verbosity.
     """
 
-    api_key: str
-    "Your API key for the HIPPO service you are connected to"
+    token_tag: str
+    "The tag associated with the API key for the hippo API to use"
     host: str
     "The hostname of the HIPPO service you are connected to"
     verbose: bool = False
@@ -105,4 +106,4 @@ class ClientSettings(BaseSettings):
         """
         Return a Client object for the API.
         """
-        return Client(api_key=self.api_key, host=self.host, verbose=self.verbose)
+        return Client(token_tag=self.token_tag, host=self.host, verbose=self.verbose)

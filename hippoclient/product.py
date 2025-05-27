@@ -141,6 +141,7 @@ def create(
                             upload_url.strip(),
                             data=data,
                             follow_redirects=True,
+                            auth=None,
                         )
 
                         if individual_response.status_code in [301, 302, 307, 308]:

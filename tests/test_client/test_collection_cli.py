@@ -3,7 +3,7 @@ from hippoclient import Client, collections
 
 def test_add_reader(server):
     client = Client(
-        api_key=server["test_user_api_key"],
+        token_tag=server["test_user_token_tag"],
         host=server["url"],
         verbose=True,
         use_multipart_upload=False,

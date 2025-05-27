@@ -1,4 +1,5 @@
-{ "host": "http://127.0.0.1:8000",
+{"token_tag": "None",
+   "host": "http://127.0.0.1:8000",
   "verbose": true,
   "caches": [
     {"path": "/tmp"}

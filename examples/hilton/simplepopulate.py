@@ -14,11 +14,9 @@ from hippometa import CatalogMetadata, MapSet, MapSetMap
 
 settings = ClientSettings()
 
-API_KEY = os.getenv("HIPPO_API_KEY")
 SERVER_LOCATION = os.getenv("HIPPO_HOST")
 
-if API_KEY is None:
-    API_KEY = "TEST_API_KEY"
+if SERVER_LOCATION is None:
     SERVER_LOCATION = "http://localhost:8000"
 
 COLLECTION_NAME = "ACT DR5 SZ Cluster Catalog"
@@ -123,7 +121,7 @@ mask = MapSet(
 
 
 if __name__ == "__main__":
-    client = Client(api_key=API_KEY, host=SERVER_LOCATION, verbose=True)
+    client = Client(token_tag=None, host=SERVER_LOCATION, verbose=True)
 
     collection_id = create_collection(
         client=client,

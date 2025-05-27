@@ -29,8 +29,8 @@ class Client(httpx.Client):
 
     def __init__(
         self,
-        token_tag: str,
         host: str,
+        token_tag: str | None,
         verbose: bool = False,
         use_multipart_upload: bool = False,
     ):
@@ -49,7 +49,7 @@ class Client(httpx.Client):
 
         self.verbose = verbose
         self.use_multipart_upload = use_multipart_upload
-        auth_provider = SOAuth(token_tag)
+        auth_provider = SOAuth(token_tag) if token_tag else None
         super().__init__(base_url=host, auth=auth_provider)
 
 
@@ -62,10 +62,10 @@ class ClientSettings(BaseSettings):
     3. Verbosity.
     """
 
-    token_tag: str
-    "The tag associated with the API key for the hippo API to use"
     host: str
     "The hostname of the HIPPO service you are connected to"
+    token_tag: str | None
+    "The tag associated with the API key for the hippo API to use"
     verbose: bool = False
     "Verbosity control: set to true for extra info"
     use_multipart_upload: bool = False

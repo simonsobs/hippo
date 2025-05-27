@@ -1,17 +1,14 @@
 {% extends "core.html" %}
 {% block content %}
 <div class="container-fluid">
-    <!-- Hidden elements for logout, requesting new API key, and providing compliance info -->
+    <!-- Hidden elements for logout -->
     <form class="d-none" method="get" action="{{ web_root }}/logout" id="logout"></form>
-    <form class="d-none" method="get" action="{{ web_root }}/user/apikey" id="newApiKey"></form>
-    <span id="compliance-check" class="d-none">{{ user.compliance }}</span>
     <!-- End hidden elements -->
     <div class="d-flex align-items-start mt-4 h-100">
         <div class="nav flex-column nav-pills me-3 gap-2 pe-3 border-end border-secondary-subtle" id="v-pills-tab" role="tablist" aria-orientation="vertical">
           <button class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="true">Account information</button>
           <button class="nav-link" id="v-pills-products-tab" data-bs-toggle="pill" data-bs-target="#v-pills-products" type="button" role="tab" aria-controls="v-pills-products" aria-selected="false">Products</button>
-          <button class="nav-link" id="v-pills-privileges-tab" data-bs-toggle="pill" data-bs-target="#v-pills-privileges" type="button" role="tab" aria-controls="v-pills-privileges" aria-selected="false">Privileges</button>
-          <button class="nav-link" id="v-pills-compliance-tab" data-bs-toggle="pill" data-bs-target="#v-pills-compliance" type="button" role="tab" aria-controls="v-pills-compliance" aria-selected="false">Compliance information</button>
+          <button class="nav-link" id="v-pills-privileges-tab" data-bs-toggle="pill" data-bs-target="#v-pills-privileges" type="button" role="tab" aria-controls="v-pills-privileges" aria-selected="false">Groups</button>
           <button form="logout" class="btn btn-outline-danger mt-4" id="v-pills-logout-tab" data-bs-toggle="pill" data-bs-target="#v-pills-logout" type="submit" role="tab" aria-controls="v-pills-logout" aria-selected="false">Log out</button>
         </div>
         <div class="tab-content" id="v-pills-tabContent">
@@ -19,13 +16,14 @@
             <ul class="list-group shadow-sm" style="min-width: 300px;">
                 <li class="list-group-item">
                     <h5>User name</h5>
-                    <p class="m-0">{{ user.name }}</p>
+                    <p class="m-0">{{ request.user.display_name }}</p>
                 </li>
                 <li class="list-group-item">
                     <h5>GitHub profile</h5>
                     <p class="m-0">
-                        {% if user.gh_profile_url %}
-                            <a href="{{ user.gh_profile_url }}">{{ user.gh_profile_url }}</a>
+                        {% if request.user %}
+                            {% set gh_url = "https://github.com/" ~ request.user.display_name %}
+                            <a href="{{ gh_url }}">{{ gh_url }}</a>
                         {% else %}
                             <span class="fst-italic">None</span>
                         {% endif %}
@@ -34,142 +32,39 @@
                 <li class="list-group-item">
                     <h5>Avatar URL</h5>
                     <p class="m-0">
-                        {% if user.avatar_url %}
-                            <a href="{{ user.avatar_url }}">{{ user.avatar_url }}</a>
+                        {% if request.user %}
+                            {% set avatar_url = "https://github.com/" ~ request.user.display_name ~ ".png" %}
+                            <a href="{{ avatar_url }}">{{ avatar_url }}</a>
                         {% else %}
                             <span class="fst-italic">None</span>
                         {% endif %}
                     </p>
-                </li>
+                </li>                
                 <li class="list-group-item">
                     <h5>Email</h5>
                     <p class="m-0">
-                    {% if user.email %}
-                        <a href="mailto:{{user.email}}">{{user.email}}</a>
+                    {% if request.user %}
+                        <a href="mailto:{{ request.user.email }}">{{ request.user.email }}</a>
                     {% else %}
                         <span class="fst-italic">None</span>
                     {% endif %}
                     </p>
                 </li>
-                <li class="list-group-item">
-                    <h5>API key</h5>
-                    <button
-                        type="button"
-                        class="btn btn-danger btn-sm"
-                        data-bs-toggle="modal"
-                        data-bs-target="#confirmNewApiModal"
-                    >
-                        Request new API key
-                    </button>
-                </li>
             </ul>
           </div>
           <div class="tab-pane fade" id="v-pills-products" role="tabpanel" aria-labelledby="v-pills-products-tab" tabindex="0">TODO: fetch user's products</div>
           <div class="tab-pane fade" id="v-pills-privileges" role="tabpanel" aria-labelledby="v-pills-privileges-tab" tabindex="0">
-            {% if user.privileges | length > 0 %}
+            {% if request.user and request.user.groups and request.user.groups | length > 0 %}
                 <ul class="list-group shadow-sm">
-                    {% for priv in user.privileges %}
-                    <li class="list-group-item small py-1">{{ priv }}</li>
+                    {% for group in request.user.groups %}
+                    <li class="list-group-item small py-1">{{ group }}</li>
                     {% endfor %}
                 </ul>
             {% else %}
                 <span>none</span>
             {% endif %}
           </div>
-          <div class="tab-pane fade" id="v-pills-compliance" role="tabpanel" aria-labelledby="v-pills-compliance-tab" tabindex="0">
-                <ul class="list-group shadow-sm">
-                    <li class="list-group-item">
-                        <h5>Compliance information</h5>
-                        {% if user.compliance is not none %}
-                            <span class="form-label small fw-bold d-block mb-1 mt-2">
-                                NERSC user name
-                            </span>
-                            <span class="m-0">{{ user.compliance["nersc_username"] }}</span>
-                        {% else %}
-                            <button
-                                class="btn btn-link btn-sm mt-2 p-0"
-                                id="openComplianceModal"
-                                data-bs-toggle="modal"
-                                data-bs-target="#provideComplianceInfo"
-                            >Open form to submit user name</button>
-                        {% endif %}
-                    </li>
-                </ul>
-          </div>
         </div>
     </div>      
 </div>
-
-<!-- Confirm new API request Modal -->
-<div class="modal fade" id="confirmNewApiModal" tabindex="-1" aria-labelledby="confirmNewApiModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
-        <h1 class="modal-title fs-5" id="confirmNewApiModalLabel">Confirm API Key Request</h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <h4 class="text-danger">Warning</h4>
-        <p>
-            Requesting a new API key will invalidate your current API key.
-        </p>
-        <p>
-            Would you like to continue?
-        </p>
-      </div>
-      <div class="modal-footer gap-4">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, cancel request</button>
-        <button form="newApiKey" type="submit" class="btn btn-outline-danger">Yes, get a new API key</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Provide compliance info -->
-<div class="modal fade" id="provideComplianceInfo" tabindex="-1" aria-labelledby="provideComplianceInfoLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header bg-primary text-white">
-          <h1 class="modal-title fs-5" id="provideComplianceInfoLabel">Compliance Information Needed</h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <p>
-                In order to upload products, please provide your NERSC user name.
-              </p>
-             <form method="post" action="{{ web_root }}/user/update" id="compliance-info">
-                <label class="form-label small fw-bold" style="width: 300px">
-                    NERSC user name
-                    <input
-                      class="form-control small"
-                      style="font-size: 1em;"
-                      type="text"
-                      name="nersc_user_name"
-                      placeholder="Enter user name"
-                      required
-                    />
-                </label>
-             </form>
-        </div>
-        <div class="modal-footer justify-content-center">
-            <button form="compliance-info" type="submit" class="btn btn-outline-primary">Submit</button>
-        </div>
-      </div>
-    </div>
-</div>
 {% endblock %}
-
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const complianceCheck = document.getElementById('compliance-check');
-        if (complianceCheck.innerText === "None") {
-            const complianceModalBtn = document.getElementById('openComplianceModal');
-            complianceModalBtn.click();
-        }
-    })
-</script>
-{% endblock %}
-
-  
-  

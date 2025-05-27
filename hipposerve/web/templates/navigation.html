@@ -65,16 +65,22 @@
       </li>
       <li class="nav-item">
         {% if request.user %}
-          {% set avatar_url = "https://github.com/" ~ request.user.display_name ~ ".png" %}
-          <a href="{{ web_root }}/user">
-            <img
-              class="border rounded-circle shadow-sm"
-              src="{{ avatar_url }}"
-              alt="User’s GitHub avatar"
-              width="45"
-              height="auto"
-            />
-          </a>
+          {% if request.user.display_name != "test_user" %}
+            {% set avatar_url = "https://github.com/" ~ request.user.display_name ~ ".png" %}
+            <a href="{{ web_root }}/user">
+              <img
+                class="border rounded-circle shadow-sm"
+                src="{{ avatar_url }}"
+                alt="User’s GitHub avatar"
+                width="45"
+                height="auto"
+              />
+            </a>
+          {% else %}
+            <a class="btn btn-primary btn-sm d-flex align-items-center shadow-sm" style="height: 40px;" href="{{ web_root }}/user">
+              My profile
+            </a>
+          {% endif %}
         {% else %}
           <a
             class="btn btn-primary btn-sm d-flex align-items-center shadow-sm text-nowrap"

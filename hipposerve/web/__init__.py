@@ -16,7 +16,6 @@ from hipposerve.database import Collection
 from hipposerve.service import collection, product
 from hipposerve.settings import SETTINGS
 
-from .auth import PotentialLoggedInUser
 from .auth import router as auth_router
 from .router import static_files as static_files
 from .router import templates, web_router
@@ -49,7 +48,7 @@ def get_cmap(ids: list[str] = []):
 
 
 @web_router.get("/")
-async def index(request: Request, user: PotentialLoggedInUser):
+async def index(request: Request):
     # Temporary change need to revert
     # products = await product.read_most_recent(user, fetch_links=True, maximum=16)
     # collections = await collection.read_most_recent(user, fetch_links=True, maximum=16)
@@ -61,18 +60,20 @@ async def index(request: Request, user: PotentialLoggedInUser):
             "request": request,
             "products": products,
             "collections": collections,
-            "user": user,
+            "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )
 
 
 @web_router.get("/products/{id}")
-async def product_view(request: Request, id: str, user: PotentialLoggedInUser):
-    product_instance = await product.read_by_id(id, user)
+async def product_view(request: Request, id: str):
+    product_instance = await product.read_by_id(id, request.user.groups)
     sources = await product.read_files(product_instance, storage=request.app.storage)
     # Grab the history!
-    latest_version = await product.walk_to_current(product_instance, user)
+    latest_version = await product.walk_to_current(
+        product_instance, request.user.groups
+    )
     version_history = await product.walk_history(latest_version)
 
     return templates.TemplateResponse(
@@ -82,17 +83,15 @@ async def product_view(request: Request, id: str, user: PotentialLoggedInUser):
             "product": product_instance,
             "sources": sources,
             "versions": version_history,
-            "user": user,
+            "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )
 
 
 @web_router.get("/collections/{id}")
-async def collection_view(
-    request: Request, id: PydanticObjectId, user: PotentialLoggedInUser
-):
-    collection_instance = await collection.read(id, user)
+async def collection_view(request: Request, id: PydanticObjectId):
+    collection_instance = await collection.read(id, request.user.groups)
     parents_overflow_content = get_overflow_content(
         collection_instance.parent_collections, "collection"
     )
@@ -112,7 +111,7 @@ async def collection_view(
             "parents_overflow_content": parents_overflow_content,
             "children_overflow_content": children_overflow_content,
             "cmap": cmap,
-            "user": user,
+            "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )

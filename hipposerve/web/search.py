@@ -9,7 +9,6 @@ from hippometa import ALL_METADATA
 from hipposerve.service import collection, product
 from hipposerve.settings import SETTINGS
 
-from .auth import PotentialLoggedInUser
 from .router import templates
 
 router = APIRouter()
@@ -19,14 +18,13 @@ router = APIRouter()
 @router.get("/search/results", response_class=HTMLResponse)
 async def search_results_view(
     request: Request,
-    user: PotentialLoggedInUser,
     q: str = None,
     filter: str = "products",
 ):
     if filter == "products":
-        results = await product.search_by_name(q, user)
+        results = await product.search_by_name(q, request.user.groups)
     elif filter == "collections":
-        results = await collection.search_by_name(q, user)
+        results = await collection.search_by_name(q, request.user.groups)
     else:
         results = []
 
@@ -37,7 +35,7 @@ async def search_results_view(
             "query": q,
             "filter": filter,
             "results": results,
-            "user": user,
+            "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )
@@ -47,7 +45,6 @@ async def search_results_view(
 @router.get("/searchmetadata/results", response_class=HTMLResponse)
 async def searchmetadata_results_view(
     request: Request,
-    user: PotentialLoggedInUser,
     q: str = None,
     filter_on: str = "products",
 ):
@@ -105,7 +102,7 @@ async def searchmetadata_results_view(
         else:
             metadata_filters[key] = {"$regex": value, "$options": "i"}
 
-    results = await product.search_by_metadata(metadata_filters)
+    results = await product.search_by_metadata(metadata_filters, request.user.groups)
 
     return templates.TemplateResponse(
         "search_results.html",
@@ -116,7 +113,7 @@ async def searchmetadata_results_view(
             "results": results,
             "metadata_filters": metadata_filters,
             "metadata_type": query_params["metadata_type"],
-            "user": user,
+            "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )
@@ -125,7 +122,6 @@ async def searchmetadata_results_view(
 @router.get("/searchmetadata", response_class=HTMLResponse)
 async def search_metadata_view(
     request: Request,
-    user: PotentialLoggedInUser,
 ):
     metadata_info = {}
 
@@ -188,7 +184,7 @@ async def search_metadata_view(
         {
             "request": request,
             "metadata": metadata_info,
-            "user": user,
+            "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )

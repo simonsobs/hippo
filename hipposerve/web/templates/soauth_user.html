@@ -1,0 +1,76 @@
+{% extends "core.html" %}
+{% block content %}
+<div class="container-fluid">
+    <!-- Hidden elements for logout -->
+    <form class="d-none" method="get" action="{{ web_root }}/logout" id="logout"></form>
+    <!-- End hidden elements -->
+    <div class="d-flex align-items-start mt-4 h-100">
+        <div class="nav flex-column nav-pills me-3 gap-2 pe-3 border-end border-secondary-subtle" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+          <button class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="true">Account information</button>
+          <button class="nav-link" id="v-pills-products-tab" data-bs-toggle="pill" data-bs-target="#v-pills-products" type="button" role="tab" aria-controls="v-pills-products" aria-selected="false">Products</button>
+          <button class="nav-link" id="v-pills-privileges-tab" data-bs-toggle="pill" data-bs-target="#v-pills-privileges" type="button" role="tab" aria-controls="v-pills-privileges" aria-selected="false">Groups</button>
+          <button form="logout" class="btn btn-outline-danger mt-4" id="v-pills-logout-tab" data-bs-toggle="pill" data-bs-target="#v-pills-logout" type="submit" role="tab" aria-controls="v-pills-logout" aria-selected="false">Log out</button>
+        </div>
+        <div class="tab-content" id="v-pills-tabContent">
+          <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab" tabindex="0">
+            <ul class="list-group shadow-sm" style="min-width: 300px;">
+                <li class="list-group-item">
+                    <h5>User name</h5>
+                    <p class="m-0">{{ request.user.display_name }}</p>
+                </li>
+                <li class="list-group-item">
+                    <h5>GitHub profile</h5>
+                    <p class="m-0">
+                        {% if request.user %}
+                            {% set gh_url = "https://github.com/" ~ request.user.display_name %}
+                            <a href="{{ gh_url }}">{{ gh_url }}</a>
+                        {% else %}
+                            <span class="fst-italic">None</span>
+                        {% endif %}
+                    </p>
+                </li>
+                <li class="list-group-item">
+                    <h5>Avatar URL</h5>
+                    <p class="m-0">
+                        {% if request.user %}
+                            {% set avatar_url = "https://github.com/" ~ request.user.display_name ~ ".png" %}
+                            <a href="{{ avatar_url }}">{{ avatar_url }}</a>
+                        {% else %}
+                            <span class="fst-italic">None</span>
+                        {% endif %}
+                    </p>
+                </li>                
+                <li class="list-group-item">
+                    <h5>Email</h5>
+                    <p class="m-0">
+                    {% if request.user %}
+                        <a href="mailto:{{ request.user.email }}">{{ request.user.email }}</a>
+                    {% else %}
+                        <span class="fst-italic">None</span>
+                    {% endif %}
+                    </p>
+                </li>
+            </ul>
+          </div>
+          <div class="tab-pane fade" id="v-pills-products" role="tabpanel" aria-labelledby="v-pills-products-tab" tabindex="0">TODO: fetch user's products</div>
+          <div class="tab-pane fade" id="v-pills-privileges" role="tabpanel" aria-labelledby="v-pills-privileges-tab" tabindex="0">
+            {% if request.user and request.user.groups and request.user.groups | length > 0 %}
+                <ul class="list-group shadow-sm">
+                    {% for group in request.user.groups %}
+                    <li class="list-group-item small py-1">{{ group }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <span>none</span>
+            {% endif %}
+          </div>
+        </div>
+    </div>      
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // No additional scripts needed
+</script>
+{% endblock %}

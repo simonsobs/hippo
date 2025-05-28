@@ -20,24 +20,32 @@ class AuthenticationError(Exception):
 async def create(
     name: str,
     email: str | None,
-) -> User:
+) -> None:
     user = User(
         name=name,
         email=email,
         last_access_time=current_utc_time(),
     )
     await user.create()
+    return
 
-    return user
 
-
-async def confirm_user(name: str) -> None:
-    user = await User.find(User.name == name, fetch_links=True).first_or_none()
+async def touch_last_access_time(name: str) -> None:
+    user = await User.find(User.name == name).first_or_none()
 
     if user is None:
         raise UserNotFound
 
+    user.last_access_time = current_utc_time()
+    await user.save()
+
     return
+
+
+async def confirm_user(name: str) -> None:
+    exists = await User.find(User.name == name).exists()
+    if not exists:
+        raise UserNotFound
 
 
 async def read(name: str) -> User:

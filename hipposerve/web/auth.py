@@ -114,12 +114,10 @@ async def logout(request: Request) -> RedirectResponse:
 @router.get("/user")
 async def read_user(request: Request):
     return templates.TemplateResponse(
-        "soauth_user.html", {"request": request, "web_root": SETTINGS.web_root}
+        "user.html", {"request": request, "web_root": SETTINGS.web_root}
     )
 
 
 @router.get("/login", name="login")
 async def login(request: Request):
-    if SETTINGS.auth_system is None:
-        return RedirectResponse(url="/web/user", status_code=302)
     return RedirectResponse(url=request.app.login_url, status_code=302)

@@ -1,4 +1,26 @@
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from hipposerve.service import users as user_service
 from hipposerve.settings import SETTINGS
+
+
+class UserMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        user_obj = request.scope.get("user")
+        if user_obj:
+            if request.user.is_authenticated:
+                try:
+                    await user_service.confirm_user(name=request.user.display_name)
+                    await user_service.touch_last_access_time(
+                        name=request.user.display_name
+                    )
+                except user_service.UserNotFound:
+                    await user_service.create(
+                        name=request.user.display_name, email=request.user.email
+                    )
+
+        return await call_next(request)
 
 
 def setup_auth(app):
@@ -18,4 +40,5 @@ def setup_auth(app):
         from soauth.toolkit.fastapi import mock_global_setup
 
         app = mock_global_setup(app=app, grants=["hippo:read", "hippo:write"])
+    app.add_middleware(UserMiddleware)
     return app

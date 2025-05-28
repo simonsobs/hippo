@@ -16,9 +16,10 @@ class UserMiddleware(BaseHTTPMiddleware):
                         name=request.user.display_name
                     )
                 except user_service.UserNotFound:
-                    await user_service.create(
+                    user = await user_service.create(
                         name=request.user.display_name, email=request.user.email
                     )
+                    await user_service.confirm_user(name=user.name)
 
         return await call_next(request)
 

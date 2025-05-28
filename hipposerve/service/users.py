@@ -20,14 +20,14 @@ class AuthenticationError(Exception):
 async def create(
     name: str,
     email: str | None,
-) -> None:
+) -> User:
     user = User(
         name=name,
         email=email,
         last_access_time=current_utc_time(),
     )
     await user.create()
-    return
+    return user
 
 
 async def touch_last_access_time(name: str) -> None:

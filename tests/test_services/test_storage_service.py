@@ -15,7 +15,7 @@ async def test_create_storage_item(storage, created_user, database):
     file, put = await storage_service.create(
         name="test_file.txt",
         description=None,
-        uploader=created_user.name,
+        uploader=created_user.display_name,
         size=len(FILE_CONTENT),
         checksum="FakeChecksum",
         storage=storage,
@@ -63,7 +63,7 @@ async def test_create_storage_item_large(storage, created_user, database):
     file, put = await storage_service.create(
         name="test_file.txt",
         description=None,
-        uploader=created_user.name,
+        uploader=created_user.display_name,
         size=92 * 1024 * 1024,
         checksum="FakeChecksum",
         storage=storage,

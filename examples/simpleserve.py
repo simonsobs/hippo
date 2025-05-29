@@ -13,17 +13,14 @@ view their metadata through the web frontend.
 """
 
 import os
-from subprocess import check_output
-
-import uvicorn
-from testcontainers.minio import MinioContainer
-from testcontainers.mongodb import MongoDbContainer
 
 ### -- Containers -- ###
-
 # In production, you would replace these test containers
 # with the actual connection information to separately
 # running ones.
+import uvicorn
+from testcontainers.minio import MinioContainer
+from testcontainers.mongodb import MongoDbContainer
 
 database_kwargs = {
     "username": "root",
@@ -56,9 +53,7 @@ def containers_to_environment(
         "add_cors": "yes",
         "web": "yes",
         "create_test_user": "yes",
-        "web_jwt_secret": check_output(["openssl", "rand", "-hex", "32"])
-        .decode("utf-8")
-        .strip(),
+        "auth_system": "no",
     }
 
     os.environ.update(settings)

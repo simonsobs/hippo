@@ -13,11 +13,9 @@ from hippoclient.collections import create as create_collection
 from hippoclient.product import create as create_product
 from hippometa import MapSet, MapSetMap
 
-API_KEY = os.getenv("HIPPO_API_KEY")
 SERVER_LOCATION = os.getenv("HIPPO_HOST")
 
-if API_KEY is None:
-    API_KEY = "TEST_API_KEY"
+if SERVER_LOCATION is None:
     SERVER_LOCATION = "http://127.0.0.1:8000"
 
 COLLECTION_NAME = (
@@ -162,7 +160,7 @@ if __name__ == "__main__":
         x: [link_to_path(y) for y in sub_sets[x]] for x in sub_sets.keys()
     }
 
-    client = Client(api_key=API_KEY, host=SERVER_LOCATION, verbose=True)
+    client = Client(token_tag=None, host=SERVER_LOCATION, verbose=True)
 
     collection_id = create_collection(
         client=client,

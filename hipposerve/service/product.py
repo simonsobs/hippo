@@ -19,14 +19,10 @@ from hipposerve.database import (
     File,
     Product,
     ProductMetadata,
-    User,
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.auth import (
-    check_product_read_access,
-    check_product_write_access,
-)
+from hipposerve.service.auth import check_user_access
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -64,7 +60,7 @@ class PostUploadFile(BaseModel):
 async def presign_uploads(
     sources: list[PreUploadFile],
     storage: Storage,
-    user: User,
+    user_name: str,
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[dict[str, list[str]], list[File]]:
     presigned = {}
@@ -74,7 +70,7 @@ async def presign_uploads(
         pre_upload_source, presigned_urls = await storage_service.create(
             name=source.name,
             description=source.description,
-            uploader=user.name,
+            uploader=user_name,
             size=source.size,
             checksum=source.checksum,
             storage=storage,
@@ -100,14 +96,17 @@ async def create(
     description: str,
     metadata: ALL_METADATA_TYPE,
     sources: list[PreUploadFile],
-    user: User,
+    user_name: str,
     storage: Storage,
     product_readers: list[str] | None = None,
     product_writers: list[str] | None = None,
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[Product, dict[str, list[str]]]:
     presigned, pre_upload_sources = await presign_uploads(
-        sources=sources, storage=storage, user=user, mutlipart_size=mutlipart_size
+        sources=sources,
+        storage=storage,
+        user_name=user_name,
+        mutlipart_size=mutlipart_size,
     )
 
     current_utc_time = datetime.datetime.now(datetime.timezone.utc)
@@ -121,7 +120,7 @@ async def create(
         current=True,
         version=INITIAL_VERSION,
         sources=pre_upload_sources,
-        owner=user,
+        owner=user_name,
         replaces=None,
         child_of=[],
         parent_of=[],
@@ -133,8 +132,8 @@ async def create(
 
     if product_readers is not None:
         product.readers.extend(product_readers)
-    if user.name not in product.writers:
-        product_writers.append(user.name)
+    if user_name not in product.writers:
+        product_writers.append(user_name)
     product.writers.extend(product_writers)
 
     await product.create()
@@ -142,7 +141,7 @@ async def create(
     return product, presigned
 
 
-async def read_by_name(name: str, version: str | None, user: User) -> Product:
+async def read_by_name(name: str, version: str | None, groups: list[str]) -> Product:
     """
     If version is None, we grab the latest version of a product.
     """
@@ -163,12 +162,14 @@ async def read_by_name(name: str, version: str | None, user: User) -> Product:
     if potential is None:
         raise ProductNotFound
 
-    await check_product_read_access(user=user, target_product=potential)
+    assert check_user_access(
+        user_groups=groups, document_groups=potential.readers + potential.writers
+    )
 
     return potential
 
 
-async def read_by_id(id: PydanticObjectId, user: User) -> Product:
+async def read_by_id(id: PydanticObjectId, groups: list[str]) -> Product:
     try:
         potential = await Product.get(document_id=id, **LINK_POLICY)
     except (InvalidId, ValidationError):
@@ -177,21 +178,20 @@ async def read_by_id(id: PydanticObjectId, user: User) -> Product:
     if potential is None:
         raise ProductNotFound
 
-    await check_product_read_access(user=user, target_product=potential)
+    assert check_user_access(
+        user_groups=groups, document_groups=potential.readers + potential.writers
+    )
 
     return potential
 
 
 async def search_by_name(
-    name: str, user: User, fetch_links: bool = True
+    name: str, groups: list[str], fetch_links: bool = True
 ) -> list[Product]:
     """
     Search for products by name using the text index.
     """
-    group_names = [group.name for group in user.groups]
-    access_query = {
-        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
-    }
+    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
     results = (
         await Product.find(
             access_query,
@@ -207,15 +207,12 @@ async def search_by_name(
 
 
 async def search_by_metadata(
-    metadata_filters: dict[str, Any], user: User, fetch_links: bool = True
+    metadata_filters: dict[str, Any], groups: list[str], fetch_links: bool = True
 ) -> list[Product]:
     """
     Search for products by metadata.
     """
-    group_names = [group.name for group in user.groups]
-    access_query = {
-        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
-    }
+    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
     # Construct the query by embedding metadata field names and values
     query = {f"metadata.{key}": value for key, value in metadata_filters.items()}
 
@@ -241,7 +238,7 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     return versions
 
 
-async def walk_to_current(product: Product, user: User) -> Product:
+async def walk_to_current(product: Product, groups: list[str]) -> Product:
     """
     Walk the list of products until you get to the one
     marked 'current'.
@@ -249,7 +246,7 @@ async def walk_to_current(product: Product, user: User) -> Product:
 
     # Re-read the product from the database, in case it
     # is stale!
-    product = await read_by_id(id=product.id, user=user)
+    product = await read_by_id(id=product.id, groups=groups)
 
     while not product.current:
         product = await Product.find_one(
@@ -319,12 +316,12 @@ async def read_files(product: Product, storage: Storage) -> list[PostUploadFile]
 
 
 async def read_most_recent(
-    user: User, fetch_links: bool = False, maximum: int = 16, current_only: bool = False
+    groups: list[str],
+    fetch_links: bool = False,
+    maximum: int = 16,
+    current_only: bool = False,
 ) -> list[Product]:
-    group_names = [group.name for group in user.groups]
-    access_query = {
-        "$or": [{"readers": {"$in": group_names}}, {"writers": {"$in": group_names}}]
-    }
+    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
 
     if current_only:
         query = {"$and": [{"current": True}, access_query]}
@@ -343,7 +340,7 @@ async def update_metadata(
     name: str | None,
     description: str | None,
     metadata: ALL_METADATA_TYPE | None,
-    owner: User | None,
+    owner: str | None,
     level: versioning.VersionRevision,
     add_readers: list[str] | None = None,
     remove_readers: list[str] | None = None,
@@ -366,7 +363,7 @@ async def update_metadata(
     # We don't actually 'update' the database; we actually create a new
     # product and link it in.
     if owner is not None:
-        writers.append(owner.name)
+        writers.append(owner)
     if add_readers is not None:
         readers.extend(add_readers)
     if remove_readers is not None:
@@ -455,11 +452,11 @@ async def update_sources(
     presigned_new, pre_upload_sources_new = await presign_uploads(
         sources=new,
         storage=storage,
-        user=product.owner,
+        user_name=product.owner,
     )
 
     presigned_replace, pre_upload_sources_replace = await presign_uploads(
-        sources=replace, storage=storage, user=product.owner
+        sources=replace, storage=storage, user_name=product.owner
     )
 
     presigned = {**presigned_new, **presigned_replace}
@@ -486,11 +483,11 @@ async def update_sources(
 
 async def update(
     product: Product,
-    access_user: User,
+    access_groups: list[str],
     name: str | None,
     description: str | None,
     metadata: ALL_METADATA_TYPE | None,
-    owner: User | None,
+    owner: str | None,
     new_sources: list[PreUploadFile],
     replace_sources: list[PreUploadFile],
     drop_sources: list[str],
@@ -501,7 +498,7 @@ async def update(
     add_writers: list[str] | None = None,
     remove_writers: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
-    await check_product_write_access(user=access_user, target_product=product)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     new_product = await update_metadata(
         product=product,
         name=name,
@@ -523,7 +520,7 @@ async def update(
     # So we just re-fetch our object from the database.
 
     new_product = await read_by_id(
-        new_product.id, new_product.owner
+        new_product.id, new_product.writers + new_product.readers
     )  # who should read this product?
 
     if any([len(new_sources) > 0, len(replace_sources) > 0, len(drop_sources) > 0]):
@@ -538,7 +535,7 @@ async def update(
         except Exception as e:
             # Need to roll-back our new product. Full transactions when?
             await delete_one(
-                new_product, new_product.owner, storage=storage, data=False
+                new_product, [new_product.owner], storage=storage, data=False
             )
             raise e
     else:
@@ -549,7 +546,7 @@ async def update(
 
 async def delete_one(
     product: Product,
-    access_user: User,
+    access_groups: list[str],
     storage: Storage,
     data: bool = False,
 ):
@@ -558,7 +555,7 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-    await check_product_write_access(user=access_user, target_product=product)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -606,7 +603,7 @@ async def delete_one(
 
 async def delete_tree(
     product: Product,
-    access_user: User,
+    access_groups: list[str],
     storage: Storage,
     data: bool = False,
 ):
@@ -614,7 +611,7 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-    await check_product_write_access(user=access_user, target_product=product)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -650,12 +647,12 @@ async def delete_tree(
 async def add_relationship(
     source: Product,
     destination: Product,
-    access_user: User,
+    access_groups: list[str],
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = source.child_of + [destination]
-    await check_product_write_access(user=access_user, target_product=source)
+    assert check_user_access(user_groups=access_groups, document_groups=source.writers)
     await source.save()
 
     return
@@ -664,30 +661,32 @@ async def add_relationship(
 async def remove_relationship(
     source: Product,
     destination: Product,
-    access_user: User,
+    access_groups: list[str],
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-    await check_product_write_access(user=access_user, target_product=source)
+    assert check_user_access(user_groups=access_groups, document_groups=source.writers)
     await source.save()
 
     return
 
 
-async def add_collection(product: Product, access_user: User, collection: Collection):
+async def add_collection(
+    product: Product, access_groups: list[str], collection: Collection
+):
     product.collections = product.collections + [collection]
-    await check_product_write_access(user=access_user, target_product=product)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     await product.save()
 
     return
 
 
 async def remove_collection(
-    product: Product, access_user: User, collection: Collection
+    product: Product, access_groups: list[str], collection: Collection
 ):
     product.collections = [c for c in product.collections if c.id != collection.id]
-    await check_product_write_access(user=access_user, target_product=product)
+    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
     await product.save()
 
     return product

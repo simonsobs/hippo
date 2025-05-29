@@ -8,18 +8,16 @@ from hipposerve.settings import SETTINGS
 class UserMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         user_obj = request.scope.get("user")
-        if user_obj:
-            if request.user.is_authenticated:
-                try:
-                    await user_service.confirm_user(name=request.user.display_name)
-                    await user_service.touch_last_access_time(
-                        name=request.user.display_name
-                    )
-                except user_service.UserNotFound:
-                    user = await user_service.create(
-                        name=request.user.display_name, email=request.user.email
-                    )
-                    await user_service.confirm_user(name=user.name)
+        if user_obj and user_obj.is_authenticated:
+            try:
+                await user_service.confirm_user(name=request.user.display_name)
+                await user_service.touch_last_access_time(
+                    name=request.user.display_name
+                )
+            except user_service.UserNotFound:
+                await user_service.create(
+                    name=user_obj.display_name, email=user_obj.email
+                )
 
         return await call_next(request)
 

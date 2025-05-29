@@ -49,11 +49,14 @@ def get_cmap(ids: list[str] = []):
 
 @web_router.get("/")
 async def index(request: Request):
-    # Temporary change need to revert
-    # products = await product.read_most_recent(user, fetch_links=True, maximum=16)
-    # collections = await collection.read_most_recent(user, fetch_links=True, maximum=16)
     products = []
     collections = []
+    products = await product.read_most_recent(
+        groups=request.user.groups, fetch_links=True, maximum=16
+    )
+    collections = await collection.read_most_recent(
+        groups=request.user.groups, fetch_links=True, maximum=16
+    )
     return templates.TemplateResponse(
         "index.html",
         {

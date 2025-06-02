@@ -52,7 +52,10 @@ def product_read(id: str):
     CONSOLE.print(product_extracted_version.metadata)
     CONSOLE.print(helper.render_source_list(product_extracted_version.sources, CACHE))
     CONSOLE.print("\n" + "Relationships" + "\n", style="bold color(2)")
-    CONSOLE.print("Collections: " + ", ".join(product_extracted_version.collections))
+    CONSOLE.print(
+        "Collections: "
+        + ", ".join(str(c) for c in product_extracted_version.collections)
+    )
     if len(product_extracted_version.parent_of) > 0:
         CONSOLE.print("Children: " + ", ".join(product_extracted_version.parent_of))
     if len(product_extracted_version.child_of) > 0:

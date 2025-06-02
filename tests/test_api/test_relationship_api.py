@@ -64,13 +64,13 @@ def test_read_collection(
 
     assert response.json()["name"] == collection_name
     assert response.json()["description"] == "test_description"
-    assert response.json()["owner"] == "admin"
+    assert response.json()["owner"] == "test_user"
     assert len(response.json()["products"]) == 4
 
     for product in response.json()["products"]:
         assert product["name"] in product_names
         assert product["description"] == "test_description"
-        assert product["owner"] == "admin"
+        assert product["owner"] == "test_user"
 
 
 def test_update_collection(test_api_client: TestClient):

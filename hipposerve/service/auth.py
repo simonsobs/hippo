@@ -3,105 +3,81 @@ Authentication code for the API, which uses api key based
 authentication.
 """
 
-from typing import Annotated
+import functools
+import inspect
 
-from fastapi import Depends, HTTPException, Security, status
-from fastapi.security import APIKeyHeader
-from loguru import logger
+from fastapi import HTTPException, Request, status
+from starlette._utils import is_async_callable
 
-from hipposerve.database import Collection, Product
-from hipposerve.service import groups, users
-
-api_key_header = APIKeyHeader(name="X-API-Key")
-
-
-async def get_user(api_key_header: str = Security(api_key_header)) -> users.User:
-    try:
-        user = await users.user_from_api_key(api_key_header)
-        logger.info(f"Authenticated user using API key: {user.name}")
-        return user
-    except users.UserNotFound:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key",
-        )
+AVAILABLE_GRANTS = {
+    "hippo:admin",
+    "hippo:read",
+    "hippo:write",
+}
 
 
-UserDependency = Annotated[users.User, Depends(get_user)]
+class AuthenticationError(Exception):
+    pass
 
 
-async def check_group_for_privilege(
-    user: users.User, privilege: groups.Privilege
-) -> None:
-    for group in user.groups:
-        if privilege in group.access_controls:
-            return
+def has_required_scope(request: Request, scopes: list[str]) -> bool:
+    allowed = set(scopes)
+    if any(scope in allowed for scope in request.auth.scopes):
+        return True
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges",
-    )
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
-async def check_product_read_access(user: users.User, target_product: Product) -> None:
-    product_groups = target_product.readers + target_product.writers
-    for group in user.groups:
-        if (
-            group.name in product_groups
-            and groups.Privilege.READ_PRODUCT in group.access_controls
-        ):
-            return
+def requires(scopes: str | list[str]):
+    """
+    Check whether your user has the required scope.
+    """
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges for product access",
-    )
+    def decorator(func):
+        scopes_list = [scopes] if isinstance(scopes, str) else list(scopes)
 
+        for scope in scopes_list:
+            if scope not in AVAILABLE_GRANTS:
+                raise HTTPException(501, "Invalid scope, server error")
 
-async def check_product_write_access(user: users.User, target_product: Product) -> None:
-    product_groups = target_product.writers
-    for group in user.groups:
-        if (
-            group.name in product_groups
-            and groups.Privilege.UPDATE_PRODUCT in group.access_controls
-        ):
-            return
+        sig = inspect.signature(func)
+        for idx, parameter in enumerate(sig.parameters.values()):
+            if parameter.name == "request":
+                break
+        else:
+            raise Exception(f'No "request" argument on function "{func}"')
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges for product access",
-    )
+        if is_async_callable(func):
 
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                request = kwargs.get("request", args[idx] if idx < len(args) else None)
+                assert isinstance(request, Request)
 
-async def check_collection_read_access(
-    user: users.User, target_collection: Collection
-) -> None:
-    collection_groups = target_collection.readers + target_collection.writers
-    for group in user.groups:
-        if (
-            group.name in collection_groups
-            and groups.Privilege.READ_COLLECTION in group.access_controls
-        ):
-            return
+                if has_required_scope(request, scopes_list):
+                    return await func(*args, **kwargs)
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges for collection access",
-    )
+            return async_wrapper
+        else:
+
+            @functools.wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                request = kwargs.get("request", args[idx] if idx < len(args) else None)
+                assert isinstance(request, Request)
+
+                if has_required_scope(request, scopes_list):
+                    return func(*args, **kwargs)
+
+            return sync_wrapper
+
+    return decorator
 
 
-async def check_collection_write_access(
-    user: users.User, target_collection: Collection
-) -> None:
-    collection_groups = target_collection.writers
-    for group in user.groups:
-        if (
-            group.name in collection_groups
-            and groups.Privilege.UPDATE_COLLECTION in group.access_controls
-        ):
-            return
+def check_user_access(user_groups: list[str], document_groups: list[str]) -> bool:
+    allowed = set(document_groups)
+    if any(group in allowed for group in user_groups):
+        return True
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges for collection access",
+    raise AuthenticationError(
+        "User does not have the required group access for this operation"
     )

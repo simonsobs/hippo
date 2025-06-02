@@ -56,7 +56,6 @@ def server(storage_container, database_container, xprocess):
         "debug": "yes",
         "add_cors": "yes",
         "create_test_user": "yes",
-        "test_user_api_key": "TEST_API_KEY",
     }
 
     class Starter(ProcessStarter):

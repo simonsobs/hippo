@@ -139,8 +139,9 @@ def create(
 
                         individual_response = client.put(
                             upload_url.strip(),
-                            data=data,
+                            content=data,
                             follow_redirects=True,
+                            auth=None,
                         )
 
                         if individual_response.status_code in [301, 302, 307, 308]:

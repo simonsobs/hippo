@@ -15,9 +15,9 @@ from hipposerve.api.models.product import (
     UpdateProductRequest,
     UpdateProductResponse,
 )
-from hipposerve.database import Privilege, ProductMetadata
+from hipposerve.database import ProductMetadata
 from hipposerve.service import product, users
-from hipposerve.service.auth import UserDependency, check_group_for_privilege
+from hipposerve.service.auth import requires
 
 product_router = APIRouter(prefix="/product")
 
@@ -25,18 +25,18 @@ DEFAULT_USER_USER_NAME = "default_user"
 
 
 @product_router.put("/new")
+@requires(["hippo:admin", "hippo:write"])
 async def create_product(
     request: Request,
     model: CreateProductRequest,
-    calling_user: UserDependency,
 ) -> CreateProductResponse:
     """
     Create a new product, returning the pre-signed URLs for the sources.
     """
 
-    logger.info("Create product request: {} from {}", model.name, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
+    logger.info(
+        "Create product request: {} from {}", model.name, request.user.display_name
+    )
 
     if await product.exists(name=model.name):
         raise HTTPException(
@@ -48,7 +48,7 @@ async def create_product(
         description=model.description,
         metadata=model.metadata,
         sources=model.sources,
-        user=calling_user,
+        user_name=request.user.display_name,
         storage=request.app.storage,
         product_readers=model.product_readers,
         product_writers=model.product_writers,
@@ -60,29 +60,28 @@ async def create_product(
         sum(len(x) for x in presigned.values()),
         model.name,
         item.id,
-        calling_user.name,
+        request.user.display_name,
     )
 
     return CreateProductResponse(id=item.id, upload_urls=presigned)
 
 
 @product_router.post("/{id}/complete")
+@requires(["hippo:admin", "hippo:write"])
 async def complete_product(
     id: PydanticObjectId,
     request: Request,
     model: CompleteProductRequest,
-    calling_user: UserDependency,
 ) -> None:
     """
     Complete a product's upload. Must be called before the sources are available.
     """
-
-    logger.info("Complete product request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.CREATE_PRODUCT)
+    logger.info(
+        "Complete product request for {} from {}", id, request.user.display_name
+    )
 
     try:
-        item = await product.read_by_id(id=id, user=calling_user)
+        item = await product.read_by_id(id=id, groups=request.user.groups)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -105,21 +104,19 @@ async def complete_product(
 
 
 @product_router.get("/{id}")
+@requires(["hippo:admin", "hippo:read"])
 async def read_product(
     id: PydanticObjectId,
     request: Request,
-    calling_user: UserDependency,
 ) -> ReadProductResponse:
     """
     Read a single product's metadata.
     """
 
-    logger.info("Read product request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    logger.info("Read product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = (await product.read_by_id(id, calling_user)).to_metadata()
+        item = (await product.read_by_id(id, request.user.groups)).to_metadata()
 
         response = ReadProductResponse(
             current_present=item.current,
@@ -132,7 +129,7 @@ async def read_product(
             "Successfully read product {} (id: {}) requested by {}",
             item.name,
             item.id,
-            calling_user.name,
+            request.user.display_name,
         )
 
         return response
@@ -143,21 +140,25 @@ async def read_product(
 
 
 @product_router.get("/{id}/tree")
+@requires(["hippo:admin", "hippo:read"])
 async def read_tree(
-    id: PydanticObjectId, request: Request, calling_user: UserDependency
+    id: PydanticObjectId,
+    request: Request,
 ) -> ReadProductResponse:
     """
     Read a single product's entire history.
     """
 
-    logger.info("Read product tree request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    logger.info(
+        "Read product tree request for {} from {}", id, request.user.display_name
+    )
 
     try:
-        requested_item = await product.read_by_id(id, calling_user)
-        current_item = await product.walk_to_current(requested_item, calling_user)
-        history = await product.walk_history(current_item)
+        requested_item = await product.read_by_id(id=id, groups=request.user.groups)
+        current_item = await product.walk_to_current(
+            product=requested_item, groups=request.user.groups
+        )
+        history = await product.walk_history(product=current_item)
 
         if not current_item.current:
             raise HTTPException(
@@ -176,7 +177,7 @@ async def read_tree(
             "Successfully read product tree for {} (id: {}) requested by {}",
             requested_item.name,
             requested_item.id,
-            calling_user.name,
+            request.user.display_name,
         )
 
         return response
@@ -187,19 +188,16 @@ async def read_tree(
 
 
 @product_router.get("/{id}/files")
-async def read_files(
-    id: PydanticObjectId, request: Request, calling_user: UserDependency
-) -> ReadFilesResponse:
+@requires(["hippo:admin", "hippo:read"])
+async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesResponse:
     """
     Read a single product's including pre-signed URLs for downloads.
     """
 
-    logger.info("Read files request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
+    logger.info("Read files request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, user=calling_user)
+        item = await product.read_by_id(id=id, groups=request.user.groups)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -212,7 +210,7 @@ async def read_files(
         len(files),
         item.name,
         item.id,
-        calling_user.name,
+        request.user.display_name,
     )
 
     return ReadFilesResponse(
@@ -222,23 +220,20 @@ async def read_files(
 
 
 @product_router.post("/{id}/update")
+@requires(["hippo:admin", "hippo:write"])
 async def update_product(
     id: PydanticObjectId,
     model: UpdateProductRequest,
     request: Request,
-    calling_user: UserDependency,
 ) -> UpdateProductResponse:
     """
     Update a product's details.
     """
 
-    logger.info("Update product request for {} from {}", id, calling_user.name)
-
-    # For now only privileged users can update products, and they can update everyone's.
-    await check_group_for_privilege(calling_user, Privilege.UPDATE_PRODUCT)
+    logger.info("Update product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, user=calling_user)
+        item = await product.read_by_id(id=id, groups=request.user.groups)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -246,7 +241,8 @@ async def update_product(
 
     if model.owner is not None:
         try:
-            user = await users.read(name=model.owner)
+            await users.confirm_user(name=model.owner)
+            user = model.owner
         except users.UserNotFound:
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="User not found."
@@ -255,8 +251,8 @@ async def update_product(
         user = None
 
     new_product, upload_urls = await product.update(
-        item,
-        calling_user,
+        product=item,
+        access_groups=request.user.groups,
         name=model.name,
         description=model.description,
         metadata=model.metadata,
@@ -279,7 +275,7 @@ async def update_product(
         new_product.version,
         item.id,
         item.version,
-        calling_user.name,
+        request.user.display_name,
     )
 
     return UpdateProductResponse(
@@ -290,19 +286,16 @@ async def update_product(
 
 
 @product_router.post("/{id}/confirm")
-async def confirm_product(
-    id: PydanticObjectId, request: Request, calling_user: UserDependency
-) -> None:
+@requires(["hippo:admin", "hippo:read"])
+async def confirm_product(id: PydanticObjectId, request: Request) -> None:
     """
     Confirm a product's sources.
     """
 
-    logger.info("Confirm product request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.CONFIRM_PRODUCT)
+    logger.info("Confirm product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, user=calling_user)
+        item = await product.read_by_id(id=id, groups=request.user.groups)
         success = await product.confirm(
             product=item,
             storage=request.app.storage,
@@ -322,30 +315,30 @@ async def confirm_product(
 
 
 @product_router.delete("/{id}")
+@requires(["hippo:admin", "hippo:write"])
 async def delete_product(
     id: PydanticObjectId,
     request: Request,
-    calling_user: UserDependency,
     data: bool = False,
 ) -> None:
     """
     Delete a product.
     """
 
-    logger.info("Delete (single) product request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
+    logger.info(
+        "Delete (single) product request for {} from {}", id, request.user.display_name
+    )
 
     try:
-        item = await product.read_by_id(id=id, user=calling_user)
+        item = await product.read_by_id(id=id, groups=request.user.groups)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
         )
 
     await product.delete_one(
-        item,
-        access_user=calling_user,
+        product=item,
+        access_groups=request.user.groups,
         storage=request.app.storage,
         data=data,
     )
@@ -360,30 +353,30 @@ async def delete_product(
 
 
 @product_router.delete("/{id}/tree")
+@requires(["hippo:admin", "hippo:write"])
 async def delete_tree(
     id: PydanticObjectId,
     request: Request,
-    calling_user: UserDependency,
     data: bool = False,
 ) -> None:
     """
     Delete a product.
     """
 
-    logger.info("Delete (tree) product request for {} from {}", id, calling_user.name)
-
-    await check_group_for_privilege(calling_user, Privilege.DELETE_PRODUCT)
+    logger.info(
+        "Delete (tree) product request for {} from {}", id, request.user.display_name
+    )
 
     try:
-        item = await product.read_by_id(id=id, user=calling_user)
+        item = await product.read_by_id(id=id, groups=request.user.groups)
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
         )
 
     await product.delete_tree(
-        item,
-        access_user=calling_user,
+        product=item,
+        access_groups=request.user.groups,
         storage=request.app.storage,
         data=data,
     )
@@ -398,26 +391,26 @@ async def delete_tree(
 
 
 @product_router.get("/search/{text}")
+@requires(["hippo:admin", "hippo:read"])
 async def search(
     text: str,
     request: Request,
-    calling_user: UserDependency,
 ) -> list[ProductMetadata]:
     """
     Search for a product by name.
     """
 
-    logger.info("Search for product {} request from {}", text, calling_user.name)
+    logger.info(
+        "Search for product {} request from {}", text, request.user.display_name
+    )
 
-    await check_group_for_privilege(calling_user, Privilege.READ_PRODUCT)
-
-    items = await product.search_by_name(name=text, user=calling_user)
+    items = await product.search_by_name(name=text, groups=request.user.groups)
 
     logger.info(
         "Successfully found {} product(s) matching {} requested by {}",
         len(items),
         text,
-        calling_user.name,
+        request.user.display_name,
     )
 
     return [item.to_metadata() for item in items]

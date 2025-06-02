@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from jinja2 import Environment, PackageLoader
 
 web_router = APIRouter(prefix="/web")
 
@@ -15,8 +16,10 @@ potential_routes = ["hipposerve/web", "hippo/hipposerve/web", Path(__file__).par
 for route in potential_routes:
     try:
         templates = Jinja2Templates(
-            directory=f"{route}/templates",
-            extensions=["jinja_markdown.MarkdownExtension"],
+            env=Environment(
+                loader=PackageLoader("hipposerve", package_path="web/templates"),
+                extensions=["jinja_markdown.MarkdownExtension"],
+            )
         )
 
         static_files = {

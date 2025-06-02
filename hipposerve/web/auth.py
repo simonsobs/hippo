@@ -104,13 +104,6 @@ PotentialLoggedInUser = Annotated[
 ]
 
 
-@router.get("/logout")
-async def logout(request: Request) -> RedirectResponse:
-    """Redirect to SOAuth logout."""
-    logout_url = request.app.logout_url
-    return RedirectResponse(logout_url, status_code=302)
-
-
 @router.get("/user")
 async def read_user(request: Request):
     return templates.TemplateResponse(

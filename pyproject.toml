@@ -13,7 +13,7 @@ name = "hipposerve"
 version = "0.0.1a7"
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic",
+    "pydantic<2.11",
     "pydantic-settings",
     # 4.1.0 and above introduce a deprecation warning
     # that breaks the latest versions of asyncer.
@@ -35,7 +35,7 @@ dependencies = [
     "loguru",
     "tqdm",
     "textual[syntax]",
-    "soauth @ git+https://github.com/simonsobs/soauth.git@main",
+    "soauth>=0.5.2",
 ]
 
 [project.optional-dependencies]

@@ -5,12 +5,13 @@ web endpoints.
 """
 
 import io
-from dataclasses import dataclass
+import uuid
 
 import pytest_asyncio
 import requests
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
+from soauth.toolkit.fastapi import SOUser
 
 from hipposerve.database import BEANIE_MODELS
 
@@ -31,19 +32,16 @@ async def database(database_container):
 ### -- Data Service Fixtures -- ###
 
 
-@dataclass
-class TestUser:
-    display_name: str
-    groups: list[str]
-
-
 @pytest_asyncio.fixture(scope="session")
 async def created_user():
-    user = TestUser(
+    yield SOUser(
+        is_authenticated=True,
+        user_id=uuid.uuid4(),
         display_name="test_user",
+        full_name="Test User",
+        email="test@test_user.com",
         groups=["test_user"],
     )
-    yield user
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -129,6 +127,9 @@ async def created_collection(database, created_user):
         name=COLLECTION_NAME,
         user=created_user.display_name,
         description=COLLECTION_DESCRIPTION,
+        # Provide r/w access to the user's group (same as name)
+        collection_readers=[created_user.display_name],
+        collection_writers=[created_user.display_name],
     )
 
     yield data

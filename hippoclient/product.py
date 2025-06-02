@@ -139,7 +139,7 @@ def create(
 
                         individual_response = client.put(
                             upload_url.strip(),
-                            data=data,
+                            content=data,
                             follow_redirects=True,
                             auth=None,
                         )

@@ -73,7 +73,7 @@ if SETTINGS.web:  # pragma: no cover
     ):
         if request.user.is_authenticated:
             return HTMLResponse(
-                content="You do not have permission to access this resource.",
+                content="You do not have permission to access this resource",
                 status_code=403,
             )
         else:

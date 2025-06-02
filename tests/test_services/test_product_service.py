@@ -4,7 +4,6 @@ Tests for just the product service.
 
 import datetime
 import io
-from dataclasses import dataclass
 
 import pytest
 import requests
@@ -12,12 +11,6 @@ from beanie import PydanticObjectId
 from beanie.odm.fields import Link
 
 from hipposerve.service import product, versioning
-
-
-@dataclass
-class TestUser:
-    display_name: str
-    groups: list[str]
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -154,7 +147,6 @@ async def test_add_to_collection(
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update_metadata(created_full_product, database, storage, created_user):
-    new_user = TestUser(display_name="test_user", groups=["test_user"])
     existing_version = created_full_product.version
 
     await product.update(
@@ -162,7 +154,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
         created_user.groups,
         name=None,
         description="New description",
-        owner=new_user.display_name,
+        owner=created_user.display_name,
         metadata={"metadata_type": "simple"},
         level=versioning.VersionRevision.MAJOR,
         new_sources=[],
@@ -172,12 +164,12 @@ async def test_update_metadata(created_full_product, database, storage, created_
     )
 
     new_product = await product.read_by_name(
-        name=created_full_product.name, version=None, groups=new_user.groups
+        name=created_full_product.name, version=None, groups=created_user.groups
     )
 
     assert new_product.name == created_full_product.name
     assert new_product.description == "New description"
-    assert new_product.owner == new_user.display_name
+    assert new_product.owner == created_user.display_name
     assert new_product.version != existing_version
     assert new_product.replaces.id == created_full_product.id
     # try to read old version
@@ -199,7 +191,9 @@ async def test_update_metadata(created_full_product, database, storage, created_
         )
 
     assert new_product.current
-    await product.delete_one(new_product, new_user.groups, storage=storage, data=True)
+    await product.delete_one(
+        new_product, created_user.groups, storage=storage, data=True
+    )
 
 
 @pytest.mark.asyncio(loop_scope="session")

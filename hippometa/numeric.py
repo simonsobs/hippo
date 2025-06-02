@@ -12,4 +12,4 @@ class NumericMetadata(BaseMetadata):
 
     metadata_type: Literal["numeric"] = "numeric"
 
-    value: float = Field(min=-1e100, max=1e100)
+    value: float = Field(json_schema_extra=dict(min=-1e100, max=1e100))

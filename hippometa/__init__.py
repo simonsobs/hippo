@@ -18,6 +18,7 @@ from typing import Annotated, Union
 
 from pydantic import Field
 
+from hippometa.archive import ArchiveMetadata
 from hippometa.beam import BeamMetadata
 from hippometa.catalog import CatalogMetadata
 
@@ -28,11 +29,26 @@ from hippometa.numeric import NumericMetadata
 from hippometa.simple import SimpleMetadata
 
 ALL_METADATA_TYPE = Annotated[
-    Union[BeamMetadata, MapSet, CatalogMetadata, NumericMetadata, SimpleMetadata, None],
+    Union[
+        ArchiveMetadata,
+        BeamMetadata,
+        MapSet,
+        CatalogMetadata,
+        NumericMetadata,
+        SimpleMetadata,
+        None,
+    ],
     Field(discriminator="metadata_type"),
 ]
 
 ALL_METADATA = {
     x.model_fields["metadata_type"].default: x
-    for x in [BeamMetadata, MapSet, CatalogMetadata, NumericMetadata, SimpleMetadata]
+    for x in [
+        ArchiveMetadata,
+        BeamMetadata,
+        MapSet,
+        CatalogMetadata,
+        NumericMetadata,
+        SimpleMetadata,
+    ]
 }

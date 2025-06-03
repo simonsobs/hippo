@@ -9,7 +9,10 @@
           <button class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="true">Account information</button>
           <button class="nav-link" id="v-pills-products-tab" data-bs-toggle="pill" data-bs-target="#v-pills-products" type="button" role="tab" aria-controls="v-pills-products" aria-selected="false">Products</button>
           <button class="nav-link" id="v-pills-privileges-tab" data-bs-toggle="pill" data-bs-target="#v-pills-privileges" type="button" role="tab" aria-controls="v-pills-privileges" aria-selected="false">Groups</button>
+          {% if soauth_enabled %}
           <button form="logout" class="btn btn-outline-danger mt-4" id="v-pills-logout-tab" data-bs-toggle="pill" data-bs-target="#v-pills-logout" type="submit" role="tab" aria-controls="v-pills-logout" aria-selected="false">Log out</button>
+          {% endif %}
+          {# If there is no soauth, it's not possible to log out! #}
         </div>
         <div class="tab-content" id="v-pills-tabContent">
           <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab" tabindex="0">

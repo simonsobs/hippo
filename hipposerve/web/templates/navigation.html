@@ -64,27 +64,33 @@
         <a class="btn btn-outline-dark btn-sm d-flex align-items-center shadow-sm text-nowrap" style="height: 40px;" href="{{ web_root }}/searchmetadata">Search by metadata</a>
       </li>
       <li class="nav-item">
-        {% if request.user.is_authenticated %}
-            {% set avatar_url = "https://github.com/" ~ request.user.display_name ~ ".png" %}
-            <a href="{{ web_root }}/user">
-              <img
-                class="border rounded-circle shadow-sm"
-                src="{{ avatar_url }}"
-                alt="User’s GitHub avatar"
-                width="45"
-                height="auto"
-              />
+        {% if soauth_enabled %}
+          {% if request.user.is_authenticated %}
+              {% set avatar_url = "https://github.com/" ~ request.user.display_name ~ ".png" %}
+              <a href="{{ web_root }}/user">
+                <img
+                  class="border rounded-circle shadow-sm"
+                  src="{{ avatar_url }}"
+                  alt="User’s GitHub avatar"
+                  width="45"
+                  height="auto"
+                />
+              </a>
+          {% else %}
+            <a
+              class="btn btn-primary btn-sm d-flex align-items-center shadow-sm text-nowrap"
+              style="height: 40px;"
+              href="{{ soauth_login_url }}"
+            >
+              Log in
             </a>
-        {% elif soauth_enabled %}
-          <a
-            class="btn btn-primary btn-sm d-flex align-items-center shadow-sm text-nowrap"
-            style="height: 40px;"
-            href="{{ soauth_login_url }}"
-          >
-            Log in
-          </a>
-        {% endif %}
+          {% endif %}
+        {% else %}
         {# In cases where soauth is not used, there's no login system - all requests are pre-authenticated with the default user. #}
+        <a href="{{ web_root }}/user">
+          User
+        </a>
+        {% endif %}
       </li>      
     </ul>
   </nav>

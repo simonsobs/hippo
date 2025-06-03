@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     add_cors: bool = True
     debug: bool = True
 
-    create_test_user: bool = False
     web: bool = False
     "Serve the web frontend."
     web_root: str = "/web"

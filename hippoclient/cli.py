@@ -2,6 +2,8 @@
 A CLI interface to the hippo client.
 """
 
+from typing import Annotated
+
 import rich
 import typer
 
@@ -25,6 +27,10 @@ cache_app = typer.Typer(
     help="Maintenance commands for the cache. There are also tools for cache management in the product and collection commands."
 )
 APP.add_typer(cache_app, name="cache")
+dev_app = typer.Typer(
+    help="Developer commands, mainly used for running and testing servers during hippo development. For regular use, you can ignore these."
+)
+APP.add_typer(dev_app, name="dev")
 
 
 @product_app.command("read")
@@ -290,6 +296,99 @@ def cache_clear_all():
         if cache.writeable:
             sc.caching.clear_all(cache=cache)
             CONSOLE.print(f"Cleared cache {cache.path}")
+
+
+@dev_app.command("serve")
+def dev_serve():
+    """
+    Run a hippo development server, without spinning up dependencies (i.e. you
+    will need to have mongo and minio running with appropriate environments set).
+    """
+
+    import uvicorn
+
+    from hipposerve.api.app import app
+
+    config = uvicorn.Config(
+        app,
+        port=8000,
+        reload=True,
+        reload_dirs=["hipposerve/web", "hipposerve/web/templates"],
+    )
+    server = uvicorn.Server(config)
+
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        exit(0)
+
+
+@dev_app.command("run")
+def dev_run(
+    with_soauth: Annotated[
+        bool,
+        typer.Option(
+            help="Run with SOAuth integration? If not, all requests are mock-authenticated"
+        ),
+    ] = False,
+):
+    """
+    Run a hippo development server, spinning up dependencies (i.e. we create
+    temporary servers and set defaults for all variables that we can).
+    """
+
+    import os
+
+    import uvicorn
+    from testcontainers.minio import MinioContainer
+    from testcontainers.mongodb import MongoDbContainer
+
+    database_kwargs = {
+        "username": "root",
+        "password": "password",
+        "port": 27017,
+        "dbname": "hippo_test",
+    }
+
+    storage_kwargs = {}
+
+    with MongoDbContainer(**database_kwargs) as database_container:
+        with MinioContainer(**storage_kwargs) as storage_container:
+            storage_config = storage_container.get_config()
+            database_uri = database_container.get_connection_url()
+
+            settings = {
+                "mongo_uri": database_uri,
+                "minio_url": storage_config["endpoint"],
+                "minio_access": storage_config["access_key"],
+                "minio_secret": storage_config["secret_key"],
+                "title": "Test hippo",
+                "description": "Test hippo Description",
+                "debug": "yes",
+                "add_cors": "yes",
+                "web": "yes",
+                "auth_system": "soauth" if with_soauth else "None",
+            }
+
+            os.environ.update(settings)
+
+            # HIPPO must be imported _after_ updating settings.
+            from hipposerve.api.app import app
+
+            config = uvicorn.Config(
+                app,
+                port=8000,
+                reload=True,
+                reload_dirs=["hipposerve/web", "hipposerve/web/templates"],
+            )
+            server = uvicorn.Server(config)
+
+            try:
+                server.run()
+            except KeyboardInterrupt:
+                exit(0)
+
+    return
 
 
 def main():

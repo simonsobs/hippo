@@ -142,6 +142,10 @@ if SETTINGS.web:  # pragma: no cover
         except KeyError:
             return not_found_template(request, requested_item_type, requested_id)
 
+    @app.get("/")
+    async def web_redirect(request: Request):
+        return RedirectResponse(SETTINGS.web_root)
+
 
 if SETTINGS.add_cors:
     logger.warning(

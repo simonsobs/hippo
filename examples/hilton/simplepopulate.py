@@ -2,10 +2,8 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
-import os
 from pathlib import Path
 
-from hippoclient import Client
 from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
 from hippoclient.core import ClientSettings
@@ -13,11 +11,6 @@ from hippoclient.product import create as create_product
 from hippometa import CatalogMetadata, MapSet, MapSetMap
 
 settings = ClientSettings()
-
-SERVER_LOCATION = os.getenv("HIPPO_HOST")
-
-if SERVER_LOCATION is None:
-    SERVER_LOCATION = "http://localhost:8000"
 
 COLLECTION_NAME = "ACT DR5 SZ Cluster Catalog"
 
@@ -121,7 +114,7 @@ mask = MapSet(
 
 
 if __name__ == "__main__":
-    client = Client(token_tag=None, host=SERVER_LOCATION, verbose=True)
+    client = settings.client
 
     collection_id = create_collection(
         client=client,

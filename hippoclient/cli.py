@@ -15,7 +15,7 @@ from .textedit import edit_product
 
 CLIENT: sc.Client
 CACHE: MultiCache
-CONSOLE = rich.console.Console()
+CONSOLE: rich.console.Console
 
 # Meta-setup
 APP = typer.Typer()
@@ -41,7 +41,7 @@ def product_read(id: str):
     """
     global CLIENT, CONSOLE
 
-    product = sc.product.read_with_versions(client=CLIENT, id=id)
+    product = sc.product.read_with_versions(client=CLIENT, id=id, console=CONSOLE)
 
     product_extracted_version = product.versions[product.requested]
 
@@ -74,7 +74,7 @@ def product_delete(id: str):
     Delete a product by its ID.
     """
     global CLIENT
-    return sc.product.delete(client=CLIENT, id=id)
+    return sc.product.delete(client=CLIENT, id=id, console=CONSOLE)
 
 
 @product_app.command("search")
@@ -84,7 +84,7 @@ def product_search(text: str):
     """
     global CLIENT, CONSOLE
 
-    response = sc.product.search(client=CLIENT, text=text)
+    response = sc.product.search(client=CLIENT, text=text, console=CONSOLE)
 
     table = helper.render_product_metadata_list(response)
 
@@ -98,7 +98,7 @@ def product_cache(id: str):
     """
     global CLIENT, CACHE
 
-    response = sc.product.cache(client=CLIENT, cache=CACHE, id=id)
+    response = sc.product.cache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Cached product {id} including {len(response)} files")
 
@@ -110,7 +110,7 @@ def product_uncache(id: str):
     """
     global CACHE
 
-    sc.product.uncache(client=CLIENT, cache=CACHE, id=id)
+    sc.product.uncache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Uncached product {id}")
 
@@ -122,99 +122,59 @@ def product_edit(id: str):
     """
     global CLIENT
 
-    edit_product(client=CLIENT, id=id)
+    edit_product(client=CLIENT, id=id, console=CONSOLE)
 
 
 @product_app.command("add-reader")
-def product_add_reader(id: str, user: str):
+def product_add_reader(id: str, group: str):
     """
-    Set the visibility level of a product.
-    Example:
-    $ hippo product add-reader <product-id> <user>
+    Add a reader (by group name) to a product
     """
 
     global CLIENT
-    updated_id = sc.product.product_add_reader(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Added {user} to {id} readers. New id is {updated_id}")
+    updated_id = sc.product.product_add_reader(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {group} to {id} readers. New id is {updated_id}")
 
 
 @product_app.command("remove-reader")
-def product_remove_reader(id: str, user: str):
+def product_remove_reader(id: str, group: str):
     """
-    Set the visibility level of a product.
-    Example:
-    $ hippo product remove-reader <product-id> <user>
+    Remove a reader (by group name) from a product
     """
 
     global CLIENT
-    updated_id = sc.product.product_remove_reader(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Removed {user} from {id} readers. New id is {updated_id}")
+    updated_id = sc.product.product_remove_reader(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {group} from {id} readers. New id is {updated_id}")
 
 
 @product_app.command("add-writer")
-def product_add_writer(id: str, user: str):
+def product_add_writer(id: str, group: str):
     """
-    Set the visibility level of a product.
-    Example:
-    $ hippo product add-writer <product-id> <user>
+    Add a writer (by group name) to a product
     """
 
     global CLIENT
-    updated_id = sc.product.product_add_writer(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Added {user} to {id} writers. New id is {updated_id}")
+    updated_id = sc.product.product_add_writer(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {group} to {id} writers. New id is {updated_id}")
 
 
 @product_app.command("remove-writer")
-def product_remove_writer(id: str, user: str):
+def product_remove_writer(id: str, group: str):
     """
-    Set the visibility level of a product.
-    Example:
-    $ hippo product remove-writer <product-id> <user>
+    Remove a writer (by group name) from a product
     """
 
     global CLIENT
-    updated_id = sc.product.product_remove_writer(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Removed {user} from {id} writers. New id is {updated_id}")
-
-
-@collection_app.command("add-reader")
-def collection_add_reader(id: str, user: str):
-    """
-    Add a reader to a collection.
-    """
-    global CLIENT
-    updated_id = sc.collections.add_reader(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Added {user} to readers. Collection ID is {updated_id}")
-
-
-@collection_app.command("remove-reader")
-def collection_remove_reader(id: str, user: str):
-    """
-    Remove a reader from a collection.
-    """
-    global CLIENT
-    updated_id = sc.collections.remove_reader(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Removed {user} from readers. Collection ID is {updated_id}")
-
-
-@collection_app.command("add-writer")
-def collection_add_writer(id: str, user: str):
-    """
-    Add a writer to a collection.
-    """
-    global CLIENT
-    updated_id = sc.collections.add_writer(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Added {user} to writers. Collection ID is {updated_id}")
-
-
-@collection_app.command("remove-writer")
-def collection_remove_writer(id: str, user: str):
-    """
-    Remove a writer from a collection.
-    """
-    global CLIENT
-    updated_id = sc.collections.remove_writer(client=CLIENT, id=id, user=user)
-    CONSOLE.print(f"Removed {user} from writers. Collection ID is {updated_id}")
+    updated_id = sc.product.product_remove_writer(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {group} from {id} writers. New id is {updated_id}")
 
 
 @collection_app.command("read")
@@ -224,7 +184,7 @@ def collection_read(id: str):
     """
     global CLIENT, CONSOLE
 
-    collection = sc.collections.read(client=CLIENT, id=id)
+    collection = sc.collections.read(client=CLIENT, id=id, console=CONSOLE)
 
     table = helper.render_product_metadata_list(collection.products)
 
@@ -241,7 +201,7 @@ def collection_search(name: str):
     """
     global CLIENT, CONSOLE
 
-    collections = sc.collections.search(client=CLIENT, name=name)
+    collections = sc.collections.search(client=CLIENT, name=name, console=CONSOLE)
 
     table = helper.render_collection_metadata_list(collections)
 
@@ -255,7 +215,7 @@ def collection_cache(id: str):
     """
     global CLIENT, CACHE
 
-    response = sc.collections.cache(client=CLIENT, cache=CACHE, id=id)
+    response = sc.collections.cache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Cached collection {id} including {len(response)} files")
 
@@ -267,9 +227,57 @@ def collection_uncache(id: str):
     """
     global CACHE
 
-    sc.collections.uncache(client=CLIENT, cache=CACHE, id=id)
+    sc.collections.uncache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Uncached collection {id}")
+
+
+@collection_app.command("add-reader")
+def collection_add_reader(id: str, group: str):
+    """
+    Add a reader (by group name) to a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.add_reader(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {group} to readers. Collection ID is {updated_id}")
+
+
+@collection_app.command("remove-reader")
+def collection_remove_reader(id: str, group: str):
+    """
+    Remove a reader (by group name) from a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.remove_reader(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {group} from readers. Collection ID is {updated_id}")
+
+
+@collection_app.command("add-writer")
+def collection_add_writer(id: str, group: str):
+    """
+    Add a writer (by group name) to a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.add_writer(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {group} to writers. Collection ID is {updated_id}")
+
+
+@collection_app.command("remove-writer")
+def collection_remove_writer(id: str, group: str):
+    """
+    Remove a writer (by group name) from a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.remove_writer(
+        client=CLIENT, id=id, group=group, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {group} from writers. Collection ID is {updated_id}")
 
 
 @cache_app.command("clear")
@@ -281,7 +289,7 @@ def cache_clear(uuid: str):
 
     for cache in CACHE.caches:
         if cache.writeable:
-            sc.caching.clear_single(cache=cache, id=id)
+            sc.caching.clear_single(cache=cache, id=id, console=CONSOLE)
             CONSOLE.print(f"Cleared cache {cache.path} of {id}")
 
 
@@ -294,7 +302,7 @@ def cache_clear_all():
 
     for cache in CACHE.caches:
         if cache.writeable:
-            sc.caching.clear_all(cache=cache)
+            sc.caching.clear_all(cache=cache, console=CONSOLE)
             CONSOLE.print(f"Cleared cache {cache.path}")
 
 
@@ -394,9 +402,10 @@ def dev_run(
 def main():
     settings = ClientSettings()
 
-    global CLIENT, APP, CACHE
+    global CLIENT, APP, CACHE, CONSOLE
 
     CLIENT = settings.client
     CACHE = settings.cache
+    CONSOLE = rich.console.Console(quiet=not settings.verbose)
 
     APP()

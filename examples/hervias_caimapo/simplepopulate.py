@@ -2,19 +2,13 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
-import os
 from pathlib import Path
 
-from hippoclient import Client
 from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
+from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
 from hippometa import CatalogMetadata
-
-SERVER_LOCATION = os.getenv("HIPPO_HOST")
-
-if SERVER_LOCATION is None:
-    SERVER_LOCATION = "http://127.0.0.1:8000"
 
 COLLECTION_NAME = "ACT Targeted Transient Flux Constraints"
 
@@ -123,7 +117,7 @@ catalog_names = {
 }
 
 if __name__ == "__main__":
-    client = Client(token_tag=None, host=SERVER_LOCATION, verbose=True)
+    client = ClientSettings().client
 
     collection_id = create_collection(
         client=client,

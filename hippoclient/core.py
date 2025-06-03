@@ -34,9 +34,9 @@ class ClientSettings(BaseSettings):
     3. Verbosity.
     """
 
-    host: str
+    host: str = "http://localhost:8000"
     "The hostname of the HIPPO service you are connected to"
-    token_tag: str | None
+    token_tag: str | None = None
     "The tag associated with the API key for the hippo API to use"
     verbose: bool = False
     "Verbosity control: set to true for extra info"

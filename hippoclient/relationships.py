@@ -2,10 +2,13 @@
 Methods for adding and removing child relationships between products.
 """
 
-from .core import Client, console
+from httpx import Client
+from rich.console import Console
 
 
-def add_child(client: Client, parent: str, child: str) -> bool:
+def add_child(
+    client: Client, parent: str, child: str, console: Console | None = None
+) -> bool:
     """
     Add a child relationship between two products.
 
@@ -17,6 +20,8 @@ def add_child(client: Client, parent: str, child: str) -> bool:
         The ID of the parent product.
     child : str
         The ID of the child product.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -33,7 +38,7 @@ def add_child(client: Client, parent: str, child: str) -> bool:
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(
             f"Successfully added child relationship between {parent} and {child}.",
             style="bold green",
@@ -42,7 +47,9 @@ def add_child(client: Client, parent: str, child: str) -> bool:
     return True
 
 
-def remove_child(client: Client, parent: str, child: str) -> bool:
+def remove_child(
+    client: Client, parent: str, child: str, console: Console | None = None
+) -> bool:
     """
     Remove a child relationship between two products.
 
@@ -54,6 +61,8 @@ def remove_child(client: Client, parent: str, child: str) -> bool:
         The ID of the parent product.
     child : str
         The ID of the child product.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -70,7 +79,7 @@ def remove_child(client: Client, parent: str, child: str) -> bool:
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(
             f"Successfully removed child relationship between {parent} and {child}.",
             style="bold green",
@@ -79,7 +88,9 @@ def remove_child(client: Client, parent: str, child: str) -> bool:
     return True
 
 
-def add_child_collection(client: Client, parent: str, child: str) -> bool:
+def add_child_collection(
+    client: Client, parent: str, child: str, console: Console | None = None
+) -> bool:
     """
     Add a child relationship between a collection and another collection.
 
@@ -91,6 +102,8 @@ def add_child_collection(client: Client, parent: str, child: str) -> bool:
         The ID of the parent collection.
     child : str
         The ID of the child collection.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -107,7 +120,7 @@ def add_child_collection(client: Client, parent: str, child: str) -> bool:
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(
             f"Successfully added child relationship between {parent} and {child}.",
             style="bold green",
@@ -116,7 +129,9 @@ def add_child_collection(client: Client, parent: str, child: str) -> bool:
     return True
 
 
-def remove_child_collection(client: Client, parent: str, child: str) -> bool:
+def remove_child_collection(
+    client: Client, parent: str, child: str, console: Console | None = None
+) -> bool:
     """
     Remove a child relationship between a collection and another collection.
 
@@ -128,6 +143,8 @@ def remove_child_collection(client: Client, parent: str, child: str) -> bool:
         The ID of the parent collection.
     child : str
         The ID of the child collection.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -144,7 +161,7 @@ def remove_child_collection(client: Client, parent: str, child: str) -> bool:
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(
             f"Successfully removed child relationship between {parent} and {child}.",
             style="bold green",

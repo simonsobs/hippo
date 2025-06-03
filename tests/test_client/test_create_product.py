@@ -13,8 +13,6 @@ def test_upload_no_multipart(server, tmp_path):
     client = Client(
         token_tag=None,
         host=server["url"],
-        verbose=True,
-        use_multipart_upload=False,
     )
 
     with open(tmp_path / "test.bin", "wb") as f:
@@ -37,8 +35,6 @@ def test_upload_with_multipart(server, tmp_path):
     client = Client(
         token_tag=None,
         host=server["url"],
-        verbose=True,
-        use_multipart_upload=True,
     )
 
     with open(tmp_path / "test.bin", "wb") as f:
@@ -61,8 +57,6 @@ def test_groups_update_add_reader(server, tmp_path):
     client = Client(
         token_tag=None,
         host=server["url"],
-        verbose=True,
-        use_multipart_upload=False,
     )
 
     with open(tmp_path / "test.bin", "wb") as f:

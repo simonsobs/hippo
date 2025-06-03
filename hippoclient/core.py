@@ -17,40 +17,12 @@ from .caching import Cache, MultiCache
 console = Console()
 
 
-class Client(httpx.Client):
-    """
-    The core client for the hippo API. A wrapper around httpx.Client,
-    including the settings management required for interacting using
-    the API-key based interface.
-    """
-
-    verbose: bool
-    use_multipart_upload: bool = False
-
-    def __init__(
-        self,
-        host: str,
-        token_tag: str | None,
-        verbose: bool = False,
-        use_multipart_upload: bool = False,
-    ):
-        """
-        Parameters
-        ----------
-        token_tag: str
-            The tag associated with the API key for the hippo API to use.
-
-        host: str
-            The host for the hippo API to use.
-
-        verbose: bool
-            Whether to print verbose output.
-        """
-
-        self.verbose = verbose
-        self.use_multipart_upload = use_multipart_upload
-        auth_provider = SOAuth(token_tag) if token_tag else None
-        super().__init__(base_url=host, auth=auth_provider)
+def Client(
+    host: str,
+    token_tag: str | None,
+) -> httpx.Client:
+    auth = SOAuth(token_tag) if token_tag else None
+    return httpx.Client(base_url=host, auth=auth)
 
 
 class ClientSettings(BaseSettings):
@@ -106,4 +78,4 @@ class ClientSettings(BaseSettings):
         """
         Return a Client object for the API.
         """
-        return Client(token_tag=self.token_tag, host=self.host, verbose=self.verbose)
+        return Client(token_tag=self.token_tag, host=self.host)

@@ -93,53 +93,53 @@ def read(
 
 
 def add_reader(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
-        f"/relationships/collection/{id}", json={"add_readers": [user]}
+        f"/relationships/collection/{id}", json={"add_readers": [group]}
     )
     response.raise_for_status()
     if console:
-        console.print(f"Successfully added {user} to collection {id} readers.")
+        console.print(f"Successfully added {group} to collection {id} readers.")
     this_collection_id = response.json()
     return this_collection_id
 
 
 def remove_reader(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
-        f"/relationships/collection/{id}", json={"remove_readers": [user]}
+        f"/relationships/collection/{id}", json={"remove_readers": [group]}
     )
     response.raise_for_status()
     if console:
-        console.print(f"Successfully removed {user} from collection {id} readers.")
+        console.print(f"Successfully removed {group} from collection {id} readers.")
     this_collection_id = response.json()
     return this_collection_id
 
 
 def add_writer(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
-        f"/relationships/collection/{id}", json={"add_writers": [user]}
+        f"/relationships/collection/{id}", json={"add_writers": [group]}
     )
     response.raise_for_status()
     if console:
-        console.print(f"Successfully added {user} to collection {id} writers.")
+        console.print(f"Successfully added {group} to collection {id} writers.")
     this_collection_id = response.json()
     return this_collection_id
 
 
 def remove_writer(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
-        f"/relationships/collection/{id}", json={"remove_writers": [user]}
+        f"/relationships/collection/{id}", json={"remove_writers": [group]}
     )
     response.raise_for_status()
     if console:
-        console.print(f"Successfully removed {user} from collection {id} writers.")
+        console.print(f"Successfully removed {group} from collection {id} writers.")
     this_collection_id = response.json()
     return this_collection_id
 

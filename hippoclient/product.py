@@ -507,7 +507,7 @@ def uncache(
 
 
 def product_add_reader(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
         f"/product/{id}/update",
@@ -516,7 +516,7 @@ def product_add_reader(
             "description": None,
             "level": 2,
             "metadata": None,
-            "add_readers": [user],
+            "add_readers": [group],
         },
     )
 
@@ -524,14 +524,14 @@ def product_add_reader(
     this_product_id = response.json()["id"]
     if console:
         console.print(
-            f"Successfully added {user} to product {id} readers.", style="bold green"
+            f"Successfully added {group} to product {id} readers.", style="bold green"
         )
 
     return this_product_id
 
 
 def product_remove_reader(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
         f"/product/{id}/update",
@@ -540,7 +540,7 @@ def product_remove_reader(
             "description": None,
             "level": 2,
             "metadata": None,
-            "remove_readers": [user],
+            "remove_readers": [group],
         },
     )
 
@@ -548,7 +548,7 @@ def product_remove_reader(
     this_product_id = response.json()["id"]
     if console:
         console.print(
-            f"Successfully removed {user} from product {id} readers.",
+            f"Successfully removed {group} from product {id} readers.",
             style="bold green",
         )
 
@@ -556,7 +556,7 @@ def product_remove_reader(
 
 
 def product_add_writer(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
         f"/product/{id}/update",
@@ -565,7 +565,7 @@ def product_add_writer(
             "description": None,
             "level": 2,
             "metadata": None,
-            "add_writers": [user],
+            "add_writers": [group],
         },
     )
 
@@ -573,14 +573,14 @@ def product_add_writer(
     this_product_id = response.json()["id"]
     if console:
         console.print(
-            f"Successfully added {user} to product {id} writers.", style="bold green"
+            f"Successfully added {group} to product {id} writers.", style="bold green"
         )
 
     return this_product_id
 
 
 def product_remove_writer(
-    client: Client, id: str, user: str, console: Console | None = None
+    client: Client, id: str, group: str, console: Console | None = None
 ) -> str:
     response = client.post(
         f"/product/{id}/update",
@@ -589,7 +589,7 @@ def product_remove_writer(
             "description": None,
             "level": 2,
             "metadata": None,
-            "remove_writers": [user],
+            "remove_writers": [group],
         },
     )
 
@@ -597,7 +597,7 @@ def product_remove_writer(
     this_product_id = response.json()["id"]
     if console:
         console.print(
-            f"Successfully removed {user} from product {id} writers.",
+            f"Successfully removed {group} from product {id} writers.",
             style="bold green",
         )
 

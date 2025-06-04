@@ -102,12 +102,6 @@ async def create(
     product_writers: list[str] | None = None,
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[Product, dict[str, list[str]]]:
-    if product_readers is None:
-        product_readers = []
-
-    if product_writers is None:
-        product_writers = []
-
     presigned, pre_upload_sources = await presign_uploads(
         sources=sources,
         storage=storage,
@@ -132,8 +126,8 @@ async def create(
         parent_of=[],
         collections=[],
         collection_policies=[],
-        readers=set(product_readers) | {user_name},
-        writers=set(product_writers) | {user_name},
+        readers=set(product_readers or []) | {user_name},
+        writers=set(product_writers or []) | {user_name},
     )
 
     await product.create()

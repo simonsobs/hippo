@@ -24,18 +24,12 @@ async def create(
     collection_readers: list[str] | None = None,
     collection_writers: list[str] | None = None,
 ):
-    if collection_readers is None:
-        collection_readers = []
-
-    if collection_writers is None:
-        collection_writers = []
-
     collection = Collection(
         name=name,
         owner=user,
         description=description,
-        readers=set(collection_readers) | {user},
-        writers=set(collection_writers) | {user},
+        readers=set(collection_readers or []) | {user},
+        writers=set(collection_writers or []) | {user},
     )
 
     await collection.insert()

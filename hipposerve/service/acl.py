@@ -24,18 +24,6 @@ async def update_access_control(
     tree and update all docs, and do not create a new version.
     """
 
-    if add_readers is None:
-        add_readers = []
-
-    if remove_readers is None:
-        remove_readers = []
-
-    if add_writers is None:
-        add_writers = []
-
-    if remove_writers is None:
-        remove_writers = []
-
     initial_doc_id = doc.id
 
     if not doc.current:
@@ -44,8 +32,8 @@ async def update_access_control(
             "make changes to the head of the list"
         )
 
-    readers = (set(doc.readers) | set(add_readers)) - set(remove_readers)
-    writers = (set(doc.writers) | set(add_writers)) - set(remove_writers)
+    readers = (set(doc.readers) | set(add_readers or [])) - set(remove_readers or [])
+    writers = (set(doc.writers) | set(add_writers or [])) - set(remove_writers or [])
 
     if owner:
         readers.add(owner)

@@ -16,8 +16,7 @@ from hipposerve.service import product, versioning
 @pytest.mark.asyncio(loop_scope="session")
 async def test_created_product_groups(created_full_product, database):
     assert created_full_product.owner in created_full_product.writers
-    assert "admin" in created_full_product.writers
-    assert created_full_product.readers == []
+    assert created_full_product.owner in created_full_product.readers
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -131,7 +130,7 @@ async def test_add_to_collection(
     )
 
     assert created_collection.name in [c.name for c in selected_product.collections]
-    print("access_groups", created_user.groups)
+
     await product.remove_collection(
         product=selected_product,
         access_groups=created_user.groups,
@@ -146,6 +145,33 @@ async def test_add_to_collection(
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_update_access_control(created_full_product, created_user):
+    existing_version = created_full_product.version
+    existing_readers = set(created_full_product.readers)
+    existing_writers = set(created_full_product.writers)
+
+    updated_product = await product.update_access_control(
+        created_full_product, add_readers={"fake_reader"}, add_writers={"fake_writer"}
+    )
+
+    assert updated_product.version == existing_version
+    assert set(updated_product.readers) == (existing_readers | {"fake_reader"})
+    assert set(updated_product.writers) == (existing_writers | {"fake_writer"})
+
+    updated_product = await product.update_access_control(
+        created_full_product,
+        remove_readers={"fake_reader"},
+        remove_writers={"fake_writer"},
+    )
+
+    assert updated_product.version == existing_version
+    assert set(updated_product.readers) == existing_readers
+    assert set(updated_product.writers) == existing_writers
+
+    return
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_update_metadata(created_full_product, database, storage, created_user):
     existing_version = created_full_product.version
 
@@ -154,7 +180,6 @@ async def test_update_metadata(created_full_product, database, storage, created_
         created_user.groups,
         name=None,
         description="New description",
-        owner=created_user.display_name,
         metadata={"metadata_type": "simple"},
         level=versioning.VersionRevision.MAJOR,
         new_sources=[],
@@ -187,68 +212,16 @@ async def test_update_metadata(created_full_product, database, storage, created_
 
     with pytest.raises(versioning.VersioningError):
         await product.update_metadata(
-            metadata, None, None, None, None, level=versioning.VersionRevision.MAJOR
+            product=metadata,
+            name=None,
+            description=None,
+            metadata=None,
+            level=versioning.VersionRevision.MAJOR,
         )
 
     assert new_product.current
     await product.delete_one(
         new_product, created_user.groups, storage=storage, data=True
-    )
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_update_product_groups(
-    created_full_product, database, storage, created_user
-):
-    created_full_product = await product.walk_to_current(
-        product=created_full_product, groups=created_user.groups
-    )
-    assert created_full_product.current
-    created_group = "New Reader"
-    await product.update(
-        created_full_product,
-        created_user.groups,
-        name=None,
-        description=None,
-        owner=None,
-        metadata={"metadata_type": "simple"},
-        level=versioning.VersionRevision.MAJOR,
-        new_sources=[],
-        replace_sources=[],
-        drop_sources=[],
-        storage=storage,
-        add_readers=[created_group],
-    )
-    updated_product = await product.read_by_name(
-        name=created_full_product.name, version=None, groups=created_user.groups
-    )
-    assert created_group in updated_product.readers
-
-    created_full_product = await product.walk_to_current(
-        product=created_full_product, groups=created_user.groups
-    )
-    assert created_full_product.current
-    await product.update(
-        created_full_product,
-        created_user.groups,
-        name=None,
-        description=None,
-        owner=None,
-        metadata={"metadata_type": "simple"},
-        level=versioning.VersionRevision.MAJOR,
-        new_sources=[],
-        replace_sources=[],
-        drop_sources=[],
-        storage=storage,
-        remove_readers=[created_group],
-    )
-    updated_product = await product.read_by_name(
-        name=created_full_product.name, version=None, groups=created_user.groups
-    )
-    assert created_group not in updated_product.readers
-
-    await product.delete_one(
-        updated_product, updated_product.writers, storage=storage, data=True
     )
 
 
@@ -277,10 +250,9 @@ async def test_update_sources(created_full_product, database, storage, created_u
     new_product_created, uploads = await product.update(
         created_full_product,
         created_user.groups,
-        None,
-        "Updated version of the created_full_product",
-        None,
-        None,
+        name=None,
+        description="Updated version of the created_full_product",
+        metadata=None,
         new_sources=new,
         replace_sources=replace,
         drop_sources=drop,
@@ -333,10 +305,9 @@ async def test_update_sources_failure_modes(
                 created_full_product, groups=created_user.groups
             ),
             created_user.groups,
-            None,
-            None,
-            None,
-            None,
+            name=None,
+            description=None,
+            metadata=None,
             new_sources=[
                 product.PreUploadFile(
                     name=created_full_product.sources[0].name,
@@ -356,10 +327,9 @@ async def test_update_sources_failure_modes(
                 created_full_product, groups=created_user.groups
             ),
             created_user.groups,
-            None,
-            None,
-            None,
-            None,
+            name=None,
+            description=None,
+            metadata=None,
             new_sources=[],
             replace_sources=[
                 product.PreUploadFile(
@@ -379,10 +349,9 @@ async def test_update_sources_failure_modes(
                 created_full_product, groups=created_user.groups
             ),
             created_user.groups,
-            None,
-            None,
-            None,
-            None,
+            name=None,
+            description=None,
+            metadata=None,
             new_sources=[],
             replace_sources=[],
             drop_sources=["non_existent_file.fake"],
@@ -421,10 +390,9 @@ async def test_read_most_recent_products(database, created_user, storage):
     for x in products[:4]:
         await product.update_metadata(
             x,
-            None,
-            None,
-            None,
-            None,
+            name=None,
+            description=None,
+            metadata=None,
             level=versioning.VersionRevision.MAJOR,
         )
         bad_ids.add(x.id)
@@ -531,17 +499,16 @@ async def test_product_middle_deletion(database, created_user, storage):
     middle, uploads = await product.update(
         initial,
         created_user.groups,
-        None,
-        None,
-        None,
-        None,
-        [
+        name=None,
+        metadata=None,
+        description=None,
+        new_sources=[
             product.PreUploadFile(
                 name="to_be_deleted.txt", size=128, checksum="not_important"
             )
         ],
-        [],
-        [],
+        drop_sources=[],
+        replace_sources=[],
         storage=storage,
         level=versioning.VersionRevision.PATCH,
     )
@@ -571,10 +538,9 @@ async def test_product_middle_deletion(database, created_user, storage):
     final, _ = await product.update(
         middle,
         created_user.groups,
-        None,
-        None,
-        None,
-        None,
+        name=None,
+        metadata=None,
+        description=None,
         new_sources=[],
         replace_sources=[],
         drop_sources=["to_be_deleted.txt"],

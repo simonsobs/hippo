@@ -98,8 +98,8 @@ async def create(
     sources: list[PreUploadFile],
     user_name: str,
     storage: Storage,
-    product_readers: list[str] | None = None,
-    product_writers: list[str] | None = None,
+    product_readers: list[str] = [],
+    product_writers: list[str] = [],
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[Product, dict[str, list[str]]]:
     presigned, pre_upload_sources = await presign_uploads(
@@ -429,6 +429,8 @@ async def update_metadata(
             if p
             in [CollectionPolicy.ALL, CollectionPolicy.NEW, CollectionPolicy.CURRENT]
         ],
+        readers=product.readers,
+        writers=product.writers,
     )
 
     # Need to perform a small number of modifications on the original

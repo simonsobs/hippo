@@ -74,8 +74,12 @@ def requires(scopes: str | list[str]):
 
 
 def check_user_access(user_groups: list[str], document_groups: list[str]) -> bool:
-    allowed = set(document_groups)
-    if any(group in allowed for group in user_groups):
+    allowed = set(document_groups) | {"admin"}
+    user_groups = set(user_groups)
+
+    overlap = user_groups & allowed
+
+    if overlap:
         return True
 
     raise AuthenticationError(

@@ -50,7 +50,7 @@ class UpdateProductRequest(BaseModel):
     new_sources: list[PreUploadFile] = []
     replace_sources: list[PreUploadFile] = []
     drop_sources: list[str] = []
-    level: VersionRevision = VersionRevision.MINOR
+    level: VersionRevision | None = VersionRevision.MINOR
     add_readers: list[str] = []
     remove_readers: list[str] = []
     add_writers: list[str] = []
@@ -60,4 +60,4 @@ class UpdateProductRequest(BaseModel):
 class UpdateProductResponse(BaseModel):
     version: str
     id: PydanticObjectId
-    upload_urls: dict[str, str]
+    upload_urls: dict[str, list[str]]

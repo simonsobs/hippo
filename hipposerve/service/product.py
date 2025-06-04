@@ -98,10 +98,16 @@ async def create(
     sources: list[PreUploadFile],
     user_name: str,
     storage: Storage,
-    product_readers: list[str] = [],
-    product_writers: list[str] = [],
+    product_readers: list[str] | None = None,
+    product_writers: list[str] | None = None,
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[Product, dict[str, list[str]]]:
+    if product_readers is None:
+        product_readers = []
+
+    if product_writers is None:
+        product_writers = []
+
     presigned, pre_upload_sources = await presign_uploads(
         sources=sources,
         storage=storage,

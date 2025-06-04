@@ -13,16 +13,28 @@ from hipposerve.service.auth import AuthenticationError
 async def update_access_control(
     doc: ProtectedDocument,
     owner: str | None = None,
-    add_readers: list[str] = [],
-    remove_readers: list[str] = [],
-    add_writers: list[str] = [],
-    remove_writers: list[str] = [],
+    add_readers: list[str] | None = None,
+    remove_readers: list[str] | None = None,
+    add_writers: list[str] | None = None,
+    remove_writers: list[str] | None = None,
 ) -> ProtectedDocument:
     """
     Update the access control on this doc, either adding or removing
     readers or writers. Note that access control changes walk the entire
     tree and update all docs, and do not create a new version.
     """
+
+    if add_readers is None:
+        add_readers = []
+
+    if remove_readers is None:
+        remove_readers = []
+
+    if add_writers is None:
+        add_writers = []
+
+    if remove_writers is None:
+        remove_writers = []
 
     initial_doc_id = doc.id
 
@@ -32,8 +44,8 @@ async def update_access_control(
             "make changes to the head of the list"
         )
 
-    readers = (set(doc.readers) | set(add_readers)) ^ set(remove_readers)
-    writers = (set(doc.writers) | set(add_writers)) ^ set(remove_writers)
+    readers = (set(doc.readers) | set(add_readers)) - set(remove_readers)
+    writers = (set(doc.writers) | set(add_writers)) - set(remove_writers)
 
     if owner:
         readers.add(owner)

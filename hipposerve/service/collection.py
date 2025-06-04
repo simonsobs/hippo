@@ -21,9 +21,15 @@ async def create(
     name: str,
     user: str,
     description: str,
-    collection_readers: list[str] = [],
-    collection_writers: list[str] = [],
+    collection_readers: list[str] | None = None,
+    collection_writers: list[str] | None = None,
 ):
+    if collection_readers is None:
+        collection_readers = []
+
+    if collection_writers is None:
+        collection_writers = []
+
     collection = Collection(
         name=name,
         owner=user,

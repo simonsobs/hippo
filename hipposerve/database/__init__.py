@@ -105,6 +105,9 @@ class ProtectedDocument(Document):
     writers: list[str] = Field(default_factory=lambda: ["admin"])
     owner: str
 
+    current: bool = True
+    replaces: Link["ProtectedDocument"] | None = None
+
 
 class Product(ProtectedDocument, ProductMetadata):
     name: Indexed(str, pymongo.TEXT)

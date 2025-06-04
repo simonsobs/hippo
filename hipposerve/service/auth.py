@@ -71,17 +71,3 @@ def requires(scopes: str | list[str]):
             return sync_wrapper
 
     return decorator
-
-
-def check_user_access(user_groups: list[str], document_groups: list[str]) -> bool:
-    allowed = set(document_groups) | {"admin"}
-    user_groups = set(user_groups)
-
-    overlap = user_groups & allowed
-
-    if overlap:
-        return True
-
-    raise AuthenticationError(
-        "User does not have the required group access for this operation"
-    )

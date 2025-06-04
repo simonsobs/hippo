@@ -10,7 +10,7 @@ import requests
 from beanie import PydanticObjectId
 from beanie.odm.fields import Link
 
-from hipposerve.service import product, versioning
+from hipposerve.service import acl, product, versioning
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -150,7 +150,7 @@ async def test_update_access_control(created_full_product, created_user):
     existing_readers = set(created_full_product.readers)
     existing_writers = set(created_full_product.writers)
 
-    updated_product = await product.update_access_control(
+    updated_product = await acl.update_access_control(
         created_full_product, add_readers={"fake_reader"}, add_writers={"fake_writer"}
     )
 
@@ -158,7 +158,7 @@ async def test_update_access_control(created_full_product, created_user):
     assert set(updated_product.readers) == (existing_readers | {"fake_reader"})
     assert set(updated_product.writers) == (existing_writers | {"fake_writer"})
 
-    updated_product = await product.update_access_control(
+    updated_product = await acl.update_access_control(
         created_full_product,
         remove_readers={"fake_reader"},
         remove_writers={"fake_writer"},

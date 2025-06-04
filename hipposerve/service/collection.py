@@ -10,7 +10,7 @@ from beanie.operators import Text
 from fastapi import HTTPException
 
 from hipposerve.database import Collection
-from hipposerve.service.auth import check_user_access
+from hipposerve.service.acl import check_user_access
 
 
 class CollectionNotFound(Exception):
@@ -21,22 +21,17 @@ async def create(
     name: str,
     user: str,
     description: str,
-    collection_readers: list[str] | None = None,
-    collection_writers: list[str] | None = None,
+    collection_readers: list[str] = [],
+    collection_writers: list[str] = [],
 ):
     collection = Collection(
         name=name,
         owner=user,
         description=description,
+        readers=set(collection_readers) | {user},
+        writers=set(collection_writers) | {user},
     )
-    collection_readers = collection_readers or []
-    collection_writers = collection_writers or []
 
-    if collection_readers is not None:
-        collection.readers.extend(collection_readers)
-    if user not in collection.writers:
-        collection_writers.append(user)
-    collection.writers.extend(collection_writers)
     await collection.insert()
 
     return collection
@@ -92,36 +87,19 @@ async def search_by_name(
 async def update(
     id: PydanticObjectId,
     access_groups: list[str],
-    owner: str | None,
+    name: str | None,
     description: str | None,
-    add_readers: list[str] | None = None,
-    remove_readers: list[str] | None = None,
-    add_writers: list[str] | None = None,
-    remove_writers: list[str] | None = None,
 ):
     collection = await read(id=id, groups=access_groups)
     assert check_user_access(access_groups, collection.writers)
-    readers = collection.readers.copy()
-    writers = collection.writers.copy()
-    # We don't actually 'update' the database; we actually create a new
-    # product and link it in.
-    if owner is not None:
-        await collection.set({Collection.owner: owner})
-        writers.append(owner.name)
-    if add_readers is not None:
-        readers.extend(add_readers)
-        await collection.set({Collection.readers: readers})
-    if remove_readers is not None:
-        readers = [x for x in readers if x not in remove_readers]
-        await collection.set({Collection.readers: readers})
-    if add_writers is not None:
-        writers.extend(add_writers)
-        await collection.set({Collection.writers: writers})
-    if remove_writers is not None:
-        writers = [x for x in writers if x not in remove_writers]
-        await collection.set({Collection.writers: writers})
-    if description is not None:
-        await collection.set({Collection.description: description})
+
+    if name:
+        collection.name = name
+
+    if description:
+        collection.description = description
+
+    await collection.save()
 
     return collection
 

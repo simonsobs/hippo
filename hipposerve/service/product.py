@@ -22,7 +22,7 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.auth import check_user_access
+from hipposerve.service.acl import check_user_access
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -327,58 +327,6 @@ async def read_most_recent(
         fetch_links=fetch_links,
     )
     return await found.sort(-Product.updated).to_list(maximum)
-
-
-async def update_access_control(
-    product: Product,
-    owner: str | None = None,
-    add_readers: list[str] = [],
-    remove_readers: list[str] = [],
-    add_writers: list[str] = [],
-    remove_writers: list[str] = [],
-) -> Product:
-    """
-    Update the access control on this product, either adding or removing
-    readers or writers. Note that access control changes walk the entire
-    tree and update all products, and do not create a new version.
-    """
-
-    initial_product_id = product.id
-
-    if not product.current:
-        raise versioning.VersioningError(
-            "Attempting to update a non-current product. You must always "
-            "make changes to the head of the list"
-        )
-
-    readers = (set(product.readers) | set(add_readers)) ^ set(remove_readers)
-    writers = (set(product.writers) | set(add_writers)) ^ set(remove_writers)
-
-    if owner:
-        readers.add(owner)
-        writers.add(owner)
-    else:
-        owner = product.owner
-
-    # Need to walk the tree.
-
-    while product.replaces is not None:
-        product.readers = readers
-        product.writers = writers
-        product.owner = owner
-
-        await product.save()
-
-        product = product.replaces
-
-    # Base of tree that has no replacement
-    product.readers = readers
-    product.writers = writers
-    product.owner = owner
-
-    await product.save()
-
-    return await read_by_id(id=initial_product_id, groups=readers)
 
 
 async def update_metadata(

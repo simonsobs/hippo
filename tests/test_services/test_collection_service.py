@@ -5,7 +5,7 @@ Tests for the collection service.
 import pytest
 from beanie import PydanticObjectId
 
-from hipposerve.service import collection
+from hipposerve.service import acl, collection
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -21,27 +21,50 @@ async def test_create(created_user):
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_update_access_control(created_collection, created_user):
+    existing_readers = set(created_collection.readers)
+    existing_writers = set(created_collection.writers)
+
+    updated_collection = await acl.update_access_control(
+        created_collection, add_readers={"fake_reader"}, add_writers={"fake_writer"}
+    )
+
+    assert set(updated_collection.readers) == (existing_readers | {"fake_reader"})
+    assert set(updated_collection.writers) == (existing_writers | {"fake_writer"})
+
+    updated_collection = await acl.update_access_control(
+        created_collection,
+        remove_readers={"fake_reader"},
+        remove_writers={"fake_writer"},
+    )
+
+    assert set(updated_collection.readers) == existing_readers
+    assert set(updated_collection.writers) == existing_writers
+
+    return
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_update(created_collection, created_user):
+    ORIGINAL_NAME = created_collection.name
+    ORIGINAL_DESCRIPTION = created_collection.description
+
     updated = await collection.update(
         id=created_collection.id,
         access_groups=created_user.groups,
-        owner=None,
+        name="New Name",
         description="New description",
-        add_readers=["Reader 1"],
     )
 
-    assert updated.name == created_collection.name
+    assert updated.name == "New Name"
     assert updated.description == "New description"
-    assert "Reader 1" in updated.readers
 
     updated = await collection.update(
         id=created_collection.id,
         access_groups=created_user.groups,
-        owner=None,
-        description=None,
-        add_writers=["Writer 1"],
+        name=ORIGINAL_NAME,
+        description=ORIGINAL_DESCRIPTION,
     )
-    assert "Writer 1" in updated.writers
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -61,7 +84,7 @@ async def test_update_missing(created_user):
         await collection.update(
             id=PydanticObjectId("7" * 24),
             access_groups=created_user.groups,
-            owner=None,
+            name=None,
             description="New description",
         )
 

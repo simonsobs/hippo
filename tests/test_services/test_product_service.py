@@ -197,6 +197,8 @@ async def test_update_metadata(created_full_product, database, storage, created_
     assert new_product.owner == created_user.display_name
     assert new_product.version != existing_version
     assert new_product.replaces.id == created_full_product.id
+    assert new_product.current
+
     # try to read old version
     metadata = await product.read_by_name(
         name=created_full_product.name,

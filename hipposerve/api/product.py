@@ -247,28 +247,32 @@ async def update_product(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="User not found."
             )
 
-    new_product, upload_urls = await product.update(
-        product=item,
-        access_groups=request.user.groups,
-        name=model.name,
-        description=model.description,
-        metadata=model.metadata,
-        new_sources=model.new_sources,
-        replace_sources=model.replace_sources,
-        drop_sources=model.drop_sources,
-        storage=request.app.storage,
-        level=model.level,
-    )
+    if model.level:
+        new_product, upload_urls = await product.update(
+            product=item,
+            access_groups=request.user.groups,
+            name=model.name,
+            description=model.description,
+            metadata=model.metadata,
+            new_sources=model.new_sources,
+            replace_sources=model.replace_sources,
+            drop_sources=model.drop_sources,
+            storage=request.app.storage,
+            level=model.level,
+        )
 
-    logger.info(
-        "Successfully updated product {} (new id: {}; {}; old id: {}; {}) from {}",
-        new_product.name,
-        new_product.id,
-        new_product.version,
-        item.id,
-        item.version,
-        request.user.display_name,
-    )
+        logger.info(
+            "Successfully updated product {} (new id: {}; {}; old id: {}; {}) from {}",
+            new_product.name,
+            new_product.id,
+            new_product.version,
+            item.id,
+            item.version,
+            request.user.display_name,
+        )
+    else:
+        new_product = item
+        upload_urls = {}
 
     new_product = await acl.update_access_control(
         doc=new_product,

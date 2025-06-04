@@ -512,10 +512,7 @@ def product_add_reader(
     response = client.post(
         f"/product/{id}/update",
         json={
-            "name": None,
-            "description": None,
-            "level": 2,
-            "metadata": None,
+            "level": None,
             "add_readers": [group],
         },
     )
@@ -536,10 +533,7 @@ def product_remove_reader(
     response = client.post(
         f"/product/{id}/update",
         json={
-            "name": None,
-            "description": None,
-            "level": 2,
-            "metadata": None,
+            "level": None,
             "remove_readers": [group],
         },
     )
@@ -561,10 +555,7 @@ def product_add_writer(
     response = client.post(
         f"/product/{id}/update",
         json={
-            "name": None,
-            "description": None,
-            "level": 2,
-            "metadata": None,
+            "level": None,
             "add_writers": [group],
         },
     )
@@ -585,10 +576,7 @@ def product_remove_writer(
     response = client.post(
         f"/product/{id}/update",
         json={
-            "name": None,
-            "description": None,
-            "level": 2,
-            "metadata": None,
+            "level": None,
             "remove_writers": [group],
         },
     )

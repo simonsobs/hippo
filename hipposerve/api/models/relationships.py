@@ -16,8 +16,8 @@ class CreateCollectionRequest(BaseModel):
     """
 
     description: str
-    readers: list[str] | None = None
-    writers: list[str] | None = None
+    readers: list[str] = []
+    writers: list[str] = []
 
 
 class UpdateCollectionRequest(BaseModel):
@@ -25,12 +25,13 @@ class UpdateCollectionRequest(BaseModel):
     Request model for updating a collection.
     """
 
+    name: str | None = None
     description: str | None = None
     owner: str | None = None
-    add_readers: list[str] | None = None
-    remove_readers: list[str] | None = None
-    add_writers: list[str] | None = None
-    remove_writers: list[str] | None = None
+    add_readers: list[str] = []
+    remove_readers: list[str] = []
+    add_writers: list[str] = []
+    remove_writers: list[str] = []
 
 
 class ReadCollectionProductResponse(BaseModel):

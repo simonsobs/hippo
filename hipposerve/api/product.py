@@ -16,7 +16,7 @@ from hipposerve.api.models.product import (
     UpdateProductResponse,
 )
 from hipposerve.database import ProductMetadata
-from hipposerve.service import product, users
+from hipposerve.service import acl, product, users
 from hipposerve.service.auth import requires
 
 product_router = APIRouter(prefix="/product")
@@ -242,13 +242,10 @@ async def update_product(
     if model.owner is not None:
         try:
             await users.confirm_user(name=model.owner)
-            user = model.owner
         except users.UserNotFound:
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="User not found."
             )
-    else:
-        user = None
 
     new_product, upload_urls = await product.update(
         product=item,
@@ -256,16 +253,11 @@ async def update_product(
         name=model.name,
         description=model.description,
         metadata=model.metadata,
-        owner=user,
         new_sources=model.new_sources,
         replace_sources=model.replace_sources,
         drop_sources=model.drop_sources,
         storage=request.app.storage,
         level=model.level,
-        add_readers=model.add_readers,
-        remove_readers=model.remove_readers,
-        add_writers=model.add_writers,
-        remove_writers=model.remove_writers,
     )
 
     logger.info(
@@ -276,6 +268,21 @@ async def update_product(
         item.id,
         item.version,
         request.user.display_name,
+    )
+
+    new_product = await acl.update_access_control(
+        doc=new_product,
+        owner=model.owner,
+        add_readers=model.add_readers,
+        remove_readers=model.remove_readers,
+        add_writers=model.add_writers,
+        remove_writers=model.remove_writers,
+    )
+
+    logger.info(
+        "Successfully updated product {} (id: {}) with new access control policy",
+        new_product.name,
+        new_product.id,
     )
 
     return UpdateProductResponse(

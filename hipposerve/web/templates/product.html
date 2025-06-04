@@ -126,6 +126,19 @@
 
             <div class="row">
                 <div class="container">
+                    <h3 class="mt-2">Readers</h3>
+                    {% for reader in product.readers %}
+                        <span class="badge text-bg-secondary p-2">{{reader}}</span>
+                    {% endfor %}
+                    <h3 class="mt-2">Writers</h3>
+                    {% for writer in product.writers %}
+                        <span class="badge text-bg-secondary p-2">{{writer}}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="container">
                     <h3 class="mt-2">Version History</h3>
                     <table class="table table-sm small border border-secondary-subtle" style="max-width: 250px;">
                         <thead class="table-secondary">

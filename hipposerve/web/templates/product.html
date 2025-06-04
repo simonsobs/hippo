@@ -141,13 +141,13 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <div class='{{ "rounded-circle bg-success" if version == product.version else "" }}' style="width: 0.75em; height: 0.75em;"></div>
                                         {% if version != product.version %}
-                                            <a href='{{ web_root }}/product/{{ metadata.id | e }}'>{{ version }}</a>
+                                            <a href='{{ web_root }}/products/{{ metadata.id | e }}'>{{ version }}</a>
                                         {% else %}
                                             <span>{{ version }}</span>
                                         {% endif %}
                                     </div>
                                 </td>
-                                <td>{{ product.updated.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ metadata.updated.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

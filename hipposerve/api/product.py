@@ -117,7 +117,8 @@ async def read_product(
     logger.info("Read product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await (await product.read_by_id(id, request.user.groups)).to_metadata()
+        product_item = await product.read_by_id(id, request.user.groups)
+        item = await product_item.to_metadata()
 
         response = ReadProductResponse(
             current_present=item.current,

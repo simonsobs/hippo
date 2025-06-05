@@ -16,7 +16,7 @@ from hipposerve.api.models.product import (
     UpdateProductResponse,
 )
 from hipposerve.database import ProductMetadata
-from hipposerve.service import product, users
+from hipposerve.service import acl, product, users
 from hipposerve.service.auth import requires
 
 product_router = APIRouter(prefix="/product")
@@ -242,26 +242,41 @@ async def update_product(
     if model.owner is not None:
         try:
             await users.confirm_user(name=model.owner)
-            user = model.owner
         except users.UserNotFound:
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="User not found."
             )
-    else:
-        user = None
 
-    new_product, upload_urls = await product.update(
-        product=item,
-        access_groups=request.user.groups,
-        name=model.name,
-        description=model.description,
-        metadata=model.metadata,
-        owner=user,
-        new_sources=model.new_sources,
-        replace_sources=model.replace_sources,
-        drop_sources=model.drop_sources,
-        storage=request.app.storage,
-        level=model.level,
+    if model.level:
+        new_product, upload_urls = await product.update(
+            product=item,
+            access_groups=request.user.groups,
+            name=model.name,
+            description=model.description,
+            metadata=model.metadata,
+            new_sources=model.new_sources,
+            replace_sources=model.replace_sources,
+            drop_sources=model.drop_sources,
+            storage=request.app.storage,
+            level=model.level,
+        )
+
+        logger.info(
+            "Successfully updated product {} (new id: {}; {}; old id: {}; {}) from {}",
+            new_product.name,
+            new_product.id,
+            new_product.version,
+            item.id,
+            item.version,
+            request.user.display_name,
+        )
+    else:
+        new_product = item
+        upload_urls = {}
+
+    new_product = await acl.update_access_control(
+        doc=new_product,
+        owner=model.owner,
         add_readers=model.add_readers,
         remove_readers=model.remove_readers,
         add_writers=model.add_writers,
@@ -269,13 +284,9 @@ async def update_product(
     )
 
     logger.info(
-        "Successfully updated product {} (new id: {}; {}; old id: {}; {}) from {}",
+        "Successfully updated product {} (id: {}) with new access control policy",
         new_product.name,
         new_product.id,
-        new_product.version,
-        item.id,
-        item.version,
-        request.user.display_name,
     )
 
     return UpdateProductResponse(

@@ -5,6 +5,13 @@
 <div class="d-flex align-items-center gap-1">
     <div class="rounded-circle" style="height: 12px; width: 12px; background-color: {{cmap.get(collection.id|string)}};"></div>
     <span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
+    <span class="badge text-bg-danger mb-1 p-2">Owner: {{ collection.owner }}</span>
+    {% for reader in collection.readers %}
+      <span class="badge text-bg-success mb-1 p-2">Reader: {{ reader }}</span>
+    {% endfor %}
+    {% for writer in collection.writers %}
+      <span class="badge text-bg-warning mb-1 p-2">Writer: {{ writer }}</span>
+    {% endfor %}
 </div>
 {% markdown %}
 {{ collection.description }}

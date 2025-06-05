@@ -122,7 +122,7 @@ def product_edit(id: str):
     """
     global CLIENT
 
-    edit_product(client=CLIENT, id=id, console=CONSOLE)
+    edit_product(client=CLIENT, id=id)
 
 
 @product_app.command("add-reader")

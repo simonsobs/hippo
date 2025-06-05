@@ -13,7 +13,7 @@ from hipposerve.api.models.relationships import (
     ReadCollectionResponse,
     UpdateCollectionRequest,
 )
-from hipposerve.service import collection, product
+from hipposerve.service import acl, collection, product
 from hipposerve.service.auth import requires
 
 relationship_router = APIRouter(prefix="/relationships")
@@ -34,8 +34,6 @@ async def create_collection(
         "Request to create collection: {} from {}", name, request.user.display_name
     )
 
-    # TODO: What to do if collection exists?
-    # TODO: Collections should have a 'manager' who can change their properties.
     coll = await collection.create(
         name=name,
         user=request.user.display_name,
@@ -240,13 +238,19 @@ async def update_collection(
     coll = await collection.update(
         id=id,
         access_groups=request.user.groups,
-        owner=model.owner,
+        name=model.name,
         description=model.description,
+    )
+
+    coll = await acl.update_access_control(
+        doc=coll,
+        owner=model.owner,
         add_readers=model.add_readers,
         remove_readers=model.remove_readers,
         add_writers=model.add_writers,
         remove_writers=model.remove_writers,
     )
+
     logger.info(
         "Successfully updated collection {} from {}", id, request.user.display_name
     )

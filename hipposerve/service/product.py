@@ -22,7 +22,7 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.auth import check_user_access
+from hipposerve.service.acl import check_user_access
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -126,15 +126,9 @@ async def create(
         parent_of=[],
         collections=[],
         collection_policies=[],
+        readers=set(product_readers or []) | {user_name},
+        writers=set(product_writers or []) | {user_name},
     )
-    product_readers = product_readers or []
-    product_writers = product_writers or []
-
-    if product_readers is not None:
-        product.readers.extend(product_readers)
-    if user_name not in product.writers:
-        product_writers.append(user_name)
-    product.writers.extend(product_writers)
 
     await product.create()
 
@@ -340,12 +334,7 @@ async def update_metadata(
     name: str | None,
     description: str | None,
     metadata: ALL_METADATA_TYPE | None,
-    owner: str | None,
     level: versioning.VersionRevision,
-    add_readers: list[str] | None = None,
-    remove_readers: list[str] | None = None,
-    add_writers: list[str] | None = None,
-    remove_writers: list[str] | None = None,
 ) -> Product:
     """
     Update only the metadata of a product. Note that you can call this with all
@@ -358,31 +347,20 @@ async def update_metadata(
             "Attempting to update a non-current product. You must always "
             "make changes to the head of the list"
         )
-    readers = product.readers.copy()
-    writers = product.writers.copy()
+
     # We don't actually 'update' the database; we actually create a new
     # product and link it in.
-    if owner is not None:
-        writers.append(owner)
-    if add_readers is not None:
-        readers.extend(add_readers)
-    if remove_readers is not None:
-        readers = [x for x in readers if x not in remove_readers]
-    if add_writers is not None:
-        writers.extend(add_writers)
-    if remove_writers is not None:
-        writers = [x for x in writers if x not in remove_writers]
 
     new = Product(
         name=product.name if name is None else name,
         description=product.description if description is None else description,
         metadata=product.metadata if metadata is None else metadata,
         uploaded=product.uploaded,
+        owner=product.owner,
         updated=utils.current_utc_time(),
         current=True,
         version=versioning.revise_version(product.version, level=level),
         sources=product.sources,
-        owner=product.owner if owner is None else owner,
         replaces=product,
         # This product is a child of nothing util it is told it is. Child
         # relationships only stick around for a single version.
@@ -399,8 +377,8 @@ async def update_metadata(
             if p
             in [CollectionPolicy.ALL, CollectionPolicy.NEW, CollectionPolicy.CURRENT]
         ],
-        readers=readers,
-        writers=writers,
+        readers=product.readers,
+        writers=product.writers,
     )
 
     # Need to perform a small number of modifications on the original
@@ -418,6 +396,7 @@ async def update_metadata(
     ]
 
     await new.save(link_rule=WriteRules.WRITE)
+    await product.save(link_rule=WriteRules.WRITE)
 
     return new
 
@@ -487,29 +466,23 @@ async def update(
     name: str | None,
     description: str | None,
     metadata: ALL_METADATA_TYPE | None,
-    owner: str | None,
     new_sources: list[PreUploadFile],
     replace_sources: list[PreUploadFile],
     drop_sources: list[str],
     storage: Storage,
     level: versioning.VersionRevision,
-    add_readers: list[str] | None = None,
-    remove_readers: list[str] | None = None,
-    add_writers: list[str] | None = None,
-    remove_writers: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
+    """
+    Rev the version of the product and update its contents.
+    """
     assert check_user_access(user_groups=access_groups, document_groups=product.writers)
+
     new_product = await update_metadata(
         product=product,
         name=name,
         description=description,
         metadata=metadata,
-        owner=owner,
         level=level,
-        add_readers=add_readers,
-        remove_readers=remove_readers,
-        add_writers=add_writers,
-        remove_writers=remove_writers,
     )
 
     # For some reason:

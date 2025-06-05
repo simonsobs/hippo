@@ -83,6 +83,8 @@ async def created_full_product(database, storage, created_user):
         sources=SOURCES,
         user_name=created_user.display_name,
         storage=storage,
+        product_readers={created_user.display_name},
+        product_writers={created_user.display_name},
     )
 
     assert not await product.confirm(data, storage)

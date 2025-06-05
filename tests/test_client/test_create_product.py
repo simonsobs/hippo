@@ -72,32 +72,27 @@ def test_groups_update_add_reader(server, tmp_path):
         source_descriptions=[None],
     )
 
-    updated_id = product.product_add_reader(
+    product.product_add_reader(
+        client=client,
+        id=id,
+        group="test_group",
+    )
+
+    product.product_add_writer(
+        client=client,
+        id=id,
+        group="test_group",
+    )
+
+    product.product_remove_reader(
+        client=client,
+        id=id,
+        group="test_group",
+    )
+
+    product.product_remove_writer(
         client=client,
         id=id,
         group="test_group",
     )
     product.delete(client, id)
-
-    updated_id_2 = product.product_add_writer(
-        client=client,
-        id=updated_id,
-        group="test_group",
-    )
-
-    product.delete(client, updated_id)
-
-    updated_id_3 = product.product_remove_reader(
-        client=client,
-        id=updated_id_2,
-        group="test_group",
-    )
-    product.delete(client, updated_id_2)
-
-    updated_id_4 = product.product_remove_writer(
-        client=client,
-        id=updated_id_3,
-        group="test_group",
-    )
-    product.delete(client, updated_id_3)
-    product.delete(client, updated_id_4)

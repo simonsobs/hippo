@@ -7,6 +7,7 @@
     <div class="d-flex align-items-start mt-4 h-100">
         <div class="nav flex-column nav-pills me-3 gap-2 pe-3 border-end border-secondary-subtle" id="v-pills-tab" role="tablist" aria-orientation="vertical">
           <button class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="true">Account information</button>
+          <button class="nav-link" id="v-pills-collections-tab" data-bs-toggle="pill" data-bs-target="#v-pills-collections" type="button" role="tab" aria-controls="v-pills-collections" aria-selected="false">Collections</button>
           <button class="nav-link" id="v-pills-products-tab" data-bs-toggle="pill" data-bs-target="#v-pills-products" type="button" role="tab" aria-controls="v-pills-products" aria-selected="false">Products</button>
           <button class="nav-link" id="v-pills-privileges-tab" data-bs-toggle="pill" data-bs-target="#v-pills-privileges" type="button" role="tab" aria-controls="v-pills-privileges" aria-selected="false">Groups</button>
           {% if soauth_enabled %}
@@ -55,7 +56,28 @@
                 </li>
             </ul>
           </div>
-          <div class="tab-pane fade" id="v-pills-products" role="tabpanel" aria-labelledby="v-pills-products-tab" tabindex="0">TODO: fetch user's products</div>
+          <div class="tab-pane fade" id="v-pills-collections" role="tabpanel" aria-labelledby="v-pills-collections-tab" tabindex="0">
+            {% if collections %}
+            <ul  class="list-group shadow-sm" style="min-width: 300px;">
+                {% for collection in collections %}
+                    <li class="list-group-item small py-1"><a href='{{ web_root }}/collections/{{ collection.id | e}}'>{{ collection.name }}</a></li>
+                {% endfor %}
+            </ul>
+            {% else %}
+                <span class="fst-italic">None</span>
+            {% endif %}
+        </div>
+          <div class="tab-pane fade" id="v-pills-products" role="tabpanel" aria-labelledby="v-pills-products-tab" tabindex="0">
+            {% if products %}
+            <ul  class="list-group shadow-sm" style="min-width: 300px;">
+                {% for product in products %}
+                    <li class="list-group-item small py-1"><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></li>
+                {% endfor %}
+            </ul>
+            {% else %}
+                <span class="fst-italic">None</span>
+            {% endif %}
+          </div>
           <div class="tab-pane fade" id="v-pills-privileges" role="tabpanel" aria-labelledby="v-pills-privileges-tab" tabindex="0">
             {% if request.user.groups %}
                 <ul class="list-group shadow-sm">

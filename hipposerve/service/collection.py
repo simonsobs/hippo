@@ -5,6 +5,8 @@ Note that adding to and removing from collections is provided as part of
 the product service.
 """
 
+import re
+
 from beanie import PydanticObjectId
 from beanie.operators import Text
 from fastapi import HTTPException
@@ -79,6 +81,27 @@ async def search_by_name(
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
+
+    filtered_collection_list = await collection_product_filter(groups, results)
+    return filtered_collection_list
+
+
+async def search_by_owner(
+    owner: str,
+    groups: list[str],
+    fetch_links: bool = True,
+) -> list[Collection]:
+    """
+    Search for Collections by owner; owner search is case insensitive
+    but must otherwise be an exact match
+    """
+
+    owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
+
+    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+    results = await Collection.find(
+        {**access_query, "owner": owner_regex}, fetch_links=fetch_links
+    ).to_list()
 
     filtered_collection_list = await collection_product_filter(groups, results)
     return filtered_collection_list

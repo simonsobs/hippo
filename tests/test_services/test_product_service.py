@@ -615,11 +615,8 @@ async def test_text_name_search(database, created_user, storage):
     await product.delete_one(product_B, created_user.groups, storage=storage, data=True)
 
 
-
 @pytest.mark.asyncio(loop_scope="session")
-async def test_product_with_five_versions(
-    database, created_user, storage
-):
+async def test_product_with_five_versions(database, created_user, storage):
     # Create a new product
     new_product, _ = await product.create(
         name="Five Version Product",
@@ -654,7 +651,7 @@ async def test_product_with_five_versions(
     history = await product.walk_history(final_product)
 
     assert len(history) == 6
-    
+
     # Delete the tree.
     await product.delete_tree(
         product=final_product,

@@ -4,7 +4,6 @@ The database access layer for hippo. Uses MongoDB and Beanie.
 
 from datetime import datetime
 from enum import Enum
-import asyncio
 from typing import Annotated
 
 import pymongo

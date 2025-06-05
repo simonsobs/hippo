@@ -3,6 +3,7 @@ The product service layer.
 """
 
 import datetime
+import re
 from typing import Any, Literal
 
 from beanie import Link, PydanticObjectId, WriteRules
@@ -212,6 +213,29 @@ async def search_by_metadata(
 
     # Execute the query
     results = await Product.find(access_query, query, fetch_links=fetch_links).to_list()
+    return results
+
+
+async def search_by_owner(
+    owner: str,
+    groups: list[str],
+    fetch_links: bool = True,
+) -> list[Collection]:
+    """
+    Search for products by owner; owner search is case insensitive
+    but must otherwise be an exact match
+    """
+
+    owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
+
+    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+
+    results = await Product.find(
+        {**access_query, "owner": owner_regex},
+        Product.current == True,  # noqa: E712
+        fetch_links=fetch_links,
+    ).to_list()
+
     return results
 
 

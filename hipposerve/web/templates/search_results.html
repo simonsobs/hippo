@@ -13,13 +13,19 @@
             <thead class="table-secondary">
                 <tr>
                     <th>Name</th>
+                    {% if filter == "owner" %}
+                    <th>Type</th>
+                    {% endif %}
                     <th>Description</th>
                 </tr>
             </thead>
             <tbody>
                 {% for result in results %}
                     <tr>
-                        <td><a href='{{ web_root }}/{{ filter }}/{{ result.id | e}}'>{{ result.name }}</td>
+                        <td><a href='{{ web_root }}/{{ filter }}/{{ result.id | e}}'>{{ result.name }}</a></td>
+                        {% if filter == "owner" %}
+                        <td>{{ "Collection" if result.products is defined else "Product" }}</td>
+                        {% endif %}
                         <td>{{ result.description | truncate }}</td>
                     </tr>
                 {% endfor %}

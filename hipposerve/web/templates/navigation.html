@@ -42,8 +42,7 @@
             >
               <option value="products" {% if filter == "products" %}selected{% endif %}>Products</option>
               <option value="collections" {% if filter == "collections" %}selected{% endif %}>Collections</option>
-              <option value="users" {% if filter == "users" %}selected{% endif %}>Users</option>
-              <option value="sources" {% if filter == "sources" %}selected{% endif %}>Sources</option>
+              <option value="owner" {% if filter == "owner" %}selected{% endif %}>Owner</option>
             </select>
           </div>
           <label for="search-bar" class="visually-hidden">Search:</label>
@@ -110,7 +109,11 @@
 
       function setPlaceholder() {
         const inputEl = document.querySelector('#search-bar');
-        inputEl.placeholder = "Search by " + selectedFilter.substring(0, selectedFilter.length - 1) + " names...";
+        if (selectedFilter === "owner") {
+          inputEl.placeholder = "Search by owner name...";
+        } else {
+          inputEl.placeholder = "Search by " + selectedFilter.substring(0, selectedFilter.length - 1) + " names...";
+        }
       }
 
       function onFilterChange(e) {

@@ -26,7 +26,9 @@ async def search_results_view(
     elif filter == "collections":
         results = await collection.search_by_name(q, request.user.groups)
     else:
-        results = []
+        collection_results = await collection.search_by_owner(q, request.user.groups)
+        product_results = await product.search_by_owner(q, request.user.groups)
+        results = collection_results + product_results
 
     return templates.TemplateResponse(
         "search_results.html",

@@ -30,7 +30,7 @@ class CollectionPolicy(Enum):
 
 
 class User(Document):
-    name: Indexed(str, unique=True)
+    name: Annotated[str, Indexed(str, unique=True)]
     email: str | None
     last_access_time: datetime | None
 
@@ -148,6 +148,8 @@ class Product(ProtectedDocument, ProductMetadata):
             owner=self.owner,
             replaces=replaces_version,
             child_of=[x.id for x in self.child_of],
+            # Filter out backlinks as they are unfetchable; this only occurs
+            # when walking the product tree.
             parent_of=[x.id for x in self.parent_of if not isinstance(x, BackLink)],
             collections=[x.id for x in self.collections],
         )

@@ -3,6 +3,7 @@ Routes for the product service.
 """
 
 import asyncio
+
 from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger

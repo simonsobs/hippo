@@ -4,6 +4,7 @@ The database access layer for hippo. Uses MongoDB and Beanie.
 
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
 import pymongo
 from beanie import BackLink, Document, Indexed, Link, PydanticObjectId
@@ -29,7 +30,7 @@ class CollectionPolicy(Enum):
 
 
 class User(Document):
-    name: Indexed(str, unique=True)
+    name: Annotated[str, Indexed(str, unique=True)]
     email: str | None
     last_access_time: datetime | None
 
@@ -110,7 +111,7 @@ class ProtectedDocument(Document):
 
 
 class Product(ProtectedDocument, ProductMetadata):
-    name: Indexed(str, pymongo.TEXT)
+    name: Annotated[str, Indexed(str, pymongo.TEXT)]
 
     sources: list[File]
 
@@ -124,7 +125,16 @@ class Product(ProtectedDocument, ProductMetadata):
     collections: list[Link["Collection"]] = []
     collection_policies: list[CollectionPolicy] = []
 
-    def to_metadata(self) -> ProductMetadata:
+    async def to_metadata(self) -> ProductMetadata:
+        # If links are longer than the pre-determined limit (3) we need
+        # to fetch.
+        if self.replaces is None:
+            replaces_version = None
+        elif isinstance(self.replaces, Link):
+            replaces_version = (await self.replaces.fetch(fetch_links=True)).version
+        else:
+            replaces_version = self.replaces.version
+
         return ProductMetadata(
             id=self.id,
             name=self.name,
@@ -136,9 +146,11 @@ class Product(ProtectedDocument, ProductMetadata):
             version=self.version,
             sources=[x.to_metadata() for x in self.sources],
             owner=self.owner,
-            replaces=self.replaces.version if self.replaces is not None else None,
+            replaces=replaces_version,
             child_of=[x.id for x in self.child_of],
-            parent_of=[x.id for x in self.parent_of],
+            # Filter out backlinks as they are unfetchable; this only occurs
+            # when walking the product tree.
+            parent_of=[x.id for x in self.parent_of if not isinstance(x, BackLink)],
             collections=[x.id for x in self.collections],
         )
 
@@ -161,7 +173,7 @@ class CollectionMetadata(BaseModel):
 class Collection(ProtectedDocument, CollectionMetadata):
     # TODO: Implement updated time for collections.
 
-    name: Indexed(str, pymongo.TEXT)
+    name: Annotated[str, Indexed(str, pymongo.TEXT)]
     products: list[BackLink[Product]] = Field(
         json_schema_extra={"original_field": "collections"}
     )

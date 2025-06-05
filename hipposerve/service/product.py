@@ -224,10 +224,13 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     versions = {}
 
     while product.replaces is not None:
-        versions[product.version] = product.to_metadata()
+        versions[product.version] = await product.to_metadata()
         product = product.replaces
 
-    versions[product.version] = product.to_metadata()
+        if isinstance(product, Link):
+            product = await product.fetch(fetch_links=True)
+
+    versions[product.version] = await product.to_metadata()
 
     return versions
 

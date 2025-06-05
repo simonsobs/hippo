@@ -2,6 +2,8 @@
 Routes for the product service.
 """
 
+import asyncio
+
 from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
@@ -116,7 +118,8 @@ async def read_product(
     logger.info("Read product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = (await product.read_by_id(id, request.user.groups)).to_metadata()
+        product_item = await product.read_by_id(id, request.user.groups)
+        item = await product_item.to_metadata()
 
         response = ReadProductResponse(
             current_present=item.current,
@@ -214,7 +217,7 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
     )
 
     return ReadFilesResponse(
-        product=item.to_metadata(),
+        product=await item.to_metadata(),
         files=files,
     )
 
@@ -424,4 +427,4 @@ async def search(
         request.user.display_name,
     )
 
-    return [item.to_metadata() for item in items]
+    return await asyncio.gather(*[item.to_metadata() for item in items])

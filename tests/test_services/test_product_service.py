@@ -613,3 +613,49 @@ async def test_text_name_search(database, created_user, storage):
 
     await product.delete_one(product_A, created_user.groups, storage=storage, data=True)
     await product.delete_one(product_B, created_user.groups, storage=storage, data=True)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_product_with_five_versions(database, created_user, storage):
+    # Create a new product
+    new_product, _ = await product.create(
+        name="Five Version Product",
+        description="A product with five versions",
+        metadata=None,
+        sources=[],
+        user_name=created_user.display_name,
+        storage=storage,
+    )
+
+    for i in range(5):
+        new_product, _ = await product.update(
+            product=new_product,
+            access_groups=created_user.groups,
+            name=None,
+            description=f"Version {i + 1} of the product",
+            metadata=None,
+            new_sources=[],
+            replace_sources=[],
+            drop_sources=[],
+            storage=storage,
+            level=versioning.VersionRevision.MINOR,
+        )
+
+    # Now try to get the fifth version by name.
+    final_product = await product.read_by_name(
+        name=new_product.name,
+        version=None,
+        groups=created_user.groups,
+    )
+
+    history = await product.walk_history(final_product)
+
+    assert len(history) == 6
+
+    # Delete the tree.
+    await product.delete_tree(
+        product=final_product,
+        access_groups=created_user.groups,
+        storage=storage,
+        data=True,
+    )

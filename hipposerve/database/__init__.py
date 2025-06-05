@@ -4,7 +4,6 @@ The database access layer for hippo. Uses MongoDB and Beanie.
 
 from datetime import datetime
 from enum import Enum
-from typing import Annotated
 
 import pymongo
 from beanie import BackLink, Document, Indexed, Link, PydanticObjectId
@@ -30,7 +29,7 @@ class CollectionPolicy(Enum):
 
 
 class User(Document):
-    name: Annotated[str, Indexed(str, unique=True)]
+    name: Indexed(str, unique=True)
     email: str | None
     last_access_time: datetime | None
 
@@ -111,7 +110,7 @@ class ProtectedDocument(Document):
 
 
 class Product(ProtectedDocument, ProductMetadata):
-    name: Annotated[str, Indexed(str, pymongo.TEXT)]
+    name: Indexed(str, pymongo.TEXT)
 
     sources: list[File]
 
@@ -173,7 +172,7 @@ class CollectionMetadata(BaseModel):
 class Collection(ProtectedDocument, CollectionMetadata):
     # TODO: Implement updated time for collections.
 
-    name: Annotated[str, Indexed(str, pymongo.TEXT)]
+    name: Indexed(str, pymongo.TEXT)
     products: list[BackLink[Product]] = Field(
         json_schema_extra={"original_field": "collections"}
     )

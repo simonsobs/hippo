@@ -10,46 +10,19 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 from rich.console import Console
+from soauth.toolkit.client import SOAuth
 
 from .caching import Cache, MultiCache
 
 console = Console()
 
 
-class Client(httpx.Client):
-    """
-    The core client for the hippo API. A wrapper around httpx.Client,
-    including the settings management required for interacting using
-    the API-key based interface.
-    """
-
-    verbose: bool
-    use_multipart_upload: bool = False
-
-    def __init__(
-        self,
-        api_key: str,
-        host: str,
-        verbose: bool = False,
-        use_multipart_upload: bool = False,
-    ):
-        """
-        Parameters
-        ----------
-
-        api_key: str
-            The API key for the hippo API to use.
-
-        host: str
-            The host for the hippo API to use.
-
-        verbose: bool
-            Whether to print verbose output.
-        """
-
-        self.verbose = verbose
-        self.use_multipart_upload = use_multipart_upload
-        super().__init__(base_url=host, headers={"X-API-Key": api_key})
+def Client(
+    host: str,
+    token_tag: str | None,
+) -> httpx.Client:
+    auth = SOAuth(token_tag) if token_tag else None
+    return httpx.Client(base_url=host, auth=auth)
 
 
 class ClientSettings(BaseSettings):
@@ -61,10 +34,10 @@ class ClientSettings(BaseSettings):
     3. Verbosity.
     """
 
-    api_key: str
-    "Your API key for the HIPPO service you are connected to"
-    host: str
+    host: str = "http://localhost:8000"
     "The hostname of the HIPPO service you are connected to"
+    token_tag: str | None = None
+    "The tag associated with the API key for the hippo API to use"
     verbose: bool = False
     "Verbosity control: set to true for extra info"
     use_multipart_upload: bool = False
@@ -105,4 +78,4 @@ class ClientSettings(BaseSettings):
         """
         Return a Client object for the API.
         """
-        return Client(api_key=self.api_key, host=self.host, verbose=self.verbose)
+        return Client(token_tag=self.token_tag, host=self.host)

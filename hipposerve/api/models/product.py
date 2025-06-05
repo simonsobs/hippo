@@ -15,11 +15,19 @@ class CreateProductRequest(BaseModel):
     description: str
     metadata: ALL_METADATA_TYPE
     sources: list[PreUploadFile]
+    product_readers: list[str] = []
+    product_writers: list[str] = []
+    multipart_batch_size: int = 50 * 1024 * 1024
 
 
 class CreateProductResponse(BaseModel):
     id: PydanticObjectId
-    upload_urls: dict[str, str]
+    upload_urls: dict[str, list[str]]
+
+
+class CompleteProductRequest(BaseModel):
+    headers: dict[str, list[dict[str, str]]]
+    sizes: dict[str, list[int]]
 
 
 class ReadProductResponse(BaseModel):
@@ -42,10 +50,14 @@ class UpdateProductRequest(BaseModel):
     new_sources: list[PreUploadFile] = []
     replace_sources: list[PreUploadFile] = []
     drop_sources: list[str] = []
-    level: VersionRevision = VersionRevision.MINOR
+    level: VersionRevision | None = VersionRevision.MINOR
+    add_readers: list[str] = []
+    remove_readers: list[str] = []
+    add_writers: list[str] = []
+    remove_writers: list[str] = []
 
 
 class UpdateProductResponse(BaseModel):
     version: str
     id: PydanticObjectId
-    upload_urls: dict[str, str]
+    upload_urls: dict[str, list[str]]

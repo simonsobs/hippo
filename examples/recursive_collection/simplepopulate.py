@@ -5,12 +5,9 @@ collection of the other.
 
 import random
 
-from hippoclient import Client
 from hippoclient.collections import create as create_collection
+from hippoclient.core import ClientSettings
 from hippoclient.relationships import add_child_collection
-
-API_KEY = "TEST_API_KEY"
-SERVER_LOCATION = "http://127.0.0.1:8000"
 
 
 def parent_child_collection_generator(
@@ -42,7 +39,7 @@ def parent_child_collection_generator(
 
 
 if __name__ == "__main__":
-    client = Client(api_key=API_KEY, host=SERVER_LOCATION, verbose=True)
+    client = ClientSettings().client
 
     parent_id_1 = create_collection(
         client=client,

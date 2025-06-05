@@ -6,58 +6,63 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
 from loguru import logger
 
-from hipposerve.api.auth import UserDependency, check_user_for_privilege
 from hipposerve.api.models.relationships import (
     CreateCollectionRequest,
     ReadCollectionCollectionResponse,
     ReadCollectionProductResponse,
     ReadCollectionResponse,
+    UpdateCollectionRequest,
 )
-from hipposerve.database import Privilege
-from hipposerve.service import collection, product
+from hipposerve.service import acl, collection, product
+from hipposerve.service.auth import requires
 
 relationship_router = APIRouter(prefix="/relationships")
 
 
 @relationship_router.put("/collection/{name}")
+@requires(["hippo:admin", "hippo:write"])
 async def create_collection(
     name: str,
     model: CreateCollectionRequest,
-    calling_user: UserDependency,
+    request: Request,
 ) -> PydanticObjectId:
     """
     Create a new collection with {name}.
     """
 
-    logger.info("Request to create collection: {} from {}", name, calling_user.name)
+    logger.info(
+        "Request to create collection: {} from {}", name, request.user.display_name
+    )
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_COLLECTION)
+    coll = await collection.create(
+        name=name,
+        user=request.user.display_name,
+        description=model.description,
+        collection_readers=model.readers,
+        collection_writers=model.writers,
+    )
 
-    # TODO: What to do if collection exists?
-    # TODO: Collections should have a 'manager' who can change their properties.
-    coll = await collection.create(name=name, description=model.description)
-
-    logger.info("Collection {} ({}) created for {}", coll.id, name, calling_user.name)
+    logger.info(
+        "Collection {} ({}) created for {}", coll.id, name, request.user.display_name
+    )
 
     return coll.id
 
 
 @relationship_router.get("/collection/{id}")
+@requires(["hippo:admin", "hippo:read"])
 async def read_collection(
     id: PydanticObjectId,
     request: Request,
-    calling_user: UserDependency,
 ) -> ReadCollectionResponse:
     """
     Read a collection's details.
     """
 
-    logger.info("Request to read collection: {} from {}", id, calling_user.name)
-
-    await check_user_for_privilege(calling_user, Privilege.READ_COLLECTION)
+    logger.info("Request to read collection: {} from {}", id, request.user.display_name)
 
     try:
-        item = await collection.read(id=id)
+        item = await collection.read(id=id, groups=request.user.groups)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -67,13 +72,16 @@ async def read_collection(
         id=item.id,
         name=item.name,
         description=item.description,
+        owner=item.owner,
+        readers=item.readers,
+        writers=item.writers,
         products=[
             ReadCollectionProductResponse(
                 id=x.id,
                 name=x.name,
                 version=x.version,
                 description=x.description,
-                owner=x.owner.name,
+                owner=x.owner,
                 uploaded=x.uploaded,
                 metadata=x.metadata,
             )
@@ -84,6 +92,9 @@ async def read_collection(
                 id=x.id,
                 name=x.name,
                 description=x.description,
+                owner=x.owner,
+                readers=x.readers,
+                writers=x.writers,
             )
             for x in item.child_collections
         ],
@@ -92,6 +103,9 @@ async def read_collection(
                 id=x.id,
                 name=x.name,
                 description=x.description,
+                owner=x.owner,
+                readers=x.readers,
+                writers=x.writers,
             )
             for x in item.parent_collections
         ],
@@ -99,10 +113,10 @@ async def read_collection(
 
 
 @relationship_router.get("/collection/search/{name}")
+@requires(["hippo:admin", "hippo:read"])
 async def search_collection(
     name: str,
     request: Request,
-    calling_user: UserDependency,
 ) -> list[ReadCollectionResponse]:
     """
     Search for collections by name. Products and sub-collections are not
@@ -110,14 +124,17 @@ async def search_collection(
     endpoint.
     """
 
-    logger.info("Request to search for collection: {} from {}", name, calling_user.name)
+    logger.info(
+        "Request to search for collection: {} from {}", name, request.user.display_name
+    )
 
-    await check_user_for_privilege(calling_user, Privilege.READ_COLLECTION)
-
-    results = await collection.search_by_name(name=name)
+    results = await collection.search_by_name(name=name, groups=request.user.groups)
 
     logger.info(
-        "Found {} collections for {} from {}", len(results), name, calling_user.name
+        "Found {} collections for {} from {}",
+        len(results),
+        name,
+        request.user.display_name,
     )
 
     return [
@@ -125,6 +142,9 @@ async def search_collection(
             id=item.id,
             name=item.name,
             description=item.description,
+            owner=item.owner,
+            readers=item.readers,
+            writers=item.writers,
             products=None,
         )
         for item in results
@@ -132,10 +152,11 @@ async def search_collection(
 
 
 @relationship_router.put("/collection/{collection_id}/{product_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def add_product_to_collection(
     collection_id: PydanticObjectId,
     product_id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Add a product to a collection.
@@ -145,21 +166,21 @@ async def add_product_to_collection(
         "Request to add product {} to collection {} from {}",
         product_id,
         collection_id,
-        calling_user.name,
+        request.user.display_name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
-
     try:
-        coll = await collection.read(id=collection_id)
+        coll = await collection.read(id=collection_id, groups=request.user.groups)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
 
     try:
-        item = await product.read_by_id(id=product_id)
-        await product.add_collection(product=item, collection=coll)
+        item = await product.read_by_id(id=product_id, groups=request.user.groups)
+        await product.add_collection(
+            product=item, access_groups=request.user.groups, collection=coll
+        )
         logger.info("Successfully added {} to collection {}", item.name, coll.name)
     except product.ProductNotFound:
         raise HTTPException(
@@ -168,10 +189,11 @@ async def add_product_to_collection(
 
 
 @relationship_router.delete("/collection/{collection_id}/{product_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def remove_product_from_collection(
     collection_id: PydanticObjectId,
     product_id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Remove a product from a collection.
@@ -181,21 +203,21 @@ async def remove_product_from_collection(
         "Request to remove product {} from collection {} from {}",
         product_id,
         collection_id,
-        calling_user.name,
+        request.user.display_name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.UPDATE_COLLECTION)
-
     try:
-        coll = await collection.read(id=collection_id)
+        coll = await collection.read(id=collection_id, groups=request.user.groups)
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
 
     try:
-        item = await product.read_by_id(id=product_id)
-        await product.remove_collection(product=item, collection=coll)
+        item = await product.read_by_id(id=product_id, groups=request.user.groups)
+        await product.remove_collection(
+            product=item, access_groups=request.user.groups, collection=coll
+        )
         logger.info("Successfully removed {} from collection {}", item.name, coll.name)
     except product.ProductNotFound:
         raise HTTPException(
@@ -203,29 +225,66 @@ async def remove_product_from_collection(
         )
 
 
+@relationship_router.post("/collection/{id}")
+@requires(["hippo:admin", "hippo:write"])
+async def update_collection(
+    id: PydanticObjectId,
+    model: UpdateCollectionRequest,
+    request: Request,
+) -> PydanticObjectId:
+    logger.info(
+        "Request to update collection: {} from {}", id, request.user.display_name
+    )
+    coll = await collection.update(
+        id=id,
+        access_groups=request.user.groups,
+        name=model.name,
+        description=model.description,
+    )
+
+    coll = await acl.update_access_control(
+        doc=coll,
+        owner=model.owner,
+        add_readers=model.add_readers,
+        remove_readers=model.remove_readers,
+        add_writers=model.add_writers,
+        remove_writers=model.remove_writers,
+    )
+
+    logger.info(
+        "Successfully updated collection {} from {}", id, request.user.display_name
+    )
+    return coll.id
+
+
 @relationship_router.delete("/collection/{id}")
+@requires(["hippo:admin", "hippo:write"])
 async def delete_collection(
     id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Delete a collection.
     """
 
-    logger.info("Request to delete collection: {} from {}", id, calling_user.name)
-
-    await check_user_for_privilege(calling_user, Privilege.DELETE_COLLECTION)
+    logger.info(
+        "Request to delete collection: {} from {}", id, request.user.display_name
+    )
 
     try:
         # Check if we have a parent; if we do, we need to remove its link to us.
-        coll = await collection.read(id=id)
+        coll = await collection.read(id=id, groups=request.user.groups)
 
         if coll.parent_collections:
             for parent in coll.parent_collections:
-                await collection.remove_child(parent_id=parent.id, child_id=id)
+                await collection.remove_child(
+                    parent_id=parent.id, child_id=id, groups=request.user.groups
+                )
 
-        await collection.delete(id=id)
-        logger.info("Successfully deleted collection {} from {}", id, calling_user.name)
+        await collection.delete(id=id, groups=request.user.groups)
+        logger.info(
+            "Successfully deleted collection {} from {}", id, request.user.display_name
+        )
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -233,10 +292,11 @@ async def delete_collection(
 
 
 @relationship_router.put("/product/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def add_child_product(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Add a child product to a parent product.
@@ -246,17 +306,16 @@ async def add_child_product(
         "Request to add product {} as child of {} from {}",
         child_id,
         parent_id,
-        calling_user.name,
+        request.user.display_name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
-
     try:
-        source = await product.read_by_id(id=parent_id)
-        destination = await product.read_by_id(id=child_id)
+        source = await product.read_by_id(id=parent_id, groups=request.user.groups)
+        destination = await product.read_by_id(id=child_id, groups=request.user.groups)
         await product.add_relationship(
             source=source,
             destination=destination,
+            access_groups=request.user.groups,
             type="child",
         )
         logger.info(
@@ -269,10 +328,11 @@ async def add_child_product(
 
 
 @relationship_router.delete("/product/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def remove_child_product(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Remove a parent-child relationship between two products.
@@ -282,17 +342,16 @@ async def remove_child_product(
         "Request to remove product {} as child of {} from {}",
         child_id,
         parent_id,
-        calling_user.name,
+        request.user.display_name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
-
     try:
-        source = await product.read_by_id(id=parent_id)
-        destination = await product.read_by_id(id=child_id)
+        source = await product.read_by_id(id=parent_id, groups=request.user.groups)
+        destination = await product.read_by_id(id=child_id, groups=request.user.groups)
         await product.remove_relationship(
             source=source,
             destination=destination,
+            access_groups=request.user.groups,
             type="child",
         )
         logger.info(
@@ -305,10 +364,11 @@ async def remove_child_product(
 
 
 @relationship_router.put("/collection/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def add_child_collection(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Add a child collection to a parent collection.
@@ -318,13 +378,13 @@ async def add_child_collection(
         "Request to add collection {} as child of {} from {}",
         child_id,
         parent_id,
-        calling_user.name,
+        request.user.display_name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.CREATE_RELATIONSHIP)
-
     try:
-        await collection.add_child(parent_id=parent_id, child_id=child_id)
+        await collection.add_child(
+            parent_id=parent_id, child_id=child_id, groups=request.user.groups
+        )
         logger.info("Successfully added {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -333,10 +393,11 @@ async def add_child_collection(
 
 
 @relationship_router.delete("/collection/{parent_id}/child_of/{child_id}")
+@requires(["hippo:admin", "hippo:write"])
 async def remove_child_collection(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
-    calling_user: UserDependency,
+    request: Request,
 ) -> None:
     """
     Remove a parent-child relationship between two collections.
@@ -346,13 +407,13 @@ async def remove_child_collection(
         "Request to remove collection {} as child of {} from {}",
         child_id,
         parent_id,
-        calling_user.name,
+        request.user.display_name,
     )
 
-    await check_user_for_privilege(calling_user, Privilege.DELETE_RELATIONSHIP)
-
     try:
-        await collection.remove_child(parent_id=parent_id, child_id=child_id)
+        await collection.remove_child(
+            parent_id=parent_id, child_id=child_id, groups=request.user.groups
+        )
         logger.info("Successfully removed {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
         raise HTTPException(

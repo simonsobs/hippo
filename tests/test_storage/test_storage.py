@@ -2,8 +2,6 @@
 Individual (fully synchronous) storage tests.
 """
 
-import io
-
 import pytest
 import requests
 
@@ -20,13 +18,20 @@ def simple_uploaded_file(storage):
         "bucket": "testbucket",
     }
 
-    put = storage.put(**file_info)
+    uid, put = storage.put(**file_info, size=1234, batch=1234 * 2)
 
     # Put is a pre-signed URL. We've gotta HTTP upload it.
-    with io.BytesIO() as f:
-        f.write(b"\x00" * 1234)
-        f.seek(0)
-        requests.put(put, data=f)
+
+    headers = [requests.put(put[0], data=b"\x00" * 1234).headers]
+    sizes = [1234]
+
+    # Complete the upload.
+    storage.complete(
+        **file_info,
+        headers=headers,
+        sizes=sizes,
+        upload_id=uid,
+    )
 
     yield file_info
 

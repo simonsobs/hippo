@@ -32,6 +32,8 @@ class UpdateUserRequest(BaseModel):
     refresh_key: bool = False
     password: str | None = None
     compliance: ComplianceInformation | None = None
+    add_groups: list[str] | None = None
+    remove_groups: list[str] | None = None
 
 
 class UpdateUserResponse(BaseModel):

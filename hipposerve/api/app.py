@@ -5,25 +5,23 @@ The main FastAPI endpoints.
 from contextlib import asynccontextmanager
 
 from beanie import init_beanie
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
-from starlette.datastructures import URL
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from hipposerve.api.product import product_router
 from hipposerve.api.relationships import relationship_router
-from hipposerve.api.users import users_router
+from hipposerve.api.soauth import setup_auth
 from hipposerve.database import BEANIE_MODELS
 from hipposerve.service.collection import CollectionNotFound
 from hipposerve.service.product import ProductNotFound
-from hipposerve.service.users import UserNotFound
 from hipposerve.settings import SETTINGS
 from hipposerve.storage import Storage
-from hipposerve.web.auth import PotentialLoggedInUser, UnauthorizedException
+from hipposerve.web.auth import UnauthorizedException
 from hipposerve.web.router import templates
 
 
@@ -42,46 +40,22 @@ async def lifespan(app: FastAPI):
         secret_key=SETTINGS.minio_secret,
     )
 
-    if SETTINGS.create_test_user:
-        from hipposerve.service import users
-
-        try:
-            user = await users.read(name="admin")
-        except UserNotFound:
-            user = await users.create(
-                name="admin",
-                password=SETTINGS.test_user_password,
-                email=None,
-                avatar_url=None,
-                gh_profile_url=None,
-                privileges=list(users.Privilege),
-                hasher=SETTINGS.hasher,
-                compliance=None,
-            )
-
-        await user.set({users.User.api_key: SETTINGS.test_user_api_key})
-        logger.warning(
-            "Created test user: {} with API key: {}, "
-            "you should NOT see this message in production",
-            user.name,
-            user.api_key,
-        )
-
     logger.info("Startup complete")
     yield
     logger.info("Shutdown complete")
 
 
-app = FastAPI(
-    title=SETTINGS.title,
-    description=SETTINGS.description,
-    lifespan=lifespan,
-    docs_url="/docs" if SETTINGS.debug else None,
-    redoc_url="/redoc" if SETTINGS.debug else None,
+app = setup_auth(
+    FastAPI(
+        title=SETTINGS.title,
+        description=SETTINGS.description,
+        lifespan=lifespan,
+        docs_url="/docs" if SETTINGS.debug else None,
+        redoc_url="/redoc" if SETTINGS.debug else None,
+    )
 )
 
 # Routers
-app.include_router(users_router)
 app.include_router(product_router)
 app.include_router(relationship_router)
 
@@ -97,16 +71,18 @@ if SETTINGS.web:  # pragma: no cover
     async def unauthorized_exception_handler(
         request: Request, exc: UnauthorizedException
     ):
-        login_url = app.url_path_for("login")
-        login_url_with_params = URL(login_url).include_query_params(detail=exc.detail)
-        response = RedirectResponse(str(login_url_with_params))
-        return response
+        if request.user.is_authenticated:
+            return HTMLResponse(
+                content="You do not have permission to access this resource",
+                status_code=403,
+            )
+        else:
+            return RedirectResponse(app.login_url)
 
     def not_found_template(
         request: Request,
         type: str,
         requested_id: str | None,
-        user: PotentialLoggedInUser,
     ):
         error_details = {
             "type": type,
@@ -120,7 +96,7 @@ if SETTINGS.web:  # pragma: no cover
             {
                 "request": request,
                 "error_details": error_details,
-                "user": user,
+                "user": request.user.display_name,
                 "web_root": SETTINGS.web_root,
             },
             status_code=404,
@@ -130,33 +106,29 @@ if SETTINGS.web:  # pragma: no cover
     async def page_not_found_handler(
         request: Request,
         exc: HTTPException,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
-        return not_found_template(request, "generic", None, user)
+        return not_found_template(request, "generic", None)
 
     @app.exception_handler(CollectionNotFound)
     async def collection_not_found_handler(
         request: Request,
         exc: CollectionNotFound,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
         requested_id = request.path_params["id"]
-        return not_found_template(request, "collection", requested_id, user)
+        return not_found_template(request, "collection", requested_id)
 
     @app.exception_handler(ProductNotFound)
     async def product_not_found_handler(
         request: Request,
         exc: ProductNotFound,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
         requested_id = request.path_params["id"]
-        return not_found_template(request, "product", requested_id, user)
+        return not_found_template(request, "product", requested_id)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request,
         exc: RequestValidationError,
-        user: PotentialLoggedInUser = Depends(PotentialLoggedInUser),
     ):
         requested_item_type = "generic"
         requested_id = None
@@ -166,9 +138,13 @@ if SETTINGS.web:  # pragma: no cover
                 requested_item_type = "collection"
             elif request.url.path.find("products"):
                 requested_item_type = "product"
-            return not_found_template(request, requested_item_type, requested_id, user)
+            return not_found_template(request, requested_item_type, requested_id)
         except KeyError:
-            return not_found_template(request, requested_item_type, requested_id, user)
+            return not_found_template(request, requested_item_type, requested_id)
+
+    @app.get("/")
+    async def web_redirect(request: Request):
+        return RedirectResponse(SETTINGS.web_root)
 
 
 if SETTINGS.add_cors:

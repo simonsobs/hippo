@@ -6,14 +6,12 @@ from pathlib import Path
 
 import astropy.io.fits as fits
 
-from hippoclient import Client
 from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
+from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
 from hippometa import MapSet, MapSetMap
 
-API_KEY = "TEST_API_KEY"
-SERVER_LOCATION = "http://127.0.0.1:8000"
 COLLECTION_NAME = (
     "ACT DR4 Frequency Maps at 98 and 150 GHz presented in Aiola et al. 2020"
 )
@@ -156,7 +154,7 @@ if __name__ == "__main__":
         x: [link_to_path(y) for y in sub_sets[x]] for x in sub_sets.keys()
     }
 
-    client = Client(api_key=API_KEY, host=SERVER_LOCATION, verbose=True)
+    client = ClientSettings().client
 
     collection_id = create_collection(
         client=client,

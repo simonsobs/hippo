@@ -21,12 +21,8 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
     TEST_PRODUCT_NAME = "test_product"
     TEST_PRODUCT_DESCRIPTION = "test_description"
     TEST_PRODUCT_SOURCES = [
-        PreUploadFile(
-            name="test_file", size=100, checksum="test_checksum"
-        ).model_dump(),
-        PreUploadFile(
-            name="test_file2", size=100, checksum="test_checksum"
-        ).model_dump(),
+        PreUploadFile(name="test_file", size=9, checksum="test_checksum").model_dump(),
+        PreUploadFile(name="test_file2", size=9, checksum="test_checksum").model_dump(),
     ]
 
     response = test_api_client.put(
@@ -36,6 +32,8 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
             "description": TEST_PRODUCT_DESCRIPTION,
             "metadata": {"metadata_type": "simple"},
             "sources": TEST_PRODUCT_SOURCES,
+            "product_readers": [test_api_user],
+            "product_writers": [test_api_user],
         },
     )
 
@@ -44,12 +42,26 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
     product_id = validated.id
 
     # Now we have to actually upload the files.
+    sizes = {x["name"]: [x["size"]] for x in TEST_PRODUCT_SOURCES}
+    headers = {x["name"]: [] for x in TEST_PRODUCT_SOURCES}
+
     for source in TEST_PRODUCT_SOURCES:
         response = requests.put(
-            validated.upload_urls[source["name"]], data=b"test_data"
+            validated.upload_urls[source["name"]][0],
+            data=b"test_data",
+            allow_redirects=True,
         )
 
+        headers[source["name"]].append(dict(response.headers))
+
         assert response.status_code == 200
+
+    response = test_api_client.post(
+        f"/product/{product_id}/complete",
+        json={"headers": headers, "sizes": sizes},
+    )
+
+    response.raise_for_status()
 
     # And check...
     response = test_api_client.post(f"/product/{product_id}/confirm")
@@ -138,6 +150,8 @@ def test_update_product(test_api_client: TestClient, test_api_product: tuple[str
             "description": "new_description",
             "metadata": {"metadata_type": "simple"},
             "level": versioning.VersionRevision.MAJOR.value,
+            "remove_readers": ["test_api_user"],
+            "add_readers": ["test_api_user_2"],
         },
     )
 

@@ -5,6 +5,9 @@ Methods for interacting with the product layer of the hippo API.
 from pathlib import Path
 
 import xxhash
+from httpx import Client
+from rich.console import Console
+from tqdm import tqdm
 
 from hippometa import ALL_METADATA_TYPE
 from hippometa.simple import SimpleMetadata
@@ -12,7 +15,9 @@ from hipposerve.api.models.product import ReadProductResponse
 from hipposerve.database import ProductMetadata
 from hipposerve.service.product import PostUploadFile, PreUploadFile
 
-from .core import Client, MultiCache, console
+from .core import MultiCache
+
+MULTIPART_UPLOAD_SIZE = 50 * 1024 * 1024
 
 
 def create(
@@ -22,6 +27,7 @@ def create(
     metadata: ALL_METADATA_TYPE,
     sources: list[Path],
     source_descriptions: list[str | None],
+    console: Console | None = None,
 ) -> str:
     """
     Create a product in hippo.
@@ -45,6 +51,8 @@ def create(
         The metadata of the product, as a validated pydantic model.
     sources : list[Path]
         The list of paths to the sources of the product.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -74,7 +82,7 @@ def create(
                 "description": source_description,
             }
             source_metadata.append(file_info)
-            if client.verbose:
+            if console:
                 console.print("Successfully validated file:", file_info)
 
     # Make a request to hippo to create the product.
@@ -88,6 +96,7 @@ def create(
             "description": description,
             "metadata": metadata.model_dump(),
             "sources": source_metadata,
+            "mutlipart_batch_size": MULTIPART_UPLOAD_SIZE,
         },
     )
 
@@ -95,73 +104,98 @@ def create(
 
     this_product_id = response.json()["id"]
 
-    if client.verbose:
+    if console:
         console.print(
             f"Successfully created product {this_product_id} in remote database."
         )
 
+    responses = {}
+    sizes = {}
+
     # Upload the sources to the presigned URLs.
     for source in sources:
         with source.open("rb") as file:
-            if client.verbose:
+            if console:
                 console.print("Uploading file:", source.name)
 
-            retry = True
-            upload_url = response.json()["upload_urls"][source.name]
+            upload_urls = response.json()["upload_urls"][source.name]
+            headers = []
+            size = []
 
             # We need to handle our own redirects because otherwise the head of the file will be incorrect,
             # and we will end up with Content-Length errors.
-            while retry:
-                if client.use_multipart_upload:
-                    if client.verbose:
-                        console.print("Using multipart upload")
-                    individual_response = client.put(
-                        upload_url,
-                        files={"upload-file": (source.name, file)},
-                        follow_redirects=False,
-                    )
-                else:
-                    if client.verbose:
-                        console.print("Using regular upload")
-                    individual_response = client.put(
-                        upload_url.strip(),
-                        data=file,
-                        follow_redirects=True,
-                    )
 
-                if client.verbose:
-                    console.print(individual_response.content.decode("utf-8"))
+            with tqdm(
+                desc="Uploading",
+                total=source.stat().st_size,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as t:
+                file_position = 0
 
-                if individual_response.status_code in [301, 302, 307, 308]:
-                    if client.verbose:
-                        console.print(
-                            f"Redirected to {individual_response.headers['Location']} from {upload_url}"
+                for upload_url in upload_urls:
+                    retry = True
+
+                    while retry:
+                        file.seek(file_position)
+
+                        data = file.read(MULTIPART_UPLOAD_SIZE)
+
+                        individual_response = client.put(
+                            upload_url.strip(),
+                            content=data,
+                            follow_redirects=True,
+                            auth=None,
                         )
-                    upload_url = individual_response.headers["Location"]
-                    file.seek(0)
-                    continue
-                else:
-                    retry = False
-                    if client.verbose:
-                        console.print("Retry set to false, file uploaded or failed")
-                    individual_response.raise_for_status()
-                    break
 
-            if client.verbose:
+                        if individual_response.status_code in [301, 302, 307, 308]:
+                            if console:
+                                console.print(
+                                    f"Redirected to {individual_response.headers['Location']} from {upload_url}"
+                                )
+                            upload_url = individual_response.headers["Location"]
+
+                            continue
+                        else:
+                            retry = False
+                            individual_response.raise_for_status()
+                            break
+
+                    headers.append(dict(individual_response.headers))
+                    size.append(len(data))
+
+                    file_position += MULTIPART_UPLOAD_SIZE
+                    t.update(len(data))
+
+            responses[source.name] = headers
+            sizes[source.name] = size
+
+            if console:
                 console.print("Successfully uploaded file:", source.name)
+
+    # Close out the upload.
+    response = client.post(
+        f"/product/{this_product_id}/complete",
+        json={"headers": responses, "sizes": sizes},
+    )
+
+    response.raise_for_status()
 
     # Confirm the upload to hippo.
     response = client.post(f"/product/{this_product_id}/confirm")
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully completed upload of {name}.", style="bold green")
 
     return this_product_id
 
 
-def read_with_versions(client: Client, id: str) -> ReadProductResponse:
+def read_with_versions(
+    client: Client, id: str, console: Console | None = None
+) -> ReadProductResponse:
     """
     Read a product from hippo by ID. Always returns the requested version,
     without information about other versions.
@@ -172,6 +206,8 @@ def read_with_versions(client: Client, id: str) -> ReadProductResponse:
         The client to use for interacting with the hippo API.
     id : str
         The ID of the product to read.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -190,13 +226,13 @@ def read_with_versions(client: Client, id: str) -> ReadProductResponse:
 
     model = ReadProductResponse.model_validate_json(response.content)
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully read product {id}")
 
     return model
 
 
-def read(client: Client, id: str) -> ProductMetadata:
+def read(client: Client, id: str, console: Console | None = None) -> ProductMetadata:
     """
     Read a product from hippo by ID. Always returns the requested version,
     without information about other versions.
@@ -207,6 +243,8 @@ def read(client: Client, id: str) -> ProductMetadata:
         The client to use for interacting with the hippo API.
     id : str
         The ID of the product to read.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -224,7 +262,7 @@ def read(client: Client, id: str) -> ProductMetadata:
     # This model includes version history. We don't want that.
     model = model.versions[model.requested]
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully read product ({model.name})")
 
     return model
@@ -240,6 +278,7 @@ def update(
     new_sources: list[PreUploadFile] = [],
     replace_sources: list[PreUploadFile] = [],
     drop_sources: list[str] = [],
+    console: Console | None = None,
 ) -> bool:
     """
     Update a product in hippo.
@@ -264,6 +303,8 @@ def update(
         A list of sources to replace in a product.
     drop_sources : list[str]
         A list of source IDs to delete from a product.
+    console : Console, optional
+        The rich console to print to.
 
     Raises
     ------
@@ -286,13 +327,13 @@ def update(
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully updated product {id}.", style="bold green")
 
     return True
 
 
-def delete(client: Client, id: str) -> bool:
+def delete(client: Client, id: str, console: Console | None = None) -> bool:
     """
     Delete a product from hippo.
 
@@ -302,6 +343,8 @@ def delete(client: Client, id: str) -> bool:
         The client to use for interacting with the hippo API.
     id : str
         The ID of the product to delete.
+    console : Console, optional
+        The rich console to print to.
 
     Raises
     ------
@@ -313,13 +356,15 @@ def delete(client: Client, id: str) -> bool:
 
     response.raise_for_status()
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully deleted product {id}.", style="bold green")
 
     return True
 
 
-def search(client: Client, text: str) -> list[ProductMetadata]:
+def search(
+    client: Client, text: str, console: Console | None = None
+) -> list[ProductMetadata]:
     """
     Search for text information in products (primarily names).
 
@@ -329,6 +374,8 @@ def search(client: Client, text: str) -> list[ProductMetadata]:
         The client to use for interacting with the hippo API.
     text : str
         The text to search for.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -347,13 +394,15 @@ def search(client: Client, text: str) -> list[ProductMetadata]:
 
     models = [ProductMetadata.model_validate(x) for x in response.json()]
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully searched for products matching {text}")
 
     return models
 
 
-def cache(client: Client, cache: MultiCache, id: str) -> list[Path]:
+def cache(
+    client: Client, cache: MultiCache, id: str, console: Console | None = None
+) -> list[Path]:
     """
     Cache a product from hippo.
 
@@ -365,6 +414,8 @@ def cache(client: Client, cache: MultiCache, id: str) -> list[Path]:
         The cache to use for storing the product.
     id : str
         The ID of the product to cache.
+    console : Console, optional
+        The rich console to print to.
 
     Returns
     -------
@@ -387,7 +438,7 @@ def cache(client: Client, cache: MultiCache, id: str) -> list[Path]:
         PostUploadFile.model_validate(x) for x in response.json()["files"]
     ]
 
-    if client.verbose:
+    if console:
         console.print(f"Successfully read product {id}")
 
     response_paths = []
@@ -398,12 +449,12 @@ def cache(client: Client, cache: MultiCache, id: str) -> list[Path]:
             cached = cache.available(file.uuid)
             response_paths.append(cached)
 
-            if client.verbose:
+            if console:
                 console.print(f"Found cached file {file.name}", style="green")
 
             continue
         except FileNotFoundError:
-            if client.verbose:
+            if console:
                 console.print(
                     f"File {file.name} ({file.uuid}) not found in cache", style="red"
                 )
@@ -419,13 +470,15 @@ def cache(client: Client, cache: MultiCache, id: str) -> list[Path]:
 
         response_paths.append(cached)
 
-        if client.verbose:
+        if console:
             console.print(f"Cached file {file.name} ({file.uuid})", style="yellow")
 
     return response_paths
 
 
-def uncache(client: Client, cache: MultiCache, id: str) -> None:
+def uncache(
+    client: Client, cache: MultiCache, id: str, console: Console | None = None
+) -> None:
     """
     Clear the cache of a product.
 
@@ -437,6 +490,8 @@ def uncache(client: Client, cache: MultiCache, id: str) -> None:
         The cache to use for storing the product.
     id : str
         The ID of the product to remove from the cache.
+    console : Console, optional
+        The rich console to print to.
     """
 
     product = read(client, id)
@@ -445,7 +500,93 @@ def uncache(client: Client, cache: MultiCache, id: str) -> None:
         for source in version.sources:
             cache.remove(source.uuid)
 
-            if client.verbose:
+            if console:
                 console.print(f"Removed file {source.name} ({source.uuid}) from cache")
 
     return
+
+
+def product_add_reader(
+    client: Client, id: str, group: str, console: Console | None = None
+) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "level": None,
+            "add_readers": [group],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if console:
+        console.print(
+            f"Successfully added {group} to product {id} readers.", style="bold green"
+        )
+
+    return this_product_id
+
+
+def product_remove_reader(
+    client: Client, id: str, group: str, console: Console | None = None
+) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "level": None,
+            "remove_readers": [group],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if console:
+        console.print(
+            f"Successfully removed {group} from product {id} readers.",
+            style="bold green",
+        )
+
+    return this_product_id
+
+
+def product_add_writer(
+    client: Client, id: str, group: str, console: Console | None = None
+) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "level": None,
+            "add_writers": [group],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if console:
+        console.print(
+            f"Successfully added {group} to product {id} writers.", style="bold green"
+        )
+
+    return this_product_id
+
+
+def product_remove_writer(
+    client: Client, id: str, group: str, console: Console | None = None
+) -> str:
+    response = client.post(
+        f"/product/{id}/update",
+        json={
+            "level": None,
+            "remove_writers": [group],
+        },
+    )
+
+    response.raise_for_status()
+    this_product_id = response.json()["id"]
+    if console:
+        console.print(
+            f"Successfully removed {group} from product {id} writers.",
+            style="bold green",
+        )
+
+    return this_product_id

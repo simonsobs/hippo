@@ -64,12 +64,33 @@ def test_read_collection(
 
     assert response.json()["name"] == collection_name
     assert response.json()["description"] == "test_description"
+    assert response.json()["owner"] == "test_user"
     assert len(response.json()["products"]) == 4
 
     for product in response.json()["products"]:
         assert product["name"] in product_names
         assert product["description"] == "test_description"
-        assert product["owner"] == "admin"
+        assert product["owner"] == "test_user"
+
+
+def test_update_collection(test_api_client: TestClient):
+    collection_name = "Test Collection"
+    response = test_api_client.put(
+        f"/relationships/collection/{collection_name}",
+        json={"description": "test_description"},
+    )
+
+    collection_id = response.json()
+
+    response = test_api_client.post(
+        f"/relationships/collection/{collection_id}",
+        json={"add_readers": ["test_user"], "add_writers": ["test_user"]},
+    )
+    assert response.status_code == 200
+    collection_id = response.json()
+    collection = test_api_client.get(f"/relationships/collection/{collection_id}")
+    assert "test_user" in collection.json()["readers"]
+    assert "test_user" in collection.json()["writers"]
 
 
 def test_create_child_relationship(test_api_client, test_api_products_for_use):

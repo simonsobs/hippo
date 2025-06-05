@@ -35,15 +35,13 @@ There are a number of example cases in the `example` directory. To lauch the dev
 server, you should run
 
 ```
-python3 examples/simpleserve.py
+henry dev run
 ```
 
-This will create a test account (`admin`) with API key `TEST_API_KEY` and password
-`TEST_PASSWORD`. You can use the upload scripts in `examples/{name}` that upload
-data from the [NASA LAMBDA instance](https://lambda.gsfc.nasa.gov/product/act/actpol_prod_table.html).
-
-You may need to copy `config.json` to `~/.hippo.conf` to correctly load the environment
-or export appropriate variables.
+This creates an empty instance with mock authentication (see: no
+authentication). You can use the upload scripts in `examples/{name}` that upload
+data from the [NASA LAMBDA
+instance](https://lambda.gsfc.nasa.gov/product/act/actpol_prod_table.html).
 
 Products can then be viewed through the web interface (served at `/web` from the
 server root), or through the use of the `henry` command-line tool.
@@ -70,19 +68,20 @@ There are a number of important configuration variables:
 - `DESCRIPTION`: the description of the HIPPO instance.
 - `ADD_CORS`: boolean, whether to allow unlimited CORS access. True by default (dev)
 - `DEBUG`: boolean, whether to run in debug mode. True by default (dev)
-- `CREATE_TEST_USER`: boolean, whether to create a test user on startup. False.
-- `TEST_USER_PASSWORD`: password of said test user.
-- `TEST_USER_API_KEY`: a custom API key for your test user.
 - `WEB`: boolean, whether to serve the web UI.
-- `WEB_JWT_SECRET`: 32 bytes of hexidecimal data, secret for JWTs.
-- `WEB_ALLOW_GITHUB_LOGIN`: whether to allow GitHub Login (False).
-- `WEB_GITHUB_CLIENT_ID`: client ID for GitHub integration.
-- `WEB_GITHUB_CLIENT_SECRET`: client secret for GitHub integration.
-- `WEB_GITHUB_REQUIRED_ORGANISATION_MEMBERSHIP`: the GitHub organisation that users must be a part of to be granted access.
+- `WEB_ROOT`: where the web frontend is served from (defaults to `/web`)
+- `AUTH_SYSTEM`: should be `soauth` in production. There are then the following
+  [soauth](https://github.com/simonsobs/soauth) variables (see the soauth docs):
+  + `SOAUTH_SERVICE_URL`: the URL from which soauth is served from.
+  + `SOAUTH_APP_ID`: app ID
+  + `SOAUTH_PUBLIC_KEY`: public key for decrypting tokens
+  + `SOAUTH_BASE_URL`: base URL
+  + `SOAUTH_CLIENT_SECRET`: the client secret
 
-Secrets can be loaded from `/run/secrets` automatically, so long as they have the same file name as their environment variable.
+Secrets can be loaded from `/run/secrets` automatically, so long as they have
+the same file name as their environment variable.
 
-For GitHub integration, your callback URL needs to be $URL/web.
+For soauth integration, your callback URL needs to be `$URL/web/callback`.
 
 
 Deployment Guide

@@ -4,14 +4,12 @@ Populates the simple example server with a bunch of ACT maps.
 
 from pathlib import Path
 
-from hippoclient import Client
 from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
+from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
 from hippometa import BeamMetadata, MapSet, MapSetMap
 
-API_KEY = "TEST_API_KEY"
-SERVER_LOCATION = "http://127.0.0.1:8000"
 COLLECTION_NAME = "ACT (AdvACT) Compton-y"
 
 COLLECTION_DESCRIPTION = """
@@ -61,7 +59,7 @@ beam_description = "Beam used for the Compton-y map for ACT DR6."
 
 
 if __name__ == "__main__":
-    client = Client(api_key=API_KEY, host=SERVER_LOCATION, verbose=True)
+    client = ClientSettings().client
 
     collection_id = create_collection(
         client=client,

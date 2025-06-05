@@ -5,9 +5,9 @@
     <div class="d-flex gap-1 flex-wrap">
         <span class="badge text-bg-success p-2">Version: {{ product.version }}</span>
         <span class="badge text-bg-secondary p-2">ID: {{ product.id }}</span>
-        <span class="badge text-bg-secondary p-2">Uploaded: {{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</span>
-        <span class="badge text-bg-secondary p-2">Modified: {{ product.updated.strftime('%Y-%m-%d %H:%M:%S') }}</span>
-        <span class="badge text-bg-secondary p-2">Owner: {{ product.owner.name }}</span>
+        <span class="badge text-bg-warning p-2">Uploaded: {{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+        <span class="badge text-bg-warning p-2">Modified: {{ product.updated.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+        <span class="badge text-bg-danger p-2">Owner: {{ product.owner }}</span>
     </div>
     <div>
         <h2 class="mt-3">Product Description</h2>
@@ -126,6 +126,19 @@
 
             <div class="row">
                 <div class="container">
+                    <h3 class="mt-2">Readers</h3>
+                    {% for reader in product.readers %}
+                        <span class="badge text-bg-secondary p-2">{{reader}}</span>
+                    {% endfor %}
+                    <h3 class="mt-2">Writers</h3>
+                    {% for writer in product.writers %}
+                        <span class="badge text-bg-secondary p-2">{{writer}}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="container">
                     <h3 class="mt-2">Version History</h3>
                     <table class="table table-sm small border border-secondary-subtle" style="max-width: 250px;">
                         <thead class="table-secondary">
@@ -141,13 +154,13 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <div class='{{ "rounded-circle bg-success" if version == product.version else "" }}' style="width: 0.75em; height: 0.75em;"></div>
                                         {% if version != product.version %}
-                                            <a href='{{ web_root }}/product/{{ metadata.id | e }}'>{{ version }}</a>
+                                            <a href='{{ web_root }}/products/{{ metadata.id | e }}'>{{ version }}</a>
                                         {% else %}
                                             <span>{{ version }}</span>
                                         {% endif %}
                                     </div>
                                 </td>
-                                <td>{{ product.updated.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ metadata.updated.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

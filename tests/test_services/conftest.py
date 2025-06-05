@@ -5,13 +5,13 @@ web endpoints.
 """
 
 import io
+import uuid
 
 import pytest_asyncio
 import requests
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
-from pwdlib import PasswordHash
-from pwdlib.hashers.argon2 import Argon2Hasher
+from soauth.toolkit.fastapi import SOUser
 
 from hipposerve.database import BEANIE_MODELS
 
@@ -33,23 +33,31 @@ async def database(database_container):
 
 
 @pytest_asyncio.fixture(scope="session")
-async def created_user(database):
+async def created_user():
+    yield SOUser(
+        is_authenticated=True,
+        user_id=uuid.uuid4(),
+        display_name="test_user",
+        full_name="Test User",
+        email="test@test_user.com",
+        groups=["test_user"],
+    )
+
+
+@pytest_asyncio.fixture(scope="session")
+async def created_database_user():
     from hipposerve.service import users
 
+    TEST_USER_NAME = "test_database_user"
+    TEST_EMAIL_ADDRESS = "bestemailaddress@ever.com"
     user = await users.create(
-        name="test_user",
-        privileges=list(users.Privilege),
-        password="password",
-        hasher=PasswordHash([Argon2Hasher()]),
-        email=None,
-        avatar_url=None,
-        gh_profile_url=None,
-        compliance=None,
+        name=TEST_USER_NAME,
+        email=TEST_EMAIL_ADDRESS,
     )
 
     yield user
 
-    await users.delete(user.name)
+    await users.delete(name=TEST_USER_NAME)
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -73,30 +81,45 @@ async def created_full_product(database, storage, created_user):
         description=PRODUCT_DESCRIPTION,
         metadata=None,
         sources=SOURCES,
-        user=created_user,
+        user_name=created_user.display_name,
         storage=storage,
+        product_readers={created_user.display_name},
+        product_writers={created_user.display_name},
     )
 
     assert not await product.confirm(data, storage)
 
+    headers = {}
+    sizes = {}
+
     with io.BytesIO(FILE_CONTENTS) as f:
-        for put in file_puts.values():
+        for file_name, put in file_puts.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            requests.put(put, f)
+            headers[file_name] = [requests.put(put[0], f).headers]
+            sizes[file_name] = [len(FILE_CONTENTS)]
+
+    await product.complete(
+        product=data,
+        storage=storage,
+        headers=headers,
+        sizes=sizes,
+    )
 
     assert await product.confirm(data, storage)
 
-    yield data
+    yield await product.read_by_id(data.id, created_user.groups)
 
     # Go get it again just in case someone mutated, revved, etc.
-    data = await product.read_by_name(name=data.name, version=None)
+    data = await product.read_by_name(
+        name=data.name, version=None, groups=created_user.groups
+    )
 
-    await product.delete_tree(data, storage=storage, data=True)
+    await product.delete_tree(data, created_user.groups, storage=storage, data=True)
 
 
 @pytest_asyncio.fixture(scope="session")
-async def created_collection(database):
+async def created_collection(database, created_user):
     from hipposerve.service import collection
 
     COLLECTION_NAME = "My Favourite Collection"
@@ -104,11 +127,16 @@ async def created_collection(database):
 
     data = await collection.create(
         name=COLLECTION_NAME,
+        user=created_user.display_name,
         description=COLLECTION_DESCRIPTION,
+        # Provide r/w access to the user's group (same as name)
+        collection_readers=[created_user.display_name],
+        collection_writers=[created_user.display_name],
     )
 
     yield data
 
     await collection.delete(
         id=data.id,
+        groups=created_user.groups,
     )

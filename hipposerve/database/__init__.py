@@ -12,33 +12,6 @@ from pydantic import BaseModel, Field
 from hippometa import ALL_METADATA_TYPE
 
 
-class Privilege(Enum):
-    # Product management. Note that _for now_ users can update any other
-    # user's products.
-    CREATE_PRODUCT = "create_products"
-    LIST_PRODUCT = "list_products"
-    READ_PRODUCT = "read_products"
-    DOWNLOAD_PRODUCT = "download_products"
-    CONFIRM_PRODUCT = "confirm_product"
-    DELETE_PRODUCT = "delete_products"
-    UPDATE_PRODUCT = "update_products"
-
-    # Collection management. Note that _for now_ users can update any
-    # collection
-    CREATE_COLLECTION = "create_collection"
-    READ_COLLECTION = "read_collection"
-    UPDATE_COLLECTION = "update_collection"
-    DELETE_COLLECTION = "delete_collection"
-    CREATE_RELATIONSHIP = "create_relationship"
-    DELETE_RELATIONSHIP = "delete_relationship"
-
-    # User management
-    CREATE_USER = "create_user"
-    READ_USER = "read_user"
-    UPDATE_USER = "update_user"
-    DELETE_USER = "delete_user"
-
-
 class CollectionPolicy(Enum):
     # What to do when versions are revved of products.
     # Keep track of all versions of the product in the collection.
@@ -55,20 +28,10 @@ class CollectionPolicy(Enum):
     FIXED = "fixed"
 
 
-class ComplianceInformation(BaseModel):
-    nersc_username: str | None
-
-
 class User(Document):
     name: Indexed(str, unique=True)
-    hashed_password: str
     email: str | None
-    avatar_url: str | None
-    gh_profile_url: str | None
-    api_key: str
-    privileges: list[Privilege]
-
-    compliance: ComplianceInformation | None
+    last_access_time: datetime | None
 
 
 class FileMetadata(BaseModel):
@@ -88,6 +51,13 @@ class FileMetadata(BaseModel):
 
 
 class File(Document, FileMetadata):
+    # Information for multi-part uploads (private)
+    multipart: bool = False
+    number_of_parts: int = 1
+    upload_id: str | None = None
+    multipart_batch_size: int | None = None
+    multipart_closed: bool = False
+
     def to_metadata(self) -> FileMetadata:
         return FileMetadata(
             id=self.id,
@@ -130,11 +100,19 @@ class ProductMetadata(BaseModel):
     collections: list[PydanticObjectId]
 
 
-class Product(Document, ProductMetadata):
+class ProtectedDocument(Document):
+    readers: list[str] = Field(default_factory=list)
+    writers: list[str] = Field(default_factory=lambda: ["admin"])
+    owner: str
+
+    current: bool = True
+    replaces: Link["ProtectedDocument"] | None = None
+
+
+class Product(ProtectedDocument, ProductMetadata):
     name: Indexed(str, pymongo.TEXT)
 
     sources: list[File]
-    owner: Link[User]
 
     replaces: Link["Product"] | None = None
 
@@ -146,7 +124,16 @@ class Product(Document, ProductMetadata):
     collections: list[Link["Collection"]] = []
     collection_policies: list[CollectionPolicy] = []
 
-    def to_metadata(self) -> ProductMetadata:
+    async def to_metadata(self) -> ProductMetadata:
+        # If links are longer than the pre-determined limit (3) we need
+        # to fetch.
+        if self.replaces is None:
+            replaces_version = None
+        elif isinstance(self.replaces, Link):
+            replaces_version = (await self.replaces.fetch(fetch_links=True)).version
+        else:
+            replaces_version = self.replaces.version
+
         return ProductMetadata(
             id=self.id,
             name=self.name,
@@ -157,10 +144,12 @@ class Product(Document, ProductMetadata):
             current=self.current,
             version=self.version,
             sources=[x.to_metadata() for x in self.sources],
-            owner=self.owner.name,
-            replaces=self.replaces.version if self.replaces is not None else None,
+            owner=self.owner,
+            replaces=replaces_version,
             child_of=[x.id for x in self.child_of],
-            parent_of=[x.id for x in self.parent_of],
+            # Filter out backlinks as they are unfetchable; this only occurs
+            # when walking the product tree.
+            parent_of=[x.id for x in self.parent_of if not isinstance(x, BackLink)],
             collections=[x.id for x in self.collections],
         )
 
@@ -180,7 +169,7 @@ class CollectionMetadata(BaseModel):
     parent_collections: list[PydanticObjectId]
 
 
-class Collection(Document, CollectionMetadata):
+class Collection(ProtectedDocument, CollectionMetadata):
     # TODO: Implement updated time for collections.
 
     name: Indexed(str, pymongo.TEXT)

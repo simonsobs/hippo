@@ -55,6 +55,48 @@
         {% set relationship_type = "collection" %}
         {% include "parent_child_diagram.html" %}
     </div>
+
+    {% if collection.child_collections | length > 0 %}
+    <table class="table table-sm border border-secondary-subtle shadow-sm" style="max-width: 800px;">
+        <thead class="table-secondary">
+            <tr>
+                <th>Child Collection</th>
+                <th>Number of Products</th>
+                <th>Owner</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for child in collection.child_collections %}
+            <tr class="small">
+                <td><a href="{{ web_root }}/collections/{{ child.id | e }}">{{ child.name }}</a></td>
+                <td class="small">{{ child.products | length }}</td>
+                <td class="small">{{ child.owner }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if collection.parent_collections | length > 0 %}
+    <table class="table table-sm border border-secondary-subtle shadow-sm" style="max-width: 800px;">
+        <thead class="table-secondary">
+            <tr>
+                <th>Parent Collection</th>
+                <th>Number of Products</th>
+                <th>Owner</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for parent in collection.parent_collections %}
+            <tr class="small">
+                <td><a href="{{ web_root }}/collections/{{ parent.id | e }}">{{ parent.name }}</a></td>
+                <td class="small">{{ parent.products | length }}</td>
+                <td class="small">{{ parent.owner }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

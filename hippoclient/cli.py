@@ -307,7 +307,9 @@ def cache_clear_all():
 
 
 @dev_app.command("serve")
-def dev_serve():
+def dev_serve(
+    port: Annotated[int, typer.Option(help="Port to run the server on")] = 8000,
+):
     """
     Run a hippo development server, without spinning up dependencies (i.e. you
     will need to have mongo and minio running with appropriate environments set).
@@ -319,7 +321,7 @@ def dev_serve():
 
     config = uvicorn.Config(
         app,
-        port=8000,
+        port=port,
         reload=True,
         reload_dirs=["hipposerve/web", "hipposerve/web/templates"],
     )
@@ -339,6 +341,7 @@ def dev_run(
             help="Run with SOAuth integration? If not, all requests are mock-authenticated"
         ),
     ] = False,
+    port: Annotated[int, typer.Option(help="Port to run the server on")] = 8000,
 ):
     """
     Run a hippo development server, spinning up dependencies (i.e. we create
@@ -385,7 +388,7 @@ def dev_run(
 
             config = uvicorn.Config(
                 app,
-                port=8000,
+                port=port,
                 reload=True,
                 reload_dirs=["hipposerve/web", "hipposerve/web/templates"],
             )

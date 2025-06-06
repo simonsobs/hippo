@@ -11,6 +11,7 @@ from urllib.parse import urlparse, urlunparse
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from hipposerve.service import collection, product
 from hipposerve.service import users as users_service
 from hipposerve.settings import SETTINGS
 
@@ -106,8 +107,18 @@ PotentialLoggedInUser = Annotated[
 
 @router.get("/user")
 async def read_user(request: Request):
+    username = request.user.display_name
+    collections = await collection.search_by_owner(username, request.user.groups) or []
+    products = await product.search_by_owner(username, request.user.groups) or []
+
     return templates.TemplateResponse(
-        "user.html", {"request": request, "web_root": SETTINGS.web_root}
+        "user.html",
+        {
+            "request": request,
+            "products": products,
+            "collections": collections,
+            "web_root": SETTINGS.web_root,
+        },
     )
 
 

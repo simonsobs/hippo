@@ -89,7 +89,7 @@ def render_collection_metadata_list(
 
 
 def render_source_list(
-    input: list[FileMetadata], cache: MultiCache | None = None
+    input: dict[str, FileMetadata], cache: MultiCache | None = None
 ) -> rich.table.Table:
     """
     Render a list of source metadata into a rich table. If you provide
@@ -100,7 +100,7 @@ def render_source_list(
         "Name", "Description", "UUID", "Size [B]", "Cached", title="Sources"
     )
 
-    for source in input:
+    for slug, source in input.items():
         if cache is not None:
             try:
                 cache.available(source.uuid)
@@ -111,6 +111,7 @@ def render_source_list(
             cached = "Unknown"
 
         table.add_row(
+            slug,
             source.name,
             source.description or "",
             source.uuid,

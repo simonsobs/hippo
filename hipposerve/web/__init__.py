@@ -10,10 +10,11 @@ from hashlib import md5
 from typing import Literal
 
 from beanie import PydanticObjectId
-from fastapi import Request
+from fastapi import HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 
 from hipposerve.database import Collection
-from hipposerve.service import collection, product
+from hipposerve.service import collection, product, storage
 from hipposerve.settings import SETTINGS
 
 from .auth import router as auth_router
@@ -72,7 +73,6 @@ async def index(request: Request):
 @web_router.get("/products/{id}")
 async def product_view(request: Request, id: str):
     product_instance = await product.read_by_id(id, request.user.groups)
-    sources = await product.read_files(product_instance, storage=request.app.storage)
     # Grab the history!
     latest_version = await product.walk_to_current(
         product_instance, request.user.groups
@@ -84,12 +84,30 @@ async def product_view(request: Request, id: str):
         {
             "request": request,
             "product": product_instance,
-            "sources": sources,
+            "sources": product_instance.sources,
             "versions": version_history,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
     )
+
+
+@web_router.get("/products/{id}/{slug}")
+async def product_read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
+    product_instance = await product.read_by_id(id, request.user.groups)
+
+    # If they have not 401/403'd from reading the product, they can read sources
+    try:
+        presigned = await storage.read(
+            file=product_instance.sources[slug], storage=request.app.storage
+        )
+    except (FileNotFoundError, KeyError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Slug {slug} not found for product {id}",
+        )
+
+    return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
 
 
 @web_router.get("/collections/{id}")

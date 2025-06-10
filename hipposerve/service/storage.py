@@ -23,6 +23,7 @@ GLOBAL_BUCKET_NAME = "global"
 async def create(
     name: str,
     description: str | None,
+    slug: str,
     uploader: str,
     size: int,
     checksum: str,
@@ -48,6 +49,7 @@ async def create(
         # the layers, just in case.
         name=os.path.basename(name),
         description=description,
+        slug=slug,
         uploader=uploader,
         uuid=uuid,
         bucket=GLOBAL_BUCKET_NAME,

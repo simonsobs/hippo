@@ -114,7 +114,7 @@ class ProtectedDocument(Document):
 class Product(ProtectedDocument, ProductMetadata):
     name: Indexed(str, pymongo.TEXT)
 
-    sources: list[File]
+    sources: dict[str, File]
 
     replaces: Link["Product"] | None = None
 
@@ -145,7 +145,7 @@ class Product(ProtectedDocument, ProductMetadata):
             updated=self.updated,
             current=self.current,
             version=self.version,
-            sources=[x.to_metadata() for x in self.sources],
+            sources={x: y.to_metadata() for x, y in self.sources.items()},
             owner=self.owner,
             replaces=replaces_version,
             child_of=[x.id for x in self.child_of],

@@ -13,6 +13,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 from soauth.toolkit.fastapi import SOUser
 
+import hippometa
 from hipposerve.database import BEANIE_MODELS
 
 ### -- Dependency Injection Fixtures -- ###
@@ -67,19 +68,18 @@ async def created_full_product(database, storage, created_user):
     PRODUCT_NAME = "My Favourite Product"
     PRODUCT_DESCRIPTION = "The best product ever."
     FILE_CONTENTS = b"0x0" * 1024
-    SOURCES = [
-        product.PreUploadFile(
-            name=f"test_{x}.txt",
+    SOURCES = {
+        "data": product.PreUploadFile(
+            name="test_1.txt",
             size=1024,
             checksum="eh_whatever",
         )
-        for x in range(4)
-    ]
+    }
 
     data, file_puts = await product.create(
         name=PRODUCT_NAME,
         description=PRODUCT_DESCRIPTION,
-        metadata=None,
+        metadata=hippometa.MapSet(pixelisation="cartesian"),
         sources=SOURCES,
         user_name=created_user.display_name,
         storage=storage,

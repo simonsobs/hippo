@@ -21,10 +21,7 @@ from pydantic import Field
 from hippometa.archive import ArchiveMetadata
 from hippometa.beam import BeamMetadata
 from hippometa.catalog import CatalogMetadata
-
-# from hippometa.map import MapMetadata
 from hippometa.mapset import MapSet
-from hippometa.mapset import MapSetMap as MapSetMap
 from hippometa.numeric import NumericMetadata
 from hippometa.simple import SimpleMetadata
 

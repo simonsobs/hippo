@@ -47,6 +47,7 @@ class FileMetadata(BaseModel):
     bucket: str
     size: int
     checksum: str
+    slug: str = Field(default="data")
     available: bool = True
 
 
@@ -67,6 +68,7 @@ class File(Document, FileMetadata):
             uuid=self.uuid,
             bucket=self.bucket,
             size=self.size,
+            slug=self.slug,
             checksum=self.checksum,
             available=self.available,
         )
@@ -89,7 +91,7 @@ class ProductMetadata(BaseModel):
     current: bool
     version: str
 
-    sources: list[FileMetadata]
+    sources: dict[str, FileMetadata]  # Sources are indexed by their slug
     owner: str
 
     replaces: str | None

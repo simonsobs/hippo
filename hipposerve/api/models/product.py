@@ -14,7 +14,7 @@ class CreateProductRequest(BaseModel):
     name: str
     description: str
     metadata: ALL_METADATA_TYPE
-    sources: list[PreUploadFile]
+    sources: dict[str, PreUploadFile]
     product_readers: list[str] = []
     product_writers: list[str] = []
     multipart_batch_size: int = 50 * 1024 * 1024
@@ -39,7 +39,7 @@ class ReadProductResponse(BaseModel):
 
 class ReadFilesResponse(BaseModel):
     product: ProductMetadata
-    files: list[PostUploadFile]
+    files: dict[str, PostUploadFile]
 
 
 class UpdateProductRequest(BaseModel):
@@ -47,8 +47,8 @@ class UpdateProductRequest(BaseModel):
     description: str | None = None
     metadata: ALL_METADATA_TYPE | None = None
     owner: str | None = None
-    new_sources: list[PreUploadFile] = []
-    replace_sources: list[PreUploadFile] = []
+    new_sources: dict[str, PreUploadFile] = {}
+    replace_sources: dict[str, PreUploadFile] = {}
     drop_sources: list[str] = []
     level: VersionRevision | None = VersionRevision.MINOR
     add_readers: list[str] = []

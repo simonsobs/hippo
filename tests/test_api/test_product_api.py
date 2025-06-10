@@ -20,17 +20,21 @@ from hipposerve.service import versioning
 def test_api_product(test_api_client: TestClient, test_api_user: str):
     TEST_PRODUCT_NAME = "test_product"
     TEST_PRODUCT_DESCRIPTION = "test_description"
-    TEST_PRODUCT_SOURCES = [
-        PreUploadFile(name="test_file", size=9, checksum="test_checksum").model_dump(),
-        PreUploadFile(name="test_file2", size=9, checksum="test_checksum").model_dump(),
-    ]
+    TEST_PRODUCT_SOURCES = {
+        "data": PreUploadFile(
+            name="test_file", size=9, checksum="test_checksum"
+        ).model_dump(),
+        "coadd": PreUploadFile(
+            name="test_file2", size=9, checksum="test_checksum"
+        ).model_dump(),
+    }
 
     response = test_api_client.put(
         "/product/new",
         json={
             "name": TEST_PRODUCT_NAME,
             "description": TEST_PRODUCT_DESCRIPTION,
-            "metadata": {"metadata_type": "simple"},
+            "metadata": {"metadata_type": "mapset", "pixelisation": "cartesian"},
             "sources": TEST_PRODUCT_SOURCES,
             "product_readers": [test_api_user],
             "product_writers": [test_api_user],
@@ -42,10 +46,10 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
     product_id = validated.id
 
     # Now we have to actually upload the files.
-    sizes = {x["name"]: [x["size"]] for x in TEST_PRODUCT_SOURCES}
-    headers = {x["name"]: [] for x in TEST_PRODUCT_SOURCES}
+    sizes = {x["name"]: [x["size"]] for x in TEST_PRODUCT_SOURCES.values()}
+    headers = {x["name"]: [] for x in TEST_PRODUCT_SOURCES.values()}
 
-    for source in TEST_PRODUCT_SOURCES:
+    for source in TEST_PRODUCT_SOURCES.values():
         response = requests.put(
             validated.upload_urls[source["name"]][0],
             data=b"test_data",
@@ -85,11 +89,11 @@ def test_upload_product_again(
             "name": test_api_product[0],
             "description": "test_description",
             "metadata": {"metadata_type": "simple"},
-            "sources": [
-                PreUploadFile(
+            "sources": {
+                "data": PreUploadFile(
                     name="test_file", size=100, checksum="test_checksum"
                 ).model_dump()
-            ],
+            },
         },
     )
 
@@ -110,7 +114,7 @@ def test_read_product(
     assert validated.product.id == test_api_product[1]
 
     # Use the pre-signed url to check that the file data is b"test_data", as expected.
-    for source in validated.files:
+    for source in validated.files.values():
         response = requests.get(source.url)
 
         assert response.status_code == 200

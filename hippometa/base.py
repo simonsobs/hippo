@@ -9,4 +9,4 @@ from pydantic import BaseModel
 
 class BaseMetadata(BaseModel):
     metadata_type: str
-    valid_slugs: ClassVar[list[str]] = ["data"]
+    valid_slugs: ClassVar[set[str]] = {"data"}

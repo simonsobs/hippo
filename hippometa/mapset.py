@@ -14,7 +14,7 @@ class MapSet(BaseMetadata):
     """
 
     metadata_type: Literal["mapset"] = "mapset"
-    valid_slugs: ClassVar[list[str]] = [
+    valid_slugs: ClassVar[set[str]] = {
         "coadd",
         "split",
         "source_only",
@@ -27,8 +27,8 @@ class MapSet(BaseMetadata):
         "xlink_split",
         "mask",
         "data",
-    ]
-
+    }
+    
     pixelisation: Literal["healpix", "cartesian"]
 
     telescope: str | None = None

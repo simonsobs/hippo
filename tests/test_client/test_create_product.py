@@ -24,8 +24,8 @@ def test_upload_no_multipart(server, tmp_path):
         name="test_product",
         description="test_description",
         metadata=SimpleMetadata(),
-        sources=[tmp_path / "test.bin"],
-        source_descriptions=[None],
+        sources={"data": tmp_path / "test.bin"},
+        source_descriptions={"data": None},
     )
 
     product.delete(client, id)
@@ -46,8 +46,8 @@ def test_upload_with_multipart(server, tmp_path):
         name="test_product",
         description="test_description",
         metadata=SimpleMetadata(),
-        sources=[tmp_path / "test.bin"],
-        source_descriptions=[None],
+        sources={"data": tmp_path / "test.bin"},
+        source_descriptions={"data": None},
     )
 
     product.delete(client, id)
@@ -68,8 +68,8 @@ def test_groups_update_add_reader(server, tmp_path):
         name="test_product",
         description="test_description",
         metadata=SimpleMetadata(),
-        sources=[tmp_path / "test.bin"],
-        source_descriptions=[None],
+        sources={"data": tmp_path / "test.bin"},
+        source_descriptions={"data": None},
     )
 
     product.product_add_reader(

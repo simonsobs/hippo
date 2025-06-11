@@ -13,7 +13,7 @@ from loguru import logger
 from pydantic import BaseModel
 from pydantic_core import ValidationError
 
-from hippometa import ALL_METADATA_TYPE
+from hippometa import ALL_METADATA_TYPE, SimpleMetadata
 from hipposerve.database import (
     Collection,
     CollectionPolicy,
@@ -51,6 +51,7 @@ class PostUploadFile(BaseModel):
     uuid: str
     name: str
     size: int
+    slug: str
     checksum: str
     url: str | None
     description: str | None
@@ -59,18 +60,23 @@ class PostUploadFile(BaseModel):
 
 
 async def presign_uploads(
-    sources: list[PreUploadFile],
+    sources: dict[str, PreUploadFile],
     storage: Storage,
     user_name: str,
     mutlipart_size: int = 50 * 1024 * 1024,
-) -> tuple[dict[str, list[str]], list[File]]:
+) -> tuple[dict[str, list[str]], dict[str, File]]:
+    """
+    Note that upload pre-signing does _not_ validate sources' slugs as it does not
+    know about the metadata type.
+    """
     presigned = {}
-    pre_upload_sources = []
+    pre_upload_sources = {}
 
-    for source in sources:
+    for slug, source in sources.items():
         pre_upload_source, presigned_urls = await storage_service.create(
             name=source.name,
             description=source.description,
+            slug=slug,
             uploader=user_name,
             size=source.size,
             checksum=source.checksum,
@@ -78,7 +84,7 @@ async def presign_uploads(
         )
 
         presigned[source.name] = presigned_urls
-        pre_upload_sources.append(pre_upload_source)
+        pre_upload_sources[slug] = pre_upload_source
 
     return presigned, pre_upload_sources
 
@@ -92,17 +98,42 @@ async def exists(name: str) -> bool:
     return (await Product.find(Product.name == name).count()) > 0
 
 
+def validate_slugs(sources: dict[str, PreUploadFile], metadata: ALL_METADATA_TYPE):
+    """
+    Ensures that the slugs available in sources are valid according
+    to the metadata type. If they are not, raises a pydantic ValidationError.
+    """
+
+    errors = []
+
+    for k in sources.keys():
+        if k not in metadata.valid_slugs:
+            errors.append(
+                ValueError(
+                    f"Slug {k} not part of acceptable slugs: {metadata.valid_slugs} for this metadata type"
+                )
+            )
+
+    if errors:
+        raise ValidationError(errors, metadata)
+
+
 async def create(
     name: str,
     description: str,
     metadata: ALL_METADATA_TYPE,
-    sources: list[PreUploadFile],
+    sources: dict[str, PreUploadFile],
     user_name: str,
     storage: Storage,
     product_readers: list[str] | None = None,
     product_writers: list[str] | None = None,
     mutlipart_size: int = 50 * 1024 * 1024,
 ) -> tuple[Product, dict[str, list[str]]]:
+    if metadata is None:
+        metadata = SimpleMetadata()
+
+    validate_slugs(sources=sources, metadata=metadata)
+
     presigned, pre_upload_sources = await presign_uploads(
         sources=sources,
         storage=storage,
@@ -286,7 +317,7 @@ async def complete(
     headers: dict[str, list[dict[str, str]]],
     sizes: dict[str, list[int]],
 ) -> bool:
-    for file in product.sources:
+    for file in product.sources.values():
         if file.multipart_closed:
             continue
 
@@ -304,20 +335,21 @@ async def complete(
 
 
 async def confirm(product: Product, storage: Storage) -> bool:
-    for file in product.sources:
+    for slug, file in product.sources.items():
         if not await storage_service.confirm(file=file, storage=storage):
-            logger.debug(f"File {file.name} not confirmed")
+            logger.debug(f"File {file.name} ({slug}) not confirmed")
             return False
 
     return True
 
 
-async def read_files(product: Product, storage: Storage) -> list[PostUploadFile]:
-    return [
-        PostUploadFile(
+async def read_files(product: Product, storage: Storage) -> dict[str, PostUploadFile]:
+    return {
+        slug: PostUploadFile(
             uuid=x.uuid,
             name=x.name,
             size=x.size,
+            slug=x.slug,
             checksum=x.checksum,
             description=x.description,
             url=storage.get(
@@ -332,8 +364,8 @@ async def read_files(product: Product, storage: Storage) -> list[PostUploadFile]
             else None,
             available=x.available,
         )
-        for x in product.sources
-    ]
+        for slug, x in product.sources.items()
+    }
 
 
 async def read_most_recent(
@@ -430,8 +462,8 @@ async def update_metadata(
 
 async def update_sources(
     product: Product,
-    new: list[PreUploadFile],
-    replace: list[PreUploadFile],
+    new: dict[str, PreUploadFile],
+    replace: dict[str, PreUploadFile],
     drop: list[str],
     storage: Storage,
 ) -> tuple[Product, dict[str, str]]:
@@ -441,19 +473,22 @@ async def update_sources(
     and drop is a list of names of files to remove.
     """
 
-    existing_names = {x.name for x in product.sources}
-    new_names = {x.name for x in new}
-    replace_names = {x.name for x in replace}
-    drop_names = set(drop)
+    existing_slugs = set(product.sources.keys())
+    new_slugs = set(new.keys())
+    replace_slugs = set(replace.keys())
+    drop_slugs = set(drop)
 
-    if len(existing_names & new_names) != 0:
+    if len(existing_slugs & new_slugs) != 0:
         raise FileExistsError
 
-    if len(existing_names & replace_names) != len(replace_names):
+    if len(existing_slugs & replace_slugs) != len(replace_slugs):
         raise FileNotFoundError
 
-    if len(existing_names & drop_names) != len(drop_names):
+    if len(existing_slugs & drop_slugs) != len(drop_slugs):
         raise FileNotFoundError
+
+    # Check our slugs are valid for this metadata type
+    validate_slugs(sources={**new, **replace}, metadata=product.metadata)
 
     presigned_new, pre_upload_sources_new = await presign_uploads(
         sources=new,
@@ -466,11 +501,11 @@ async def update_sources(
     )
 
     presigned = {**presigned_new, **presigned_replace}
-    pre_upload_sources = pre_upload_sources_new + pre_upload_sources_replace
+    pre_upload_sources = {**pre_upload_sources_new, **pre_upload_sources_replace}
 
     # Filter out the sources we're keeping
-    keep_names = existing_names ^ replace_names ^ drop_names
-    keep_sources = [x for x in product.sources if x.name in keep_names]
+    keep_slugs = existing_slugs ^ replace_slugs ^ drop_slugs
+    keep_sources = {x: y for x, y in product.sources.items() if x in keep_slugs}
 
     # Final check -
     expected_number_of_sources = len(product.sources) - len(drop) + len(new)
@@ -480,7 +515,7 @@ async def update_sources(
     ):  # pragma: no cover
         raise RuntimeError
 
-    product.sources = pre_upload_sources + keep_sources
+    product.sources = {**pre_upload_sources, **keep_sources}
 
     await product.save(link_rule=WriteRules.WRITE)
 
@@ -490,14 +525,14 @@ async def update_sources(
 async def update(
     product: Product,
     access_groups: list[str],
-    name: str | None,
-    description: str | None,
-    metadata: ALL_METADATA_TYPE | None,
-    new_sources: list[PreUploadFile],
-    replace_sources: list[PreUploadFile],
-    drop_sources: list[str],
     storage: Storage,
     level: versioning.VersionRevision,
+    name: str | None = None,
+    description: str | None = None,
+    metadata: ALL_METADATA_TYPE | None = None,
+    new_sources: dict[str, PreUploadFile] | None = None,
+    replace_sources: dict[str, PreUploadFile] | None = None,
+    drop_sources: list[str] | None = None,
 ) -> tuple[Product, dict[str, str]]:
     """
     Rev the version of the product and update its contents.
@@ -511,6 +546,10 @@ async def update(
         metadata=metadata,
         level=level,
     )
+
+    new_sources = new_sources or {}
+    replace_sources = replace_sources or {}
+    drop_sources = drop_sources or []
 
     # For some reason:
     # a) Beanie won't allow fetch_all_links to be called on `new_product` because
@@ -571,14 +610,14 @@ async def delete_one(
     if replaces is None:
         past_source_uuids = set()
     else:
-        past_source_uuids = {x.uuid for x in replaces.sources}
+        past_source_uuids = {x.uuid for x in replaces.sources.values()}
 
-    current_source_uuids = {x.uuid for x in product.sources}
+    current_source_uuids = {x.uuid for x in product.sources.values()}
 
     if replaced_by is None:
         future_source_uuids = set()
     else:
-        future_source_uuids = {x.uuid for x in replaced_by.sources}
+        future_source_uuids = {x.uuid for x in replaced_by.sources.values()}
 
     net_source_uuids = current_source_uuids ^ past_source_uuids ^ future_source_uuids
 
@@ -586,7 +625,7 @@ async def delete_one(
     # data products.
 
     if data:
-        for file in product.sources:
+        for file in product.sources.values():
             if file.uuid in net_source_uuids:
                 await storage_service.delete(file=file, storage=storage)
 
@@ -624,7 +663,7 @@ async def delete_tree(
     while product is not None:
         products_to_delete.append(product)
 
-        for source in product.sources:
+        for source in product.sources.values():
             if source.uuid not in uuids_to_delete:
                 uuids_to_delete.update(source.uuid)
                 files_to_delete.append(source)

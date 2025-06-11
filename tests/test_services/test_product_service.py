@@ -10,6 +10,7 @@ import requests
 from beanie import PydanticObjectId
 from beanie.odm.fields import Link
 
+import hippometa
 from hipposerve.service import acl, product, versioning
 
 
@@ -47,15 +48,15 @@ async def test_get_existing_file(created_full_product, database, created_user):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_file_with_multiple_sources(database, created_user, storage):
-    sources = [
-        product.PreUploadFile(name="file1.txt", size=128, checksum="not_real"),
-        product.PreUploadFile(name="file2.txt", size=128, checksum="not_real"),
-    ]
+    sources = {
+        "coadd": product.PreUploadFile(name="file1.txt", size=128, checksum="not_real"),
+        "split": product.PreUploadFile(name="file2.txt", size=128, checksum="not_real"),
+    }
 
     created_product, uploads = await product.create(
         name="Multiple Source Product",
         description="A product with multiple sources",
-        metadata={"metadata_type": "simple"},
+        metadata=hippometa.MapSet(pixelisation="cartesian"),
         sources=sources,
         user_name=created_user.display_name,
         storage=storage,
@@ -95,7 +96,7 @@ async def test_create_file_with_multiple_sources(database, created_user, storage
 async def test_presign_read(created_full_product, storage):
     sources = await product.read_files(created_full_product, storage)
 
-    for source in sources:
+    for source in sources.values():
         assert source.url is not None
 
 
@@ -239,17 +240,20 @@ async def test_update_sources(created_full_product, database, storage, created_u
 
     FILE_CONTENTS = b"0x0" * 128
 
-    new = [
-        product.PreUploadFile(name="additional_file.txt", size=128, checksum="not_real")
-    ]
-    replace = [
-        product.PreUploadFile(
-            name=created_full_product.sources[0].name, size=128, checksum="replacement"
+    new = {
+        "coadd": product.PreUploadFile(
+            name="additional_file.txt", size=128, checksum="not_real"
         )
-    ]
-    drop = [created_full_product.sources[1].name]
+    }
+    replace = {
+        "data": product.PreUploadFile(
+            name="you_can_call_this_whatever_u_like.txt",
+            checksum="replacement",
+            size=128,
+        )
+    }
 
-    new_product_created, uploads = await product.update(
+    _, uploads = await product.update(
         created_full_product,
         created_user.groups,
         name=None,
@@ -257,7 +261,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
         metadata=None,
         new_sources=new,
         replace_sources=replace,
-        drop_sources=drop,
+        drop_sources=[],
         storage=storage,
         level=versioning.VersionRevision.MINOR,
     )
@@ -277,17 +281,28 @@ async def test_update_sources(created_full_product, database, storage, created_u
         created_full_product.name, version=None, groups=created_user.groups
     )
 
-    for source in created_full_product.sources[:2]:
-        assert source not in new_product.sources
+    assert "coadd" not in created_full_product.sources
+    assert "coadd" in new_product.sources
+    assert (
+        created_full_product.sources["data"].name
+        != "you_can_call_this_whatever_u_like.txt"
+    )
+    assert new_product.sources["data"].name == "you_can_call_this_whatever_u_like.txt"
 
-    for source in created_full_product.sources[2:]:
-        assert source in new_product.sources
+    _, uploads = await product.update(
+        new_product,
+        created_user.groups,
+        drop_sources=["coadd"],
+        storage=storage,
+        level=versioning.VersionRevision.MINOR,
+    )
 
-    for source in replace:
-        assert source.name in [x.name for x in new_product.sources]
+    # Grab it back and check
+    reverted_product = await product.read_by_name(
+        created_full_product.name, version=None, groups=created_user.groups
+    )
 
-    for source in new:
-        assert source.name in [x.name for x in new_product.sources]
+    assert "coadd" not in reverted_product.sources
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -310,13 +325,13 @@ async def test_update_sources_failure_modes(
             name=None,
             description=None,
             metadata=None,
-            new_sources=[
-                product.PreUploadFile(
-                    name=created_full_product.sources[0].name,
-                    size=created_full_product.sources[0].size,
-                    checksum=created_full_product.sources[0].checksum,
+            new_sources={
+                "data": product.PreUploadFile(
+                    name=created_full_product.sources["data"].name,
+                    size=created_full_product.sources["data"].size,
+                    checksum=created_full_product.sources["data"].checksum,
                 )
-            ],
+            },
             replace_sources=[],
             drop_sources=[],
             storage=storage,
@@ -333,13 +348,13 @@ async def test_update_sources_failure_modes(
             description=None,
             metadata=None,
             new_sources=[],
-            replace_sources=[
-                product.PreUploadFile(
-                    name=created_full_product.sources[0].name + "ABCD",
-                    size=created_full_product.sources[0].size,
-                    checksum=created_full_product.sources[0].checksum,
+            replace_sources={
+                "xlink_coadd": product.PreUploadFile(
+                    name=created_full_product.sources["data"].name,
+                    size=created_full_product.sources["data"].size,
+                    checksum=created_full_product.sources["data"].checksum,
                 )
-            ],
+            },
             drop_sources=[],
             storage=storage,
             level=versioning.VersionRevision.MINOR,
@@ -356,7 +371,7 @@ async def test_update_sources_failure_modes(
             metadata=None,
             new_sources=[],
             replace_sources=[],
-            drop_sources=["non_existent_file.fake"],
+            drop_sources=["xlink_coadd"],
             storage=storage,
             level=versioning.VersionRevision.MINOR,
         )
@@ -375,7 +390,7 @@ async def test_read_most_recent_products(database, created_user, storage):
             name=f"product_{i}",
             description=f"description_{i}",
             metadata=None,
-            sources=[],
+            sources={},
             user_name=created_user.display_name,
             storage=storage,
         )
@@ -439,7 +454,7 @@ async def test_add_relationships(database, created_user, created_full_product, s
         name="secondary_product",
         description="A secondary product",
         metadata=None,
-        sources=[],
+        sources={},
         user_name=created_user.display_name,
         storage=storage,
     )
@@ -493,7 +508,7 @@ async def test_product_middle_deletion(database, created_user, storage):
         name="Middle-out Product",
         description="Trying to remove version 1.0.1",
         metadata={"metadata_type": "simple"},
-        sources=[],
+        sources={},
         user_name=created_user.display_name,
         storage=storage,
     )
@@ -504,11 +519,11 @@ async def test_product_middle_deletion(database, created_user, storage):
         name=None,
         metadata=None,
         description=None,
-        new_sources=[
-            product.PreUploadFile(
+        new_sources={
+            "data": product.PreUploadFile(
                 name="to_be_deleted.txt", size=128, checksum="not_important"
             )
-        ],
+        },
         drop_sources=[],
         replace_sources=[],
         storage=storage,
@@ -545,7 +560,7 @@ async def test_product_middle_deletion(database, created_user, storage):
         description=None,
         new_sources=[],
         replace_sources=[],
-        drop_sources=["to_be_deleted.txt"],
+        drop_sources=["data"],
         storage=storage,
         level=versioning.VersionRevision.PATCH,
     )
@@ -577,7 +592,9 @@ async def test_product_middle_deletion(database, created_user, storage):
     # not part of v1.0.0, it should be gone.
     from hipposerve.service import storage as storage_service
 
-    assert not await storage_service.confirm(file=middle.sources[0], storage=storage)
+    assert not await storage_service.confirm(
+        file=middle.sources["data"], storage=storage
+    )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -587,7 +604,7 @@ async def test_text_name_search(database, created_user, storage):
         name="My Favorite Product A",
         description="A product",
         metadata=None,
-        sources=[],
+        sources={},
         user_name=created_user.display_name,
         storage=storage,
     )
@@ -596,7 +613,7 @@ async def test_text_name_search(database, created_user, storage):
         name="my favorite product b",
         description="A product",
         metadata=None,
-        sources=[],
+        sources={},
         user_name=created_user.display_name,
         storage=storage,
     )
@@ -622,7 +639,7 @@ async def test_product_with_five_versions(database, created_user, storage):
         name="Five Version Product",
         description="A product with five versions",
         metadata=None,
-        sources=[],
+        sources={},
         user_name=created_user.display_name,
         storage=storage,
     )
@@ -631,12 +648,7 @@ async def test_product_with_five_versions(database, created_user, storage):
         new_product, _ = await product.update(
             product=new_product,
             access_groups=created_user.groups,
-            name=None,
             description=f"Version {i + 1} of the product",
-            metadata=None,
-            new_sources=[],
-            replace_sources=[],
-            drop_sources=[],
             storage=storage,
             level=versioning.VersionRevision.MINOR,
         )

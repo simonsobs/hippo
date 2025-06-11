@@ -10,7 +10,7 @@ from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
 from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
-from hippometa import MapSet, MapSetMap
+from hippometa import MapSet
 
 COLLECTION_NAME = (
     "ACT DR4 Frequency Maps at 98 and 150 GHz presented in Aiola et al. 2020"
@@ -109,9 +109,9 @@ def get_description(path: Path) -> str:
     return f"{sub_set_main_descriptions[set_]} (Patch {patch})."
 
 
-def find_primary_map(list: list[Path]) -> Path:
-    for path in list:
-        if "map_srcfree" in path.name:
+def find_primary_map(list: dict[str, Path]) -> Path:
+    for val, path in list.items():
+        if "source_free" in val:
             return path
 
 
@@ -132,27 +132,24 @@ if __name__ == "__main__":
 
     for fits_file in Path(".").glob("*.fits"):
         name = get_name(fits_file)
+        map_type = get_map_type(fits_file)
 
         if name not in sub_sets:
-            sub_sets[name] = [fits_file]
+            sub_sets[name] = {map_type: fits_file}
         else:
-            sub_sets[name].append(fits_file)
+            sub_sets[name][map_type] = fits_file
 
     sub_sets_descriptions_linker = {
-        "map_srcfree": "I, Q, U source-free map",
-        "srcs": "I, Q, U point source map",
+        "source_free": "I, Q, U source-free map",
+        "source_only": "I, Q, U point source map",
         "ivar": "Inverse-variance map",
         "xlink": "Cross-linking map",
     }
 
-    def link_to_path(path: Path) -> str:
-        for name, description in sub_sets_descriptions_linker.items():
-            if name in path.name:
-                return description
-
-    sub_sets_descriptions = {
-        x: [link_to_path(y) for y in sub_sets[x]] for x in sub_sets.keys()
-    }
+    def link_match(x):
+        for a, b in sub_sets_descriptions_linker.items():
+            if a in x:
+                return b
 
     client = ClientSettings().client
 
@@ -164,24 +161,21 @@ if __name__ == "__main__":
 
     for sub_set in sub_sets.keys():
         metadata = MapSet(
-            maps={
-                get_map_type(fits_file): MapSetMap(
-                    map_type=get_map_type(fits_file),
-                    filename=fits_file.name,
-                    units=get_units(fits_file),
-                )
-                for fits_file in sub_sets[sub_set]
-            },
             pixelisation="healpix",
             telescope="ACT",
             instrument="ACTPol",
             release="DR4",
             season="s13",
-            patch=get_patch(sub_sets[sub_set][0]),
+            patch=get_patch(sub_sets[sub_set][list(sub_sets[sub_set])[0]]),
             frequency="150",
             polarization_convention="IAU",
         )
         primary_map = find_primary_map(sub_sets[sub_set])
+
+        source_descriptions = {
+            get_map_type(y): link_match(get_map_type(y))
+            for y in sub_sets[sub_set].values()
+        }
 
         product_id = create_product(
             client=client,
@@ -189,7 +183,7 @@ if __name__ == "__main__":
             description=get_description(primary_map),
             metadata=metadata,
             sources=sub_sets[sub_set],
-            source_descriptions=sub_sets_descriptions[sub_set],
+            source_descriptions=source_descriptions,
         )
 
         add_to_collection(

@@ -2,31 +2,9 @@
 A map set.
 """
 
-from typing import Literal
-
-from pydantic import BaseModel
+from typing import ClassVar, Literal
 
 from hippometa.base import BaseMetadata
-
-MAP_TYPES = Literal[
-    "coadd",
-    "split",
-    "source_only",
-    "source_only_split",
-    "source_free",
-    "source_free_split",
-    "ivar_coadd",
-    "ivar_split",
-    "xlink_coadd",
-    "xlink_split",
-    "mask",
-]
-
-
-class MapSetMap(BaseModel):
-    map_type: MAP_TYPES
-    filename: str
-    units: str | None = None
 
 
 class MapSet(BaseMetadata):
@@ -36,8 +14,21 @@ class MapSet(BaseMetadata):
     """
 
     metadata_type: Literal["mapset"] = "mapset"
-    maps: dict[MAP_TYPES, MapSetMap]
-
+    valid_slugs: ClassVar[set[str]] = {
+        "coadd",
+        "split",
+        "source_only",
+        "source_only_split",
+        "source_free",
+        "source_free_split",
+        "ivar_coadd",
+        "ivar_split",
+        "xlink_coadd",
+        "xlink_split",
+        "mask",
+        "data",
+    }
+    
     pixelisation: Literal["healpix", "cartesian"]
 
     telescope: str | None = None

@@ -8,7 +8,7 @@ from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
 from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
-from hippometa import CatalogMetadata, MapSet, MapSetMap
+from hippometa import CatalogMetadata, MapSet
 
 settings = ClientSettings()
 
@@ -99,13 +99,6 @@ catalog_names = {
 }
 
 mask = MapSet(
-    maps={
-        "mask": MapSetMap(
-            map_type="mask",
-            filename="mask.fits",
-            units="",
-        )
-    },
     pixelisation="cartesian",
     telescope="ACT",
     instrument="ACTPol",
@@ -128,8 +121,8 @@ if __name__ == "__main__":
             name=catalog_names[catalog],
             description=catalog_descriptions[catalog],
             metadata=catalogs[catalog],
-            sources=[Path(catalog)],
-            source_descriptions=["Catalog file"],
+            sources={"data": Path(catalog)},
+            source_descriptions={"data": "Catalog file"},
         )
 
         add_to_collection(
@@ -143,8 +136,8 @@ if __name__ == "__main__":
         name="ACT DR5 SZ Cluster Catalog Sky Mask",
         description="The file DR5_cluster-search-area-mask_v1.0.fits is a compressed FITS image that contains the cluster search area (pixels with value = 1) as described in Hilton et al. (2020).",
         metadata=mask,
-        sources=[Path("DR5_cluster-search-area-mask_v1.0.fits")],
-        source_descriptions=["Mask file"],
+        sources={"mask": Path("DR5_cluster-search-area-mask_v1.0.fits")},
+        source_descriptions={"mask": "Mask file"},
     )
 
     add_to_collection(

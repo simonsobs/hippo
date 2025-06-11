@@ -20,15 +20,17 @@
         <table class="table table-sm small border border-secondary-subtle" style="max-width: 600px;">
             <thead>
                 <tr class="table-secondary">
+                    <th>Slug</th>
                     <th>Link</th>
                     <th>Description</th>
                     <th>Size</th>
                 </tr>
             </thead>
             <tbody>
-                {% for source in sources %}
+                {% for slug, source in sources.items() %}
                 <tr>
-                    <td><a href='{{ source.url }}'>{{ source.name }}</a></td>
+                    <td class=" font-monospace">{{slug}}</td>
+                    <td><a href='{{ web_root }}/products/{{product.id}}/{{ slug }}'>{{ source.name }}</a></td>
                     <td>{{ source.description }}</td>
                     <td class="text-nowrap">{{ source.size }} B</td>
                 </tr>

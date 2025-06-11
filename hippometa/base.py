@@ -2,10 +2,11 @@
 Base metadata type that all metadata must inherit from
 """
 
+from typing import ClassVar
+
 from pydantic import BaseModel
 
 
 class BaseMetadata(BaseModel):
     metadata_type: str
-
-    pass
+    valid_slugs: ClassVar[set[str]] = {"data"}

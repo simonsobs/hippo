@@ -131,8 +131,8 @@ if __name__ == "__main__":
             name=catalog_names[catalog],
             description=catalog_descriptions[catalog],
             metadata=catalogs[catalog],
-            sources=[Path(catalog)],
-            source_descriptions=["Catalog file"],
+            sources={"data": Path(catalog)},
+            source_descriptions={"data": "Catalog file"},
         )
 
         add_to_collection(

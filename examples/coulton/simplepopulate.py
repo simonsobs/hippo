@@ -8,7 +8,7 @@ from hippoclient.collections import add as add_to_collection
 from hippoclient.collections import create as create_collection
 from hippoclient.core import ClientSettings
 from hippoclient.product import create as create_product
-from hippometa import BeamMetadata, MapSet, MapSetMap
+from hippometa import BeamMetadata, MapSet
 
 COLLECTION_NAME = "ACT (AdvACT) Compton-y"
 
@@ -27,18 +27,6 @@ Two notebooks demonstrating two possible uses of the Compton-y maps are provided
 """
 
 map_set = MapSet(
-    maps={
-        "coadd": MapSetMap(
-            map_type="coadd",
-            filename="ilc_actplanck_ymap.fits",
-            units=None,
-        ),
-        "mask": MapSetMap(
-            map_type="mask",
-            filename="wide_mask_GAL070_apod_1.50_deg_wExtended.fits",
-            units=None,
-        ),
-    },
     pixelisation="cartesian",
     telescope="ACT",
     instrument="AdvACT",
@@ -72,11 +60,11 @@ if __name__ == "__main__":
         name=map_name,
         description=map_description,
         metadata=map_set,
-        sources=[
-            Path("ilc_actplanck_ymap.fits"),
-            Path("wide_mask_GAL070_apod_1.50_deg_wExtended.fits"),
-        ],
-        source_descriptions=["Compton-y map", "Mask"],
+        sources={
+            "coadd": Path("ilc_actplanck_ymap.fits"),
+            "mask": Path("wide_mask_GAL070_apod_1.50_deg_wExtended.fits"),
+        },
+        source_descriptions={"coadd": "Compton-y map", "mask": "Mask"},
     )
 
     add_to_collection(
@@ -90,8 +78,8 @@ if __name__ == "__main__":
         name=beam_name,
         description=beam_description,
         metadata=beam,
-        sources=[Path("ilc_beam.txt")],
-        source_descriptions=["Beam"],
+        sources={"data": Path("ilc_beam.txt")},
+        source_descriptions={"data": "Beam"},
     )
 
     add_to_collection(

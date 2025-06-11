@@ -25,8 +25,8 @@ def create(
     name: str,
     description: str,
     metadata: ALL_METADATA_TYPE,
-    sources: list[Path],
-    source_descriptions: list[str | None],
+    sources: dict[str, Path],
+    source_descriptions: dict[str, str | None],
     console: Console | None = None,
 ) -> str:
     """
@@ -49,8 +49,8 @@ def create(
         The description of the product.
     metadata : ALL_METADATA_TYPE
         The metadata of the product, as a validated pydantic model.
-    sources : list[Path]
-        The list of paths to the sources of the product.
+    sources : dict[str, Path]
+        The list of paths to the sources of the product keyed by their slug.
     console : Console, optional
         The rich console to print to.
 
@@ -69,19 +69,22 @@ def create(
     assert len(sources) == len(source_descriptions)
 
     # Co-erce sources to paths as they will inevitably be strings...
-    sources = [Path(x) for x in sources]
+    sources = {x: Path(y) for x, y in sources.items()}
 
-    source_metadata = []
+    source_metadata = {}
 
-    for source, source_description in zip(sources, source_descriptions):
-        with source.open("rb") as file:
+    for slug in sources:
+        filename = sources[slug]
+        desc = source_descriptions[slug]
+
+        with filename.open("rb") as file:
             file_info = {
-                "name": source.name,
-                "size": source.stat().st_size,
+                "name": filename.name,
+                "size": filename.stat().st_size,
                 "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
-                "description": source_description,
+                "description": desc,
             }
-            source_metadata.append(file_info)
+            source_metadata[slug] = file_info
             if console:
                 console.print("Successfully validated file:", file_info)
 
@@ -113,7 +116,7 @@ def create(
     sizes = {}
 
     # Upload the sources to the presigned URLs.
-    for source in sources:
+    for source in sources.values():
         with source.open("rb") as file:
             if console:
                 console.print("Uploading file:", source.name)

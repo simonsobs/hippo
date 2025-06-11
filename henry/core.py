@@ -12,7 +12,7 @@ class Henry:
 
     def __init__(self, *, settings: ClientSettings | None = None, console: Console | None = None):
         self.settings = settings or ClientSettings()
-        self.console = console or Console(quiet=not self.settings.verbose)
+        self.console = console or Console(quiet=(not self.settings.verbose))
         self.client = AuthenticatedClient(host=self.settings.host, token_tag=self.settings.token_tag)
 
         return
@@ -29,7 +29,7 @@ class Henry:
     def upload_product(
         self, product: LocalProduct, skip_preflight: bool = False
     ) -> str:
-        return product.__upload(
+        return product._upload(
             client=self.client,
             console=self.console,
             skip_preflight=skip_preflight

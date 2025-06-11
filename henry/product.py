@@ -33,8 +33,8 @@ class LocalProduct(ProductInstance):
         self.metadata = metadata
         self.sources = {}
 
-        for k, v in kwargs:
-            self.add_source(slug=k, path=v)
+        for k, v in kwargs.items():
+            self[k] = v
 
     def __handle_key_error(self, key: str):
         if key in self.metadata.valid_slugs:
@@ -178,7 +178,7 @@ class LocalProduct(ProductInstance):
                 raise PreflightFailedError(
                     f"Slug {source.slug} not valid for upload for metadata type {type(self.metadata).__name__}"
                 )
-            if source.description and len(source.description) >= 2 and isinstance(source.description, str):
+            if not source.description or len(source.description) < 2 or not isinstance(source.description, str):
                 raise PreflightFailedError(
                     f"Description for source {source.slug} is not valid; ensure it is at least 2 characters and a valid string"
                 )
@@ -194,7 +194,7 @@ class LocalProduct(ProductInstance):
         return
 
 
-    def __upload(self, client: httpx.Client, console: Console, skip_preflight: bool = False) -> str:
+    def _upload(self, client: httpx.Client, console: Console, skip_preflight: bool = False) -> str:
         if not skip_preflight:
             self.preflight()
 
@@ -209,7 +209,7 @@ class LocalProduct(ProductInstance):
             source_descriptions={
                 x: y.description for x, y in self.sources.items()
             },
-            console=Console
+            console=console
         )
         return remote_id
 

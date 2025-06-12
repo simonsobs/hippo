@@ -5,8 +5,8 @@ from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
 from hippometa import ALL_METADATA_TYPE
 
-from .product import LocalProduct, RemoteProduct, ProductInstance
-from .collection import LocalCollection, CollectionInstance
+from .collection import CollectionInstance, LocalCollection
+from .product import LocalProduct, ProductInstance
 
 
 class Henry:
@@ -35,7 +35,7 @@ class Henry:
         return LocalProduct(
             name=name, description=description, metadata=metadata, **kwargs
         )
-    
+
     def new_collection(
         self,
         name: str,
@@ -47,7 +47,7 @@ class Henry:
             name=name,
             description=description,
             products=products,
-            collections=collections
+            collections=collections,
         )
 
     def push(
@@ -56,4 +56,3 @@ class Henry:
         return item._upload(
             client=self.client, console=self.console, skip_preflight=skip_preflight
         )
-

@@ -48,14 +48,14 @@ class LocalCollection(CollectionInstance):
             return "c", key - len(self.products)
         else:
             raise IndexError(f"Index {key} invalid for object of size {self.__len__()}")
-        
+
     def __repr__(self):
         return (
             f"LocalCollection(name='{self.name}', description='{self.description}', "
-            f"products=[{", ".join([x.__repr__() for x in self.products])}], "
-            f"collections=[{", ".join([x.__repr__() for x in self.collections])}])"
+            f"products=[{', '.join([x.__repr__() for x in self.products])}], "
+            f"collections=[{', '.join([x.__repr__() for x in self.collections])}])"
         )
-    
+
     def __str__(self):
         return (
             f"{self.name} ({self.description}) collection with {len(self.products)} "
@@ -134,7 +134,7 @@ class LocalCollection(CollectionInstance):
         if self.collection_id:
             # We've already flown!
             return
-        
+
         for preflightable in self:
             preflightable.preflight()
 

@@ -28,7 +28,7 @@ class MapSet(BaseMetadata):
         "mask",
         "data",
     }
-    
+
     pixelisation: Literal["healpix", "cartesian"]
 
     telescope: str | None = None

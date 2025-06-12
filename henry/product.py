@@ -2,20 +2,17 @@
 from pathlib import Path
 
 import httpx
+from pydantic import BaseModel
 from rich.console import Console
 
 from henry.source import LocalSource
 from hippoclient import product as product_client
 from hippometa import ALL_METADATA_TYPE
 
-from .exceptions import PreflightFailedError
+from .exceptions import InvalidSlugError, PreflightFailedError
 
 
-class InvalidSlugError(KeyError):
-    pass
-
-
-class ProductInstance:
+class ProductInstance(BaseModel):
     pass
 
 
@@ -29,19 +26,14 @@ class LocalProduct(ProductInstance):
     name: str
     description: str
     metadata: ALL_METADATA_TYPE
-    sources: dict[str, LocalSource]
+    sources: dict[str, LocalSource] = {}
 
-    def __init__(
-        self, name: str, description: str, metadata: ALL_METADATA_TYPE, **kwargs
-    ):
-        self.name = name
-        self.description = description
-        self.metadata = metadata
-        self.sources = {}
-
-        for k, v in kwargs.items():
+    def model_post_init(self, __context):
+        for k, v in self.sources.items():
             v.slug = k
             self[k] = v
+
+        return super().model_post_init(__context)
 
     def __handle_key_error(self, key: str):
         if key in self.metadata.valid_slugs:

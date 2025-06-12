@@ -172,7 +172,7 @@ if __name__ == "__main__":
             name=sub_set,
             description=get_description(primary_map),
             metadata=metadata,
-            **{
+            sources={
                 x: LocalSource(path=y, description=link_match(get_map_type(y)))
                 for x, y in sub_sets[sub_set].items()
             },

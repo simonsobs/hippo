@@ -1,6 +1,7 @@
 from httpx import Client
 from rich.console import Console
 
+from henry.source import LocalSource
 from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
 from hippometa import ALL_METADATA_TYPE
@@ -30,10 +31,10 @@ class Henry:
         name: str,
         description: str,
         metadata: ALL_METADATA_TYPE,
-        **kwargs,
+        sources: dict[str, LocalSource] | None = None,
     ) -> LocalProduct:
         return LocalProduct(
-            name=name, description=description, metadata=metadata, **kwargs
+            name=name, description=description, metadata=metadata, sources=sources or {}
         )
 
     def new_collection(
@@ -46,8 +47,8 @@ class Henry:
         return LocalCollection(
             name=name,
             description=description,
-            products=products,
-            collections=collections,
+            products=products or [],
+            collections=collections or [],
         )
 
     def push(

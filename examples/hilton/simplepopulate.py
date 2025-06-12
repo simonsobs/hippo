@@ -123,8 +123,11 @@ if __name__ == "__main__":
             name="ACT DR5 SZ Cluster Catalog Sky Mask",
             description="The file DR5_cluster-search-area-mask_v1.0.fits is a compressed FITS image that contains the cluster search area (pixels with value = 1) as described in Hilton et al. (2020).",
             metadata=mask,
-            mask=LocalSource(
-                path="DR5_cluster-search-area-mask_v1.0.fits", description="Mask file"
+            sources=dict(
+                mask=LocalSource(
+                    path="DR5_cluster-search-area-mask_v1.0.fits",
+                    description="Mask file",
+                ),
             ),
         )
     )

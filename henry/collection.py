@@ -2,6 +2,7 @@ from itertools import chain
 from typing import Iterable
 
 import httpx
+from pydantic import BaseModel
 from rich.console import Console
 
 from henry.product import ProductInstance
@@ -10,7 +11,7 @@ from hippoclient import collections, relationships
 from .exceptions import PreflightFailedError
 
 
-class CollectionInstance:
+class CollectionInstance(BaseModel):
     pass
 
 
@@ -24,20 +25,8 @@ class LocalCollection(CollectionInstance):
     collection_id: str | None = None
     name: str
     description: str
-    products: list[ProductInstance]
-    collections: list[CollectionInstance]
-
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        products: list[ProductInstance] | None = None,
-        collections: list[CollectionInstance] | None = None,
-    ):
-        self.name = name
-        self.description = description
-        self.products = products or []
-        self.collections = collections or []
+    products: list[ProductInstance] = []
+    collections: list[CollectionInstance] = []
 
     def __get_global_index(self, key: int, /) -> tuple[str, int]:
         if key < 0:

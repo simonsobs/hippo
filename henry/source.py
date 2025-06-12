@@ -1,24 +1,25 @@
 # from abc import ABC, abstractmethod
 from pathlib import Path
 
+from pydantic import BaseModel
 
-class SourceInstance:
-    slug: str
+
+class SourceInstance(BaseModel):
+    slug: str | None = None
     description: str | None = None
 
 
 class LocalSource(SourceInstance):
-    def __init__(
-        self,
-        path: Path,
-        slug: str | None = None,
-        name: str | None = None,
-        description: str | None = None,
-    ):
-        self.path = Path(path)
-        self.slug = slug
-        self.name = name if name else self.path.name
-        self.description = description
+    path: Path
+    slug: str | None = None
+    name: str | None = None
+    description: str | None = None
+
+    def model_post_init(self, __context):
+        if self.name is None:
+            self.name = self.path.stem
+
+        return super().model_post_init(__context)
 
     def __repr__(self):
         return (
@@ -31,6 +32,4 @@ class LocalSource(SourceInstance):
 
 
 class RemoteSource(SourceInstance):
-    def __init__(self, slug: str, description: str | None = None):
-        self.slug = slug
-        self.description = description
+    pass

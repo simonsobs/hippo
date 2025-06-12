@@ -15,7 +15,12 @@ from .product import uncache as uncache_product
 
 
 def create(
-    client: Client, name: str, description: str, console: Console | None = None
+    client: Client,
+    name: str,
+    description: str,
+    readers: list[str] | None = None,
+    writers: list[str] | None = None,
+    console: Console | None = None,
 ) -> str:
     """
     Create a new collection in hippo.
@@ -28,6 +33,10 @@ def create(
         The name of the collection.
     description : str
         The description of the collection.
+    readers : list[str], optional
+        A list of groups that can read the collection.
+    writers : list[str], optional
+        A list of groups that can write to the collection.
     console : Console, optional
         The Console to use to print to.
 
@@ -42,9 +51,14 @@ def create(
         If a request to the API fails
     """
 
-    response = client.put(
-        f"/relationships/collection/{name}", json={"description": description}
-    )
+    content = {"description": description}
+
+    if readers is not None:
+        content["readers"] = readers
+    if writers is not None:
+        content["writers"] = writers
+
+    response = client.put(f"/relationships/collection/{name}", json=content)
 
     response.raise_for_status()
 

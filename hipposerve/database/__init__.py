@@ -96,6 +96,9 @@ class ProductMetadata(BaseModel):
 
     replaces: str | None
 
+    readers: list[str] = []
+    writers: list[str] = []
+
     child_of: list[PydanticObjectId]
     parent_of: list[PydanticObjectId]
 
@@ -147,6 +150,8 @@ class Product(ProtectedDocument, ProductMetadata):
             version=self.version,
             sources={x: y.to_metadata() for x, y in self.sources.items()},
             owner=self.owner,
+            readers=self.readers,
+            writers=self.writers,
             replaces=replaces_version,
             child_of=[x.id for x in self.child_of],
             # Filter out backlinks as they are unfetchable; this only occurs

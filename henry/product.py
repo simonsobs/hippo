@@ -5,8 +5,9 @@ import httpx
 from pydantic import BaseModel
 from rich.console import Console
 
-from henry.source import LocalSource
+from henry.source import LocalSource, RemoteSource
 from hippoclient import product as product_client
+from hippoclient.caching import MultiCache
 from hippometa import ALL_METADATA_TYPE
 
 from .exceptions import InvalidSlugError, PreflightFailedError
@@ -27,6 +28,8 @@ class LocalProduct(ProductInstance):
     description: str
     metadata: ALL_METADATA_TYPE
     sources: dict[str, LocalSource] = {}
+    readers: list[str] = []
+    writers: list[str] = []
 
     def model_post_init(self, __context):
         for k, v in self.sources.items():
@@ -196,7 +199,12 @@ class LocalProduct(ProductInstance):
         return
 
     def _upload(
-        self, client: httpx.Client, console: Console, skip_preflight: bool = False
+        self,
+        client: httpx.Client,
+        console: Console,
+        skip_preflight: bool = False,
+        readers: list[str] | None = None,
+        writers: list[str] | None = None,
     ) -> str:
         if self.product_id:
             # We've already been uploaded
@@ -212,6 +220,8 @@ class LocalProduct(ProductInstance):
             metadata=self.metadata,
             sources={x: y.path for x, y in self.sources.items()},
             source_descriptions={x: y.description for x, y in self.sources.items()},
+            readers=readers,
+            writers=writers,
             console=console,
         )
         self.product_id = remote_id
@@ -224,4 +234,120 @@ class RemoteProduct(ProductInstance):
     to 'remote' files - either those in a cache or in-memory after download.
     """
 
-    pass
+    product_id: str
+    name: str
+    description: str
+    metadata: ALL_METADATA_TYPE
+    sources: dict[str, RemoteSource] = {}
+    readers: list[str] = []
+    writers: list[str] = []
+
+    def model_post_init(self, __context):
+        for k, v in self.sources.items():
+            v.slug = k
+
+        return super().model_post_init(__context)
+
+    def __handle_key_error(self, key: str):
+        if key in self.sources.valid_slugs:
+            raise InvalidSlugError(
+                f"Slug {key} is valid for this metadata type, but not present in this object"
+            )
+        else:
+            raise InvalidSlugError(
+                f"Slug {key} not in valid list: {self.metadata.valid_slugs}"
+            )
+
+    @classmethod
+    def pull(
+        cls, product_id: str, client: httpx.Client, cache: MultiCache, console: Console
+    ) -> "RemoteProduct":
+        product_metadata = product_client.read(
+            client=client, id=product_id, console=console
+        )
+
+        # Ensure it's cached
+        product_client.cache(
+            client=client,
+            cache=cache,
+            id=product_id,
+            console=console,
+        )
+
+        # Convert the sources
+        sources = {
+            x: RemoteSource(
+                slug=x,
+                name=y.name,
+                description=y.description,
+                source_id=y.uuid,
+                cache=cache,
+                realize=True,
+            )
+            for x, y in product_metadata.sources.items()
+        }
+
+        return cls(
+            product_id=product_id,
+            name=product_metadata.name,
+            description=product_metadata.description,
+            metadata=product_metadata.metadata,
+            sources=sources,
+            readers=product_metadata.readers,
+            writers=product_metadata.writers,
+        )
+
+    def keys(self):
+        return self.sources.keys()
+
+    def values(self):
+        return self.sources.values()
+
+    def items(self):
+        return self.sources.items()
+
+    def get(self, key, default=None, /):
+        return self.sources.get(key, default)
+
+    def copy(self):
+        new = RemoteProduct(
+            name=self.name, description=self.description, metadata=self.metadata
+        )
+
+        new.sources = self.sources.copy()
+
+        return new
+
+    def __len__(self) -> int:
+        return self.sources.__len__()
+
+    def __getitem__(self, key):
+        try:
+            return self.sources.__getitem__(key)
+        except KeyError:
+            self.__handle_key_error(key=key)
+
+    def __missing__(self, key):
+        self.__handle_key_error(key=key)
+
+    def __iter__(self):
+        return self.sources.__iter__()
+
+    def __reversed__(self):
+        return self.sources.__reversed__()
+
+    def __contains__(self, key):
+        return self.sources.__contains__(key)
+
+    def __repr__(self):
+        return (
+            f"RemoteProduct(name='{self.name}', description='{self.description}', "
+            f"metadata={self.metadata.__repr__()}, "
+            f"{', '.join([f'{x}={y.__repr__()}' for x, y in self.sources.items()])})"
+        )
+
+    def __str__(self):
+        return (
+            f"{self.name} ({self.description}) -- {self.metadata.__str__()} "
+            f"-- Sources: {', '.join([x.__str__() for x in self.sources.values()])}"
+        )

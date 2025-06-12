@@ -27,6 +27,8 @@ class LocalCollection(CollectionInstance):
     description: str
     products: list[ProductInstance] = []
     collections: list[CollectionInstance] = []
+    readers: list[str] = []
+    writers: list[str] = []
 
     def __get_global_index(self, key: int, /) -> tuple[str, int]:
         if key < 0:
@@ -138,7 +140,12 @@ class LocalCollection(CollectionInstance):
             )
 
     def _upload(
-        self, client: httpx.Client, console: Console, skip_preflight: bool = False
+        self,
+        client: httpx.Client,
+        console: Console,
+        skip_preflight: bool = False,
+        readers: list[str] | None = None,
+        writers: list[str] | None = None,
     ):
         if self.collection_id:
             # We've already been uploaded!
@@ -149,11 +156,22 @@ class LocalCollection(CollectionInstance):
             self.preflight()
 
         self.collection_id = collections.create(
-            client=client, name=self.name, description=self.description, console=console
+            client=client,
+            name=self.name,
+            description=self.description,
+            readers=readers,
+            writers=writers,
+            console=console,
         )
 
         product_ids_to_connect = [
-            x._upload(client=client, console=console, skip_preflight=True)
+            x._upload(
+                client=client,
+                console=console,
+                readers=readers,
+                writers=writers,
+                skip_preflight=True,
+            )
             for x in self.products
         ]
 
@@ -167,7 +185,13 @@ class LocalCollection(CollectionInstance):
 
         # Recurse!
         child_collection_ids_to_connect = [
-            x._upload(client=client, console=console, skip_preflight=True)
+            x._upload(
+                client=client,
+                console=console,
+                skip_preflight=True,
+                readers=readers,
+                writers=writers,
+            )
             for x in self.collections
         ]
 

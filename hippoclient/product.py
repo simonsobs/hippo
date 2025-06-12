@@ -27,6 +27,8 @@ def create(
     metadata: ALL_METADATA_TYPE,
     sources: dict[str, Path],
     source_descriptions: dict[str, str | None],
+    readers: list[str] | None = None,
+    writers: list[str] | None = None,
     console: Console | None = None,
 ) -> str:
     """
@@ -51,6 +53,12 @@ def create(
         The metadata of the product, as a validated pydantic model.
     sources : dict[str, Path]
         The list of paths to the sources of the product keyed by their slug.
+    source_descriptions : dict[str, str | None]
+        The descriptions of the sources keyed by their slug.
+    readers : list[str] | None, optional
+        A list of groups that can read the product.
+    writers : list[str] | None, optional
+        A list of groups that can write to the product.
     console : Console, optional
         The rich console to print to.
 
@@ -92,16 +100,20 @@ def create(
     if metadata is None:
         metadata = SimpleMetadata()
 
-    response = client.put(
-        "/product/new",
-        json={
-            "name": name,
-            "description": description,
-            "metadata": metadata.model_dump(),
-            "sources": source_metadata,
-            "mutlipart_batch_size": MULTIPART_UPLOAD_SIZE,
-        },
-    )
+    content = {
+        "name": name,
+        "description": description,
+        "metadata": metadata.model_dump(),
+        "sources": source_metadata,
+        "mutlipart_batch_size": MULTIPART_UPLOAD_SIZE,
+    }
+
+    if readers is not None:
+        content["product_readers"] = readers
+    if writers is not None:
+        content["product_writers"] = writers
+
+    response = client.put("/product/new", json=content)
 
     response.raise_for_status()
 
@@ -437,16 +449,16 @@ def cache(
 
     response.raise_for_status()
 
-    post_upload_files = [
-        PostUploadFile.model_validate(x) for x in response.json()["files"]
-    ]
+    post_upload_files = {
+        x: PostUploadFile.model_validate(y) for x, y in response.json()["files"].items()
+    }
 
     if console:
         console.print(f"Successfully read product {id}")
 
     response_paths = []
 
-    for file in post_upload_files:
+    for file in post_upload_files.values():
         # See if it's already cached.
         try:
             cached = cache.available(file.uuid)

@@ -190,4 +190,4 @@ class LocalCollection(CollectionInstance):
                 console=console,
             )
 
-        return
+        return self.collection_id

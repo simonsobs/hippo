@@ -2,11 +2,7 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
-
-from henry.core import Henry
-from hippoclient.collections import add as add_to_collection
-from hippoclient.collections import create as create_collection
-from hippoclient.core import ClientSettings
+from henry import Henry, LocalSource
 from hippometa import BeamMetadata, MapSet
 
 COLLECTION_NAME = "ACT (AdvACT) Compton-y"
@@ -41,49 +37,26 @@ map_set = henry.new_product(
         polarization_convention=None,
         tags=["ymap"],
     ),
-    coadd="ilc_actplanck_ymap.fits",
-    mask="wide_mask_GAL070_apod_1.50_deg_wExtended.fits",
+    coadd=LocalSource(
+        path="ilc_actplanck_ymap.fits",
+        description="Compton-y map from ACT DR6, lowpass filtered to ell=17000",
+    ),
+    mask=LocalSource(
+        path="wide_mask_GAL070_apod_1.50_deg_wExtended.fits",
+        description="Mask for the Compton-y map from ACT DR6",
+    ),
 )
-
-map_set[
-    "coadd"
-].description = "Compton-y map from ACT DR6, lowpass filtered to ell=17000"
-map_set["mask"].description = "Mask for the Compton-y map from ACT DR6"
 
 beam = henry.new_product(
     name="Compton-y Beam (ACT DR6)",
     description="Beam used for the Compton-y map for ACT DR6",
     metadata=BeamMetadata(),
-    data="ilc_beam.txt",
+    data=LocalSource(path="ilc_beam.txt", description="Beam file"),
 )
 
-beam["data"].description = "Beam file"
+collection = henry.new_collection(
+    name=COLLECTION_NAME, description=COLLECTION_DESCRIPTION, products=[map_set, beam]
+)
 
 if __name__ == "__main__":
-    client = ClientSettings().client
-
-    collection_id = create_collection(
-        client=client,
-        name=COLLECTION_NAME,
-        description=COLLECTION_DESCRIPTION,
-    )
-
-    product_id = henry.upload_product(
-        product=map_set,
-    )
-
-    add_to_collection(
-        client=client,
-        id=collection_id,
-        product=product_id,
-    )
-
-    product_id = henry.upload_product(
-        product=beam,
-    )
-
-    add_to_collection(
-        client=client,
-        id=collection_id,
-        product=product_id,
-    )
+    henry.push(collection)

@@ -4,10 +4,7 @@ Populates the simple example server with a bunch of ACT maps.
 
 from pathlib import Path
 
-from hippoclient.collections import add as add_to_collection
-from hippoclient.collections import create as create_collection
-from hippoclient.core import ClientSettings
-from hippoclient.product import create as create_product
+from henry import Henry, LocalSource
 from hippometa import CatalogMetadata
 
 COLLECTION_NAME = "ACT Targeted Transient Flux Constraints"
@@ -117,26 +114,20 @@ catalog_names = {
 }
 
 if __name__ == "__main__":
-    client = ClientSettings().client
+    henry = Henry()
 
-    collection_id = create_collection(
-        client=client,
+    collection = henry.new_collection(
         name=COLLECTION_NAME,
         description=COLLECTION_DESCRIPTION,
+        products=[
+            henry.new_product(
+                name=catalog_names[catalog],
+                description=catalog_descriptions[catalog],
+                metadata=catalogs[catalog],
+                data=LocalSource(path=Path(catalog), description="Catalog file"),
+            )
+            for catalog in catalogs.keys()
+        ],
     )
 
-    for catalog in catalogs.keys():
-        product_id = create_product(
-            client=client,
-            name=catalog_names[catalog],
-            description=catalog_descriptions[catalog],
-            metadata=catalogs[catalog],
-            sources={"data": Path(catalog)},
-            source_descriptions={"data": "Catalog file"},
-        )
-
-        add_to_collection(
-            client=client,
-            id=collection_id,
-            product=product_id,
-        )
+    henry.push(collection)

@@ -4,13 +4,8 @@ Populates the simple example server with a bunch of ACT maps.
 
 from pathlib import Path
 
-from hippoclient.collections import add as add_to_collection
-from hippoclient.collections import create as create_collection
-from hippoclient.core import ClientSettings
-from hippoclient.product import create as create_product
+from henry import Henry, LocalSource
 from hippometa import CatalogMetadata, MapSet
-
-settings = ClientSettings()
 
 COLLECTION_NAME = "ACT DR5 SZ Cluster Catalog"
 
@@ -107,41 +102,31 @@ mask = MapSet(
 
 
 if __name__ == "__main__":
-    client = settings.client
+    henry = Henry()
 
-    collection_id = create_collection(
-        client=client,
+    collection = henry.new_collection(
         name=COLLECTION_NAME,
         description=COLLECTION_DESCRIPTION,
+        products=[
+            henry.new_product(
+                name=catalog_names[catalog],
+                description=catalog_descriptions[catalog],
+                metadata=catalogs[catalog],
+                data=LocalSource(path=Path(catalog), description="Catalog file"),
+            )
+            for catalog in catalogs.keys()
+        ],
     )
 
-    for catalog in catalogs.keys():
-        product_id = create_product(
-            client=client,
-            name=catalog_names[catalog],
-            description=catalog_descriptions[catalog],
-            metadata=catalogs[catalog],
-            sources={"data": Path(catalog)},
-            source_descriptions={"data": "Catalog file"},
+    collection.append(
+        henry.new_product(
+            name="ACT DR5 SZ Cluster Catalog Sky Mask",
+            description="The file DR5_cluster-search-area-mask_v1.0.fits is a compressed FITS image that contains the cluster search area (pixels with value = 1) as described in Hilton et al. (2020).",
+            metadata=mask,
+            mask=LocalSource(
+                path="DR5_cluster-search-area-mask_v1.0.fits", description="Mask file"
+            ),
         )
-
-        add_to_collection(
-            client=client,
-            id=collection_id,
-            product=product_id,
-        )
-
-    mask_id = create_product(
-        client=client,
-        name="ACT DR5 SZ Cluster Catalog Sky Mask",
-        description="The file DR5_cluster-search-area-mask_v1.0.fits is a compressed FITS image that contains the cluster search area (pixels with value = 1) as described in Hilton et al. (2020).",
-        metadata=mask,
-        sources={"mask": Path("DR5_cluster-search-area-mask_v1.0.fits")},
-        source_descriptions={"mask": "Mask file"},
     )
 
-    add_to_collection(
-        client=client,
-        id=collection_id,
-        product=mask_id,
-    )
+    henry.push(collection)

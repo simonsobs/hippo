@@ -3,6 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
+include=["hippoclient*", "henry*", "hippometa*", "hipposerve*"]
 exclude=["*tests*", "*examples*", "*htmlcov*"]
 
 [tool.setuptools.package-data]

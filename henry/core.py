@@ -70,10 +70,13 @@ class Henry:
             writers=self.writers,
         )
 
-    def pull_product(self, product_id: str) -> RemoteProduct:
+    def pull_product(
+        self, product_id: str, realize_sources: bool = True
+    ) -> RemoteProduct:
         return RemoteProduct.pull(
             product_id=product_id,
             client=self.client,
             cache=self.cache,
             console=self.console,
+            realize_sources=realize_sources,
         )

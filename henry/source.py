@@ -27,7 +27,7 @@ class LocalSource(SourceInstance):
         )
 
     def __str__(self):
-        return f"LocalSource {self.slug} ({self.name}; {self.descrpition}) representing {self.path}"
+        return f"LocalSource {self.slug} ({self.name}; {self.description}) representing {self.path}"
 
 
 class RemoteSource(SourceInstance):

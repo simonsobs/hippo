@@ -675,6 +675,19 @@ class RevisionProduct(ProductInstance):
 
         diff = self._calculate_diff()
 
+        # Break out new and replace sources into paths and descriptions
+        new_sources = diff.pop("new_sources", {})
+        replace_sources = diff.pop("replace_sources", {})
+
+        diff["new_sources"] = {x: y.path for x, y in new_sources.items()}
+        diff["replace_sources"] = {x: y.path for x, y in replace_sources.items()}
+        diff["new_source_descriptions"] = {
+            x: y.description for x, y in new_sources.items()
+        }
+        diff["replace_source_descriptions"] = {
+            x: y.description for x, y in replace_sources.items()
+        }
+
         remote_id = product_client.update(
             client=client,
             id=self.revision_of.product_id,

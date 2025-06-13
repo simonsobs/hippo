@@ -127,7 +127,7 @@ class Product(ProtectedDocument, ProductMetadata):
     )
 
     collections: list[Link["Collection"]] = []
-    collection_policies: list[CollectionPolicy] = []
+    collection_policies: list[CollectionPolicy] = [CollectionPolicy.CURRENT]
 
     async def to_metadata(self) -> ProductMetadata:
         # If links are longer than the pre-determined limit (3) we need

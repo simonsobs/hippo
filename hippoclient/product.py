@@ -5,7 +5,7 @@ Methods for interacting with the product layer of the hippo API.
 from pathlib import Path
 
 import xxhash
-from httpx import Client
+from httpx import Client, Response
 from rich.console import Console
 from tqdm import tqdm
 
@@ -18,6 +18,89 @@ from hipposerve.service.product import PostUploadFile, PreUploadFile
 from .core import MultiCache
 
 MULTIPART_UPLOAD_SIZE = 50 * 1024 * 1024
+
+
+def __upload_sources(
+    initial_response: Response,
+    client: Client,
+    sources: dict[str, PreUploadFile],
+    this_product_id: str,
+    console: Console | None = None,
+) -> dict[str, list[dict[str, str]]]:
+    responses = {}
+    sizes = {}
+
+    # Upload the sources to the presigned URLs.
+    for source in sources.values():
+        with source.open("rb") as file:
+            if console:
+                console.print("Uploading file:", source.name)
+
+            upload_urls = initial_response.json()["upload_urls"][source.name]
+            headers = []
+            size = []
+
+            # We need to handle our own redirects because otherwise the head of the file will be incorrect,
+            # and we will end up with Content-Length errors.
+
+            with tqdm(
+                desc="Uploading",
+                total=source.stat().st_size,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as t:
+                file_position = 0
+
+                for upload_url in upload_urls:
+                    retry = True
+
+                    while retry:
+                        file.seek(file_position)
+
+                        data = file.read(MULTIPART_UPLOAD_SIZE)
+
+                        individual_response = client.put(
+                            upload_url.strip(),
+                            content=data,
+                            follow_redirects=True,
+                            auth=None,
+                        )
+
+                        if individual_response.status_code in [301, 302, 307, 308]:
+                            if console:
+                                console.print(
+                                    f"Redirected to {individual_response.headers['Location']} from {upload_url}"
+                                )
+                            upload_url = individual_response.headers["Location"]
+
+                            continue
+                        else:
+                            retry = False
+                            individual_response.raise_for_status()
+                            break
+
+                    headers.append(dict(individual_response.headers))
+                    size.append(len(data))
+
+                    file_position += MULTIPART_UPLOAD_SIZE
+                    t.update(len(data))
+
+            responses[source.name] = headers
+            sizes[source.name] = size
+
+            if console:
+                console.print("Successfully uploaded file:", source.name)
+
+    # Close out the upload.
+    response = client.post(
+        f"/product/{this_product_id}/complete",
+        json={"headers": responses, "sizes": sizes},
+    )
+
+    response.raise_for_status()
+
+    return response.json()
 
 
 def create(
@@ -119,83 +202,18 @@ def create(
 
     this_product_id = response.json()["id"]
 
+    __upload_sources(
+        initial_response=response,
+        client=client,
+        sources=sources,
+        this_product_id=this_product_id,
+        console=console,
+    )
+
     if console:
         console.print(
             f"Successfully created product {this_product_id} in remote database."
         )
-
-    responses = {}
-    sizes = {}
-
-    # Upload the sources to the presigned URLs.
-    for source in sources.values():
-        with source.open("rb") as file:
-            if console:
-                console.print("Uploading file:", source.name)
-
-            upload_urls = response.json()["upload_urls"][source.name]
-            headers = []
-            size = []
-
-            # We need to handle our own redirects because otherwise the head of the file will be incorrect,
-            # and we will end up with Content-Length errors.
-
-            with tqdm(
-                desc="Uploading",
-                total=source.stat().st_size,
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as t:
-                file_position = 0
-
-                for upload_url in upload_urls:
-                    retry = True
-
-                    while retry:
-                        file.seek(file_position)
-
-                        data = file.read(MULTIPART_UPLOAD_SIZE)
-
-                        individual_response = client.put(
-                            upload_url.strip(),
-                            content=data,
-                            follow_redirects=True,
-                            auth=None,
-                        )
-
-                        if individual_response.status_code in [301, 302, 307, 308]:
-                            if console:
-                                console.print(
-                                    f"Redirected to {individual_response.headers['Location']} from {upload_url}"
-                                )
-                            upload_url = individual_response.headers["Location"]
-
-                            continue
-                        else:
-                            retry = False
-                            individual_response.raise_for_status()
-                            break
-
-                    headers.append(dict(individual_response.headers))
-                    size.append(len(data))
-
-                    file_position += MULTIPART_UPLOAD_SIZE
-                    t.update(len(data))
-
-            responses[source.name] = headers
-            sizes[source.name] = size
-
-            if console:
-                console.print("Successfully uploaded file:", source.name)
-
-    # Close out the upload.
-    response = client.post(
-        f"/product/{this_product_id}/complete",
-        json={"headers": responses, "sizes": sizes},
-    )
-
-    response.raise_for_status()
 
     # Confirm the upload to hippo.
     response = client.post(f"/product/{this_product_id}/confirm")
@@ -290,15 +308,17 @@ def update(
     description: str | None,
     level: int,
     metadata: ALL_METADATA_TYPE | None,
-    new_sources: dict[str, PreUploadFile] | None = None,
-    replace_sources: dict[str, PreUploadFile] | None = None,
+    new_sources: dict[str, Path] | None = None,
+    new_source_descriptions: dict[str, str | None] | None = None,
+    replace_sources: dict[str, Path] | None = None,
+    replace_source_descriptions: dict[str, str | None] | None = None,
     drop_sources: list[str] | None = None,
     add_readers: list[str] | None = None,
     remove_readers: list[str] | None = None,
     add_writers: list[str] | None = None,
     remove_writers: list[str] | None = None,
     console: Console | None = None,
-) -> bool:
+) -> str:
     """
     Update a product in hippo.
 
@@ -316,20 +336,62 @@ def update(
         The new version level where 0 is major, 1 is minor, and 2 is patch.
     metadata : ALL_METADATA_TYPE
         The new product metadata to update.
-    new_sources : list[PreUploadFile]
+    new_sources : dict[str, Path] | None
         A list of new sources to add to the product.
-    replace_sources : list[PreUploadFile]
+    new_source_descriptions : dict[str, str | None] | None
+        A list of descriptions for the new sources keyed by their slug.
+    replace_sources : dict[str, Path] | None
         A list of sources to replace in a product.
+    replace_source_descriptions : dict[str, str | None] | None
+        A list of descriptions for the sources to replace keyed by their slug.
     drop_sources : list[str]
         A list of source IDs to delete from a product.
     console : Console, optional
         The rich console to print to.
+
+    Returns
+    -------
+    str
+        The ID of the updated product.
 
     Raises
     ------
     httpx.HTTPStatusError
         If a request to the API fails
     """
+
+    new_source_metadata = {}
+
+    for slug in (new_sources or {}).keys():
+        filename = new_sources[slug]
+        desc = new_source_descriptions[slug]
+
+        with filename.open("rb") as file:
+            file_info = {
+                "name": filename.name,
+                "size": filename.stat().st_size,
+                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
+                "description": desc,
+            }
+            new_source_metadata[slug] = file_info
+            if console:
+                console.print("Successfully validated file:", file_info)
+
+    replace_source_metadata = {}
+    for slug in (replace_sources or {}).keys():
+        filename = replace_sources[slug]
+        desc = replace_source_descriptions[slug]
+
+        with filename.open("rb") as file:
+            file_info = {
+                "name": filename.name,
+                "size": filename.stat().st_size,
+                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
+                "description": desc,
+            }
+            replace_source_metadata[slug] = file_info
+            if console:
+                console.print("Successfully validated file:", file_info)
 
     response = client.post(
         f"/product/{id}/update",
@@ -338,8 +400,8 @@ def update(
             "description": description,
             "level": level,
             "metadata": metadata.model_dump() if metadata else None,
-            "new_sources": new_sources or {},
-            "replace_sources": replace_sources or {},
+            "new_sources": new_source_metadata,
+            "replace_sources": replace_source_metadata,
             "drop_sources": drop_sources or [],
             "add_readers": add_readers or [],
             "remove_readers": remove_readers or [],
@@ -350,10 +412,20 @@ def update(
 
     response.raise_for_status()
 
+    this_product_id = response.json()["id"]
+
+    __upload_sources(
+        initial_response=response,
+        client=client,
+        sources={**(new_sources or {}), **(replace_sources or {})},
+        this_product_id=this_product_id,
+        console=console,
+    )
+
     if console:
         console.print(f"Successfully updated product {id}.", style="bold green")
 
-    return True
+    return this_product_id
 
 
 def delete(client: Client, id: str, console: Console | None = None) -> bool:

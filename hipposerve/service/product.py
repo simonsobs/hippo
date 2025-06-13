@@ -157,7 +157,6 @@ async def create(
         child_of=[],
         parent_of=[],
         collections=[],
-        collection_policies=[],
         readers=set(product_readers or []) | {user_name},
         writers=set(product_writers or []) | {user_name},
     )

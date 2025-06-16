@@ -16,3 +16,7 @@ examples/*.fits
 .jwt_secret
 .github_client_id
 .github_client_secret
+
+# Data
+*.fits
+*.tar.gz

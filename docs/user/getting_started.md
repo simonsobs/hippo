@@ -1,12 +1,12 @@
 Getting Started
 ===============
 
-You can always use the web interface to interact with HIPPO. You may want to
-interact with products and collections through a command line or Pythonic
-interface To do that, you'll need to make sure that you have API keys set up and
-the correct packages installed. HIPPO uses SOAuth, the centralized
-authentication solution for Simons Observatory services, to ensure consistent
-access across various services to similar products.
+You can always use the web interface to interact with HIPPO. In some scenarios,
+however, you may want to interact with products and collections through a
+command line or Pythonic interface. To do that, you'll need to make sure that
+you have API keys set up and the correct packages installed. HIPPO uses SOAuth,
+the centralized authentication solution for Simons Observatory services, to
+ensure consistent access across various services to similar products.
 
 Permissions System
 ------------------
@@ -78,7 +78,7 @@ products.
 To set up Henry, you'll need to create a little file in your home directory
 called `.hippo.conf`. This is a JSON file with the following structure:
 
-```
+```json
 {
   "host": "https://hippo.simonsobservatory.org",
   "verbose": true,
@@ -92,7 +92,7 @@ called `.hippo.conf`. This is a JSON file with the following structure:
 
 There are five major components of this file. The first is the host on which the
 HIPPO server is running. Generally, this will simply be
-`https://hippo.simonsobservety.org`.
+`https://hippo.simonsobservatory.org`.
 
 Second is whether or not you want your Henry output
 to be verbose. If this is set to true, then you'll get much more information

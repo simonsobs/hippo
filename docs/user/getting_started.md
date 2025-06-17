@@ -108,7 +108,6 @@ be able to read all the products you create, you should have `simonsobs` as a
 member of your default readers. The groups which can read and write to your products
 can always be modified later on if necessary.
 
-
 Caches
 ------
 

@@ -302,7 +302,7 @@ def cache_clear_all():
 
     for cache in CACHE.caches:
         if cache.writeable:
-            sc.caching.clear_all(cache=cache, console=CONSOLE)
+            sc.caching.clear_all(cache=cache)
             CONSOLE.print(f"Cleared cache {cache.path}")
 
 

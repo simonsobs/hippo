@@ -591,12 +591,11 @@ def uncache(
 
     product = read(client, id)
 
-    for vid, version in product.versions.items():
-        for source in version.sources:
-            cache.remove(source.uuid)
+    for source in product.sources.values():
+        cache.remove(source.uuid)
 
-            if console:
-                console.print(f"Removed file {source.name} ({source.uuid}) from cache")
+        if console:
+            console.print(f"Removed file {source.name} ({source.uuid}) from cache")
 
     return
 

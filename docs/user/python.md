@@ -249,8 +249,7 @@ With a verbose client, we can see all that happening:
 ```
 Successfully validated file:
 {
-    'name': 
-'act-planck_dr4dr6_coadd_AA_daynight_f150_map.fits',
+    'name': 'act-planck_dr4dr6_coadd_AA_daynight_f150_map.fits',
     'size': 5349890880,
     'checksum': 'xxh64:08afc3f88a8cbbe3',
     'description': 'actxplanck coadd'

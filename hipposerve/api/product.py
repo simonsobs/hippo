@@ -6,6 +6,7 @@ import asyncio
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from loguru import logger
 
 from hipposerve.api.models.product import (
@@ -18,7 +19,7 @@ from hipposerve.api.models.product import (
     UpdateProductResponse,
 )
 from hipposerve.database import ProductMetadata
-from hipposerve.service import acl, product, users
+from hipposerve.service import acl, product, storage, users
 from hipposerve.service.auth import requires
 
 product_router = APIRouter(prefix="/product")
@@ -220,6 +221,32 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
         product=await item.to_metadata(),
         files=files,
     )
+
+
+@product_router.get("/products/{id}/{slug}")
+@requires(["hippo:admin", "hippo:read"])
+async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
+    NOT_FOUND = HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Slug {slug} not found for product {id}",
+    )
+    try:
+        product_instance = await product.read_by_id(id, request.user.groups)
+    except product.ProductNotFound:
+        raise NOT_FOUND
+
+    # If they have not 401/403'd from reading the product, they can read sources
+    try:
+        presigned = await storage.read(
+            file=product_instance.sources[slug], storage=request.app.storage
+        )
+    except (FileNotFoundError, KeyError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Slug {slug} not found for product {id}",
+        )
+
+    return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
 
 
 @product_router.post("/{id}/update")

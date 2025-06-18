@@ -2,12 +2,7 @@
 Populates the simple example server with a bunch of ACT maps.
 """
 
-from pathlib import Path
-
-from hippoclient.collections import add as add_to_collection
-from hippoclient.collections import create as create_collection
-from hippoclient.core import ClientSettings
-from hippoclient.product import create as create_product
+from henry import Henry, LocalSource
 from hippometa import BeamMetadata, MapSet
 
 COLLECTION_NAME = "ACT (AdvACT) Compton-y"
@@ -26,64 +21,46 @@ More details about these products can be found in 2307.01258, which details the 
 Two notebooks demonstrating two possible uses of the Compton-y maps are provided on GitHub here. The first notebook shows how to extract cutouts around objects of interest and perform a stacking analysis. The second example demonstrate a cross correlation and how to mitigate the CIB. The pixell package is used in these notebooks to read and manipulate Plate Carreé maps. Further examples can be found here. Contacts: Martine Lokken and Ola Kusiak.
 """
 
-map_set = MapSet(
-    pixelisation="cartesian",
-    telescope="ACT",
-    instrument="AdvACT",
-    release="DR6",
-    season=None,
-    patch=None,
-    frequency=None,
-    polarization_convention=None,
-    tags=["ymap"],
+henry = Henry(readers=["simonsobs"])
+
+map_set = henry.new_product(
+    name="Compton-y Map (ACT DR6)",
+    description="Compton-y map and mask from ACT DR6.",
+    metadata=MapSet(
+        pixelisation="cartesian",
+        telescope="ACT",
+        instrument="AdvACT",
+        release="DR6",
+        season=None,
+        patch=None,
+        frequency=None,
+        polarization_convention=None,
+        tags=["ymap"],
+    ),
+    sources=dict(
+        coadd=LocalSource(
+            path="ilc_actplanck_ymap.fits",
+            description="Compton-y map from ACT DR6, lowpass filtered to ell=17000",
+        ),
+        mask=LocalSource(
+            path="wide_mask_GAL070_apod_1.50_deg_wExtended.fits",
+            description="Mask for the Compton-y map from ACT DR6",
+        ),
+    ),
 )
 
-beam = BeamMetadata()
+beam = henry.new_product(
+    name="Compton-y Beam (ACT DR6)",
+    description="Beam used for the Compton-y map for ACT DR6",
+    metadata=BeamMetadata(),
+    sources=dict(
+        data=LocalSource(path="ilc_beam.txt", description="Beam file"),
+    ),
+)
 
-map_name = "Compton-y Map (ACT DR6)"
-map_description = "Compton-y map and mask from ACT DR6."
-beam_name = "Compton-y Beam (ACT DR6)"
-beam_description = "Beam used for the Compton-y map for ACT DR6."
-
+collection = henry.new_collection(
+    name=COLLECTION_NAME, description=COLLECTION_DESCRIPTION, products=[map_set, beam]
+)
 
 if __name__ == "__main__":
-    client = ClientSettings().client
-
-    collection_id = create_collection(
-        client=client,
-        name=COLLECTION_NAME,
-        description=COLLECTION_DESCRIPTION,
-    )
-
-    product_id = create_product(
-        client=client,
-        name=map_name,
-        description=map_description,
-        metadata=map_set,
-        sources={
-            "coadd": Path("ilc_actplanck_ymap.fits"),
-            "mask": Path("wide_mask_GAL070_apod_1.50_deg_wExtended.fits"),
-        },
-        source_descriptions={"coadd": "Compton-y map", "mask": "Mask"},
-    )
-
-    add_to_collection(
-        client=client,
-        id=collection_id,
-        product=product_id,
-    )
-
-    product_id = create_product(
-        client=client,
-        name=beam_name,
-        description=beam_description,
-        metadata=beam,
-        sources={"data": Path("ilc_beam.txt")},
-        source_descriptions={"data": "Beam"},
-    )
-
-    add_to_collection(
-        client=client,
-        id=collection_id,
-        product=product_id,
-    )
+    henry.push(collection)

@@ -96,3 +96,40 @@ def test_groups_update_add_reader(server, tmp_path):
         group="test_group",
     )
     product.delete(client, id)
+
+
+def test_upload_replacement_source(server, tmp_path):
+    client = Client(
+        token_tag=None,
+        host=server["url"],
+    )
+
+    with open(tmp_path / "test.bin", "wb") as f:
+        for _ in range(64):  # 64MB
+            f.write(random.randbytes(1024 * 1024))
+
+    id = product.create(
+        client=client,
+        name="test_product",
+        description="test_description",
+        metadata=SimpleMetadata(),
+        sources={"data": tmp_path / "test.bin"},
+        source_descriptions={"data": None},
+    )
+
+    with open(tmp_path / "test2.bin", "wb") as f:
+        for _ in range(64):  # 64MB
+            f.write(random.randbytes(1024 * 1024))
+
+    product.update(
+        client=client,
+        id=id,
+        name=None,
+        description=None,
+        level=2,
+        metadata=None,
+        replace_sources={"data": tmp_path / "test2.bin"},
+        replace_source_descriptions={"data": None},
+    )
+
+    product.delete(client, id)

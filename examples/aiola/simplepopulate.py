@@ -6,10 +6,7 @@ from pathlib import Path
 
 import astropy.io.fits as fits
 
-from hippoclient.collections import add as add_to_collection
-from hippoclient.collections import create as create_collection
-from hippoclient.core import ClientSettings
-from hippoclient.product import create as create_product
+from henry import Henry, LocalSource
 from hippometa import MapSet
 
 COLLECTION_NAME = (
@@ -151,10 +148,9 @@ if __name__ == "__main__":
             if a in x:
                 return b
 
-    client = ClientSettings().client
+    henry = Henry()
 
-    collection_id = create_collection(
-        client=client,
+    collection = henry.new_collection(
         name=COLLECTION_NAME,
         description=COLLECTION_DESCRIPTION,
     )
@@ -172,22 +168,16 @@ if __name__ == "__main__":
         )
         primary_map = find_primary_map(sub_sets[sub_set])
 
-        source_descriptions = {
-            get_map_type(y): link_match(get_map_type(y))
-            for y in sub_sets[sub_set].values()
-        }
-
-        product_id = create_product(
-            client=client,
+        product = henry.new_product(
             name=sub_set,
             description=get_description(primary_map),
             metadata=metadata,
-            sources=sub_sets[sub_set],
-            source_descriptions=source_descriptions,
+            sources={
+                x: LocalSource(path=y, description=link_match(get_map_type(y)))
+                for x, y in sub_sets[sub_set].items()
+            },
         )
 
-        add_to_collection(
-            client=client,
-            id=collection_id,
-            product=product_id,
-        )
+        collection.append(product)
+
+    henry.push(collection)

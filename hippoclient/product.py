@@ -5,7 +5,7 @@ Methods for interacting with the product layer of the hippo API.
 from pathlib import Path
 
 import xxhash
-from httpx import Client
+from httpx import Client, Response
 from rich.console import Console
 from tqdm import tqdm
 
@@ -20,98 +20,13 @@ from .core import MultiCache
 MULTIPART_UPLOAD_SIZE = 50 * 1024 * 1024
 
 
-def create(
+def __upload_sources(
+    initial_response: Response,
     client: Client,
-    name: str,
-    description: str,
-    metadata: ALL_METADATA_TYPE,
-    sources: dict[str, Path],
-    source_descriptions: dict[str, str | None],
+    sources: dict[str, PreUploadFile],
+    this_product_id: str,
     console: Console | None = None,
-) -> str:
-    """
-    Create a product in hippo.
-
-    This is a multi-stage process, where we:
-
-    a) Check and validate the sources.
-    b) Make a request to hippo to create the product.
-    c) Upload the sources to the presigned URLs.
-    d) Confirm the upload to hippo.
-
-    Arguments
-    ---------
-    client: Client
-        The client to use for interacting with the hippo API.
-    name : str
-        The name of the product.
-    description : str
-        The description of the product.
-    metadata : ALL_METADATA_TYPE
-        The metadata of the product, as a validated pydantic model.
-    sources : dict[str, Path]
-        The list of paths to the sources of the product keyed by their slug.
-    console : Console, optional
-        The rich console to print to.
-
-    Returns
-    -------
-    str
-        The ID of the product created.
-
-    Raises
-    ------
-    httpx.HTTPStatusError
-        If a request to the API fails
-    """
-
-    # Check and validate the sources.
-    assert len(sources) == len(source_descriptions)
-
-    # Co-erce sources to paths as they will inevitably be strings...
-    sources = {x: Path(y) for x, y in sources.items()}
-
-    source_metadata = {}
-
-    for slug in sources:
-        filename = sources[slug]
-        desc = source_descriptions[slug]
-
-        with filename.open("rb") as file:
-            file_info = {
-                "name": filename.name,
-                "size": filename.stat().st_size,
-                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
-                "description": desc,
-            }
-            source_metadata[slug] = file_info
-            if console:
-                console.print("Successfully validated file:", file_info)
-
-    # Make a request to hippo to create the product.
-    if metadata is None:
-        metadata = SimpleMetadata()
-
-    response = client.put(
-        "/product/new",
-        json={
-            "name": name,
-            "description": description,
-            "metadata": metadata.model_dump(),
-            "sources": source_metadata,
-            "mutlipart_batch_size": MULTIPART_UPLOAD_SIZE,
-        },
-    )
-
-    response.raise_for_status()
-
-    this_product_id = response.json()["id"]
-
-    if console:
-        console.print(
-            f"Successfully created product {this_product_id} in remote database."
-        )
-
+) -> dict[str, list[dict[str, str]]]:
     responses = {}
     sizes = {}
 
@@ -121,7 +36,7 @@ def create(
             if console:
                 console.print("Uploading file:", source.name)
 
-            upload_urls = response.json()["upload_urls"][source.name]
+            upload_urls = initial_response.json()["upload_urls"][source.name]
             headers = []
             size = []
 
@@ -184,6 +99,121 @@ def create(
     )
 
     response.raise_for_status()
+
+    return response.json()
+
+
+def create(
+    client: Client,
+    name: str,
+    description: str,
+    metadata: ALL_METADATA_TYPE,
+    sources: dict[str, Path],
+    source_descriptions: dict[str, str | None],
+    readers: list[str] | None = None,
+    writers: list[str] | None = None,
+    console: Console | None = None,
+) -> str:
+    """
+    Create a product in hippo.
+
+    This is a multi-stage process, where we:
+
+    a) Check and validate the sources.
+    b) Make a request to hippo to create the product.
+    c) Upload the sources to the presigned URLs.
+    d) Confirm the upload to hippo.
+
+    Arguments
+    ---------
+    client: Client
+        The client to use for interacting with the hippo API.
+    name : str
+        The name of the product.
+    description : str
+        The description of the product.
+    metadata : ALL_METADATA_TYPE
+        The metadata of the product, as a validated pydantic model.
+    sources : dict[str, Path]
+        The list of paths to the sources of the product keyed by their slug.
+    source_descriptions : dict[str, str | None]
+        The descriptions of the sources keyed by their slug.
+    readers : list[str] | None, optional
+        A list of groups that can read the product.
+    writers : list[str] | None, optional
+        A list of groups that can write to the product.
+    console : Console, optional
+        The rich console to print to.
+
+    Returns
+    -------
+    str
+        The ID of the product created.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails
+    """
+
+    # Check and validate the sources.
+    assert len(sources) == len(source_descriptions)
+
+    # Co-erce sources to paths as they will inevitably be strings...
+    sources = {x: Path(y) for x, y in sources.items()}
+
+    source_metadata = {}
+
+    for slug in sources:
+        filename = sources[slug]
+        desc = source_descriptions[slug]
+
+        with filename.open("rb") as file:
+            file_info = {
+                "name": filename.name,
+                "size": filename.stat().st_size,
+                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
+                "description": desc,
+            }
+            source_metadata[slug] = file_info
+            if console:
+                console.print("Successfully validated file:", file_info)
+
+    # Make a request to hippo to create the product.
+    if metadata is None:
+        metadata = SimpleMetadata()
+
+    content = {
+        "name": name,
+        "description": description,
+        "metadata": metadata.model_dump(),
+        "sources": source_metadata,
+        "mutlipart_batch_size": MULTIPART_UPLOAD_SIZE,
+    }
+
+    if readers is not None:
+        content["product_readers"] = readers
+    if writers is not None:
+        content["product_writers"] = writers
+
+    response = client.put("/product/new", json=content)
+
+    response.raise_for_status()
+
+    this_product_id = response.json()["id"]
+
+    __upload_sources(
+        initial_response=response,
+        client=client,
+        sources=sources,
+        this_product_id=this_product_id,
+        console=console,
+    )
+
+    if console:
+        console.print(
+            f"Successfully created product {this_product_id} in remote database."
+        )
 
     # Confirm the upload to hippo.
     response = client.post(f"/product/{this_product_id}/confirm")
@@ -278,11 +308,17 @@ def update(
     description: str | None,
     level: int,
     metadata: ALL_METADATA_TYPE | None,
-    new_sources: list[PreUploadFile] = [],
-    replace_sources: list[PreUploadFile] = [],
-    drop_sources: list[str] = [],
+    new_sources: dict[str, Path] | None = None,
+    new_source_descriptions: dict[str, str | None] | None = None,
+    replace_sources: dict[str, Path] | None = None,
+    replace_source_descriptions: dict[str, str | None] | None = None,
+    drop_sources: list[str] | None = None,
+    add_readers: list[str] | None = None,
+    remove_readers: list[str] | None = None,
+    add_writers: list[str] | None = None,
+    remove_writers: list[str] | None = None,
     console: Console | None = None,
-) -> bool:
+) -> str:
     """
     Update a product in hippo.
 
@@ -300,14 +336,23 @@ def update(
         The new version level where 0 is major, 1 is minor, and 2 is patch.
     metadata : ALL_METADATA_TYPE
         The new product metadata to update.
-    new_sources : list[PreUploadFile]
+    new_sources : dict[str, Path] | None
         A list of new sources to add to the product.
-    replace_sources : list[PreUploadFile]
+    new_source_descriptions : dict[str, str | None] | None
+        A list of descriptions for the new sources keyed by their slug.
+    replace_sources : dict[str, Path] | None
         A list of sources to replace in a product.
+    replace_source_descriptions : dict[str, str | None] | None
+        A list of descriptions for the sources to replace keyed by their slug.
     drop_sources : list[str]
         A list of source IDs to delete from a product.
     console : Console, optional
         The rich console to print to.
+
+    Returns
+    -------
+    str
+        The ID of the updated product.
 
     Raises
     ------
@@ -315,25 +360,72 @@ def update(
         If a request to the API fails
     """
 
+    new_source_metadata = {}
+
+    for slug in (new_sources or {}).keys():
+        filename = new_sources[slug]
+        desc = new_source_descriptions[slug]
+
+        with filename.open("rb") as file:
+            file_info = {
+                "name": filename.name,
+                "size": filename.stat().st_size,
+                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
+                "description": desc,
+            }
+            new_source_metadata[slug] = file_info
+            if console:
+                console.print("Successfully validated file:", file_info)
+
+    replace_source_metadata = {}
+    for slug in (replace_sources or {}).keys():
+        filename = replace_sources[slug]
+        desc = replace_source_descriptions[slug]
+
+        with filename.open("rb") as file:
+            file_info = {
+                "name": filename.name,
+                "size": filename.stat().st_size,
+                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
+                "description": desc,
+            }
+            replace_source_metadata[slug] = file_info
+            if console:
+                console.print("Successfully validated file:", file_info)
+
     response = client.post(
         f"/product/{id}/update",
         json={
             "name": name,
             "description": description,
             "level": level,
-            "metadata": metadata,
-            "new_sources": new_sources,
-            "replace_sources": replace_sources,
-            "drop_sources": drop_sources,
+            "metadata": metadata.model_dump() if metadata else None,
+            "new_sources": new_source_metadata,
+            "replace_sources": replace_source_metadata,
+            "drop_sources": drop_sources or [],
+            "add_readers": add_readers or [],
+            "remove_readers": remove_readers or [],
+            "add_writers": add_writers or [],
+            "remove_writers": remove_writers or [],
         },
     )
 
     response.raise_for_status()
 
+    this_product_id = response.json()["id"]
+
+    __upload_sources(
+        initial_response=response,
+        client=client,
+        sources={**(new_sources or {}), **(replace_sources or {})},
+        this_product_id=this_product_id,
+        console=console,
+    )
+
     if console:
         console.print(f"Successfully updated product {id}.", style="bold green")
 
-    return True
+    return this_product_id
 
 
 def delete(client: Client, id: str, console: Console | None = None) -> bool:
@@ -437,16 +529,16 @@ def cache(
 
     response.raise_for_status()
 
-    post_upload_files = [
-        PostUploadFile.model_validate(x) for x in response.json()["files"]
-    ]
+    post_upload_files = {
+        x: PostUploadFile.model_validate(y) for x, y in response.json()["files"].items()
+    }
 
     if console:
         console.print(f"Successfully read product {id}")
 
     response_paths = []
 
-    for file in post_upload_files:
+    for file in post_upload_files.values():
         # See if it's already cached.
         try:
             cached = cache.available(file.uuid)
@@ -499,12 +591,11 @@ def uncache(
 
     product = read(client, id)
 
-    for vid, version in product.versions.items():
-        for source in version.sources:
-            cache.remove(source.uuid)
+    for source in product.sources.values():
+        cache.remove(source.uuid)
 
-            if console:
-                console.print(f"Removed file {source.name} ({source.uuid}) from cache")
+        if console:
+            console.print(f"Removed file {source.name} ({source.uuid}) from cache")
 
     return
 

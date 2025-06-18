@@ -43,6 +43,11 @@ class ClientSettings(BaseSettings):
     use_multipart_upload: bool = False
     "The size of the multipart upload parts in bytes. If set to zero, no multipart uploads will be used."
 
+    default_readers: list[str] = []
+    "Default readers for new collections and products"
+    default_writers: list[str] = []
+    "Default writers for new collections and products"
+
     caches: list[Cache] = []
 
     model_config = SettingsConfigDict(

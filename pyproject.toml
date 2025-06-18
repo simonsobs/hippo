@@ -2,12 +2,15 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 include=["hippoclient*", "henry*", "hippometa*", "hipposerve*"]
 exclude=["*tests*", "*examples*", "*htmlcov*"]
 
 [tool.setuptools.package-data]
-static = ["hipposerve/web/static/*.svg", "hipposerve/web/templates/*.html"]
+hipposerve = ["web/static/*.svg", "web/templates/*.html"]
 
 [project]
 name = "hipposerve"

@@ -66,7 +66,9 @@ def setup_auth(app: FastAPI) -> FastAPI:
                     "<p>You are not able to access this due to a lack of privileges</p>",
                 )
             else:
-                return RedirectResponse(app.login_url)
+                # Encode the URL to redirect to after login
+                redirect_url = app.login_url + "?next=" + request.url.path
+                return RedirectResponse(redirect_url)
 
         app.add_exception_handler(403, redirect_to_login)
         app.add_exception_handler(401, redirect_to_login)

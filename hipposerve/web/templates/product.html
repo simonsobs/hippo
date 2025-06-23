@@ -32,7 +32,7 @@
                     <td class=" font-monospace">{{slug}}</td>
                     <td><a href='{{ web_root }}/products/{{product.id}}/{{ slug }}'>{{ source.name }}</a></td>
                     <td>{{ source.description }}</td>
-                    <td class="text-nowrap">{{ source.size }} B</td>
+                    <td class="text-nowrap">{{ source.size | filesizeformat }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

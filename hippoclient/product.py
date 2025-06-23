@@ -65,6 +65,9 @@ def __upload_sources(
                             content=data,
                             follow_redirects=True,
                             auth=None,
+                            # Blocks are 50 MB so may timeout on slow connections 
+                            # (httpx defaults to 5 seconds)
+                            timeout=120.0,
                         )
 
                         if individual_response.status_code in [301, 302, 307, 308]:

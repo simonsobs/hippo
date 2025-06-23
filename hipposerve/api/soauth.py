@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
@@ -67,7 +69,8 @@ def setup_auth(app: FastAPI) -> FastAPI:
                 )
             else:
                 # Encode the URL to redirect to after login
-                redirect_url = app.login_url + "?next=" + request.url.path
+                redirect_url = urlencode({"next": request.url.path})
+                redirect_url = app.login_url + "?" + redirect_url
                 return RedirectResponse(redirect_url)
 
         app.add_exception_handler(403, redirect_to_login)

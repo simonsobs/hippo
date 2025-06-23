@@ -187,6 +187,23 @@ class Storage(BaseModel):
 
         self.bucket(name=bucket)
 
+        # Special headers - if we have a video or image, we want it to
+        # be displayed inline in the browser, not downloaded.
+
+        match x := name.split(".")[-1].lower():
+            case "jpg" | "jpeg" | "png" | "gif":
+                response_headers = {
+                    "response-content-type": f"image/{x}",
+                    "response-content-disposition": "inline",
+                }
+            case "mp4" | "webm":
+                response_headers = {
+                    "response-content-type": f"video/{x}",
+                    "response-content-disposition": "inline",
+                }
+            case _:
+                response_headers = None
+
         base_url = self.client.presigned_get_object(
             bucket_name=bucket,
             object_name=self.object_name(
@@ -195,6 +212,7 @@ class Storage(BaseModel):
                 uuid=uuid,
             ),
             expires=self.expires,
+            response_headers=response_headers,
         )
 
         return replace_host(

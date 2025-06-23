@@ -186,7 +186,7 @@ def create(
     content = {
         "name": name,
         "description": description,
-        "metadata": metadata.model_dump(),
+        "metadata": metadata.model_dump(mode="json"),
         "sources": source_metadata,
         "mutlipart_batch_size": MULTIPART_UPLOAD_SIZE,
     }

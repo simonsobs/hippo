@@ -20,6 +20,7 @@ from pydantic import Field
 
 from hippometa.archive import ArchiveMetadata
 from hippometa.beam import BeamMetadata
+from hippometa.cameras import CameraMetadata
 from hippometa.catalog import CatalogMetadata
 from hippometa.mapset import MapSet
 from hippometa.numeric import NumericMetadata
@@ -33,6 +34,7 @@ ALL_METADATA_TYPE = Annotated[
         CatalogMetadata,
         NumericMetadata,
         SimpleMetadata,
+        CameraMetadata,
         None,
     ],
     Field(discriminator="metadata_type"),
@@ -47,5 +49,6 @@ ALL_METADATA = {
         CatalogMetadata,
         NumericMetadata,
         SimpleMetadata,
+        CameraMetadata,
     ]
 }

@@ -46,7 +46,8 @@ def setup_auth(app: FastAPI) -> FastAPI:
 
     if SETTINGS.auth_system == "soauth":
         from soauth.toolkit.fastapi import global_setup
-        from starlette.authentication import AuthenticationError
+
+        from hipposerve.service.auth import AuthenticationError
 
         app = global_setup(
             app=app,

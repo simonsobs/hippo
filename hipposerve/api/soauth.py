@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -45,6 +46,7 @@ def setup_auth(app: FastAPI) -> FastAPI:
 
     if SETTINGS.auth_system == "soauth":
         from soauth.toolkit.fastapi import global_setup
+        from starlette.authentication import AuthenticationError
 
         app = global_setup(
             app=app,
@@ -55,6 +57,19 @@ def setup_auth(app: FastAPI) -> FastAPI:
             public_key=SETTINGS.soauth_public_key,
             client_secret=SETTINGS.soauth_client_secret,
         )
+
+        # Add exception handlers
+        def redirect_to_login(request: Request, exc):
+            if request.user.is_authenticated:
+                return HTMLResponse(
+                    "<p>You are not able to access this due to a lack of privileges</p>",
+                )
+            else:
+                return RedirectResponse(app.login_url)
+
+        app.add_exception_handler(403, redirect_to_login)
+        app.add_exception_handler(401, redirect_to_login)
+        app.add_exception_handler(AuthenticationError, redirect_to_login)
     else:
         from soauth.toolkit.fastapi import mock_global_setup
 

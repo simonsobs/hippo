@@ -16,17 +16,17 @@ class MapSet(BaseMetadata):
 
     metadata_type: Literal["mapset"] = "mapset"
     valid_slugs: ClassVar[set[str]] = {
-        "map", # A regular, source and sky, and whatever else, map
-        "source_only", # A source-only map
-        "source_free", # A source-free map
-        "ivar", # Inverse-variance map
-        "xlink", # Cross-linking map
-        "mask", # Sky apodization mask
-        "hits", # Hit map (pixels that were hit by detectors)
-        "weights", # A weights map (?)
-        "time", # A time map, showing when individual detectors were hit
-        "file_names", # The file names of atomic maps or TODs used to create this map
-        "data", # Generic
+        "map",  # A regular, source and sky, and whatever else, map
+        "source_only",  # A source-only map
+        "source_free",  # A source-free map
+        "ivar",  # Inverse-variance map
+        "xlink",  # Cross-linking map
+        "mask",  # Sky apodization mask
+        "hits",  # Hit map (pixels that were hit by detectors)
+        "weights",  # A weights map (?)
+        "time",  # A time map, showing when individual detectors were hit
+        "file_names",  # The file names of atomic maps or TODs used to create this map
+        "data",  # Generic
     }
 
     pixelisation: Literal["healpix", "cartesian"]

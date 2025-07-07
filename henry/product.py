@@ -381,7 +381,7 @@ class RemoteProduct(ProductInstance):
             readers=self.readers,
             writers=self.writers,
         )
-    
+
     def preflight(self):
         """
         Preflight pass-through; used when we are adding a collection.

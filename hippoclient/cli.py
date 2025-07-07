@@ -244,6 +244,54 @@ def collection_delete(id: str):
     CONSOLE.print(f"Deleted collection {id}")
 
 
+@collection_app.command("add-product")
+def collection_add_product(id: str, product_id: str):
+    """
+    Add a product to a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.add(
+        client=CLIENT, id=id, product=product_id, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {product_id} to {id} collection. New ID is {updated_id}")
+
+
+@collection_app.command("remove-product")
+def collection_remove_product(id: str, product_id: str):
+    """
+    Remove a product from a collection.
+    """
+    global CLIENT
+    updated_id = sc.collections.remove(
+        client=CLIENT, id=id, product=product_id, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {product_id} from {id} collection. New ID is {updated_id}")
+
+
+@collection_app.command("add-collection")
+def collection_add_child(parent_id: str, child_id: str):
+    """
+    Add a sub-collection to a collection.
+    """
+    global CLIENT
+    sc.relationships.add_child_collection(
+        client=CLIENT, parent=parent_id, child=child_id, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {child_id} to {parent_id} sub-collection")
+
+
+@collection_app.command("remove-collection")
+def collection_remove_child(parent_id: str, child_id: str):
+    """
+    Remove a sub-collection from a collection.
+    """
+    global CLIENT
+    sc.relationships.remove_child_collection(
+        client=CLIENT, parent=parent_id, child=child_id, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {child_id} from {parent_id} sub-collection")
+
+
 @collection_app.command("add-reader")
 def collection_add_reader(id: str, group: str):
     """

@@ -232,6 +232,18 @@ def collection_uncache(id: str):
     CONSOLE.print(f"Uncached collection {id}")
 
 
+@collection_app.command("delete")
+def collection_delete(id: str):
+    """
+    Delete a collection by its name.
+    """
+    global CLIENT
+
+    sc.collections.delete(client=CLIENT, id=id, console=CONSOLE)
+
+    CONSOLE.print(f"Deleted collection {id}")
+
+
 @collection_app.command("add-reader")
 def collection_add_reader(id: str, group: str):
     """

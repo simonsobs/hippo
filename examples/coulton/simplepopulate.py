@@ -21,7 +21,7 @@ More details about these products can be found in 2307.01258, which details the 
 Two notebooks demonstrating two possible uses of the Compton-y maps are provided on GitHub here. The first notebook shows how to extract cutouts around objects of interest and perform a stacking analysis. The second example demonstrate a cross correlation and how to mitigate the CIB. The pixell package is used in these notebooks to read and manipulate Plate Carreé maps. Further examples can be found here. Contacts: Martine Lokken and Ola Kusiak.
 """
 
-henry = Henry(readers=["simonsobs"])
+henry = Henry()
 
 map_set = henry.new_product(
     name="Compton-y Map (ACT DR6)",

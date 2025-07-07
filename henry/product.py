@@ -381,6 +381,18 @@ class RemoteProduct(ProductInstance):
             readers=self.readers,
             writers=self.writers,
         )
+    
+    def preflight(self):
+        """
+        Preflight pass-through; used when we are adding a collection.
+        """
+        assert self.product_id, "Cannot preflight a RemoteProduct without a product_id"
+
+    def _upload(self, *args, **kwargs) -> str:
+        """
+        Upload is not supported for RemoteProduct, as it is a read-only object.
+        """
+        return self.product_id
 
 
 class RevisionProduct(ProductInstance):

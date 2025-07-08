@@ -13,9 +13,7 @@
       <span class="badge text-bg-warning mb-1 p-2">Writer: {{ writer }}</span>
     {% endfor %}
 </div>
-{% markdown %}
-{{ collection.description }}
-{% endmarkdown %}
+{% markdown %}{{ collection.description }}{% endmarkdown %}
     <div>
         <h3>Products</h3>
         <table class="table table-sm border border-secondary-subtle shadow-sm" style="max-width: 800px;">

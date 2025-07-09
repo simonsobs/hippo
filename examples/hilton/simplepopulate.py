@@ -112,7 +112,9 @@ if __name__ == "__main__":
                 name=catalog_names[catalog],
                 description=catalog_descriptions[catalog],
                 metadata=catalogs[catalog],
-                data=LocalSource(path=Path(catalog), description="Catalog file"),
+                sources=dict(
+                    data=LocalSource(path=Path(catalog), description="Catalog file"),
+                ),
             )
             for catalog in catalogs.keys()
         ],

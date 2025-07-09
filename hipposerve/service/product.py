@@ -387,6 +387,47 @@ async def read_most_recent(
     return await found.sort(-Product.updated).to_list(maximum)
 
 
+async def metadata_diff(
+    product: Product,
+    name: str | None,
+    description: str | None,
+    metadata: ALL_METADATA_TYPE | None,
+    level: versioning.VersionRevision,
+):
+    """
+    Calculate the diff between the current product and the new metadata.
+    This is used to determine what has changed and what needs to be updated.
+    """
+
+    if not product.current:
+        raise versioning.VersioningError(
+            "Attempting to update a non-current product. You must always "
+            "make changes to the head of the list"
+        )
+
+    changes = {}
+
+    if name is not None and name != product.name:
+        changes["name"] = [product.name, name]
+
+    if description is not None and description != product.description:
+        changes["description"] = [product.description, description]
+
+    if metadata is not None:
+        metadata_diff = {}
+        for key, value in metadata.model_dump().items():
+            original_value = getattr(product.metadata, key, None)
+
+            if value != original_value:
+                metadata_diff[key] = [original_value, value]
+
+        if metadata_diff:
+            changes["metadata"] = metadata_diff
+
+    changes["version"] = [product.version, versioning.revise_version(product.version, level=level)]
+
+    return changes
+
 async def update_metadata(
     product: Product,
     name: str | None,

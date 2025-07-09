@@ -1,0 +1,207 @@
+{% extends "core.html" %}
+{% block content %}
+<div class="container-fluid">
+    <form>
+        <div class="form-group">
+            <label for="product_name" class="mt-2 mb-1 h5">Product Name</label>
+            <input type="text" class="form-control" value="{{product.name}}" id="product_name">
+        </div>
+        <h3 class="mt-2 mb-2">Revision Level</h3>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="revision_level" id="major_radio" value=0 type="number">
+            <label class="form-check-label" for="major_radio">Major (X.0.0)</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="revision_level" id="minor_radio" value=1 type="number"
+                checked>
+            <label class="form-check-label" for="minor_radio">Minor (A.X.0)</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="revision_level" id="patch_radio" value=2 type="number">
+            <label class="form-check-label" for="patch_radio">Patch (A.B.X)</label>
+        </div>
+        <div class="form-group">
+            <label for="product_description" class="mt-2 mb-1 h5">Product Description</label>
+            <textarea class="form-control" id="product_description" , rows="10"
+                aria-describedby="description_help">{{product.description}}</textarea>
+            <small id="description_help" class="form-text text-muted">Markdown formatting is accepted</small>
+        </div>
+        <h3 class="mt-2 mb-2">Metadata</h3>
+        {% set schema = product.metadata.model_json_schema()["properties"] %}
+        {% for key, value in product.metadata.model_dump().items() %}
+        {% if key != 'metadata_type' %}
+        {% set preferred_type = schema[key]["type"] if "type" in schema[key] else
+        schema[key]["anyOf"][0]["type"] %}
+        {% if preferred_type != "object" %}
+        <div class="form-group row mb-2">
+            <label for="metadata_{{key}}" class="col-sm-3 col-form-label">{{ key }}</label>
+            <div class="col-sm-9" title="Schema: {{ schema[key] }}">
+
+                {% if preferred_type == "string" %}
+                <input type="text" class="form-control form-datatype-string" value="{{ value }}" id="metadata_{{key}}">
+                {% elif preferred_type == "number" %}
+                <input type="number" class="form-control form-datatype-number" value="{{ value }}"
+                    id="metadata_{{key}}">
+                {% elif preferred_type == "array" %}
+                {% if value %}
+                <input type="string" class="form-control form-datatype-array" value="{{ ','.join(value) }}"
+                    id="metadata_{{key}}">
+                {% else %}
+                <input type="string" class="form-control form-datatype-array" value="None" id="metadata_{{key}}">
+                {% endif %}
+                {% else %}
+                <input type="text" class="form-control form-datatype-other" value="{{ value }}" id="metadata_{{key}}">
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+        <button type="button" id="preview_changes" class="btn btn-primary mt-3">Preview</button>
+        <!-- Modal -->
+        <div class="modal fade" id="update_modal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="update_modal_label">Your Update</h5>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="update_modal_body">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="close_modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="save_changes">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    modal = new bootstrap.Modal(update_modal);
+
+    close_modal.addEventListener("click", () => { modal.hide() })
+    preview_changes.addEventListener("click", () => {
+        fetch(
+            "/product/{{product.id}}/diff",
+            {
+                method: "POST",
+                body: JSON.stringify(parseUpdate()),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            },
+        ).then(response => {
+            if (response.ok) {
+                response.json().then(content => {
+                    update_modal_body.innerHTML = createDiffHTML(content);
+                    modal.show();
+                })
+            } else {
+                response.json().then(content => {
+                    update_modal_body.innerHTML = `<div class="alert alert-danger"><h5>${response.statusText}</h5>${JSON.stringify(content)}</div>`;
+                    modal.show();
+                })
+            }
+
+        })
+    })
+    save_changes.addEventListener("click", (e) => {
+        fetch(
+            "/product/{{product.id}}/update",
+            {
+                method: "POST",
+                "body": JSON.stringify(parseUpdate()),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            }
+        ).then(
+            response => {
+                if (response.ok) {
+                    response.json().then(
+                        content => {
+                            location.href = `{{ web_root }}/products/${content.id}`
+                        }
+                    )
+                } else {
+                    response.text().then(
+                        text => {
+                            update_modal_body.innerHTML = `<div class="alert alert-danger"><h5>${response.statusText}</h5>${text}</div>`
+                        }
+                    )
+                        ;
+                }
+            }
+        )
+    })
+
+    function createDiffHTML(dictionary) {
+        let output = "<ul>";
+
+        for (const [key, value] of Object.entries(dictionary)) {
+            if (key == "metadata") {
+                line = createDiffHTML(value);
+            } else {
+                line = `<span class="badge text-bg-danger p-2">${value[0]}</span> → <span class="badge text-bg-success p-2">${value[1]}</span>`
+            }
+            output += `<li>${key}: ${line}</li>\n`
+        }
+
+        output += "</ul>"
+
+        return output
+    }
+
+    function parseUpdate() {
+        const update = {};
+        const metadata = { metadata_type: "{{product.metadata.metadata_type}}" };
+
+        // Select all inputs whose ID starts with "metadata_"
+        document.querySelectorAll('input[id^="metadata_"]').forEach(input => {
+            // Extract the part after "metadata_" to use as the key
+            const key = input.id.replace('metadata_', '');
+
+            if (input.value == "None") {
+                metadata[key] = null;
+                return
+            }
+
+            if (input.classList.contains("form-datatype-string")) {
+                metadata[key] = input.value;
+                return
+            }
+
+            if (input.classList.contains("form-datatype-number")) {
+                metadata[key] = Number(input.value);
+                return
+            }
+
+            if (input.classList.contains("form-datatype-array")) {
+                const arr = input.value.split(",").map(s => s.trim());
+                metadata[key] = arr;
+                return
+            }
+
+            metadata[key] = input.value;
+        });
+
+        update["metadata"] = metadata;
+        update["name"] = product_name.value;
+        update["description"] = product_description.value;
+        update["level"] = Number(getSelectedRevisionLevel());
+
+        return update;
+    }
+
+    function getSelectedRevisionLevel() {
+        const selected = document.querySelector('input[name="revision_level"]:checked');
+        if (selected) {
+            return selected.value;
+        }
+        return null;
+    }
+</script>
+{% endblock %}

@@ -52,6 +52,10 @@ async def update_access_control(
 
         doc = doc.replaces
 
+        if not hasattr(doc, "replaces"):
+            link = doc
+            doc = await link.fetch()
+
     # Base of tree that has no replacement
     doc.readers = readers
     doc.writers = writers

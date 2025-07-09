@@ -91,6 +91,20 @@ async def product_view(request: Request, id: str):
         },
     )
 
+@web_router.get("/products/{id}/edit")
+async def product_edit(request: Request, id: str):
+    product_instance = await product.read_by_id(id, request.user.groups)
+
+    return templates.TemplateResponse(
+        "product_edit.html",
+        {
+            "request": request,
+            "product": product_instance,
+            "user": request.user.display_name,
+            "web_root": SETTINGS.web_root,
+        },
+    )
+
 
 @web_router.get("/products/{id}/{slug}")
 async def product_read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
@@ -108,6 +122,7 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
         )
 
     return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
+
 
 
 @web_router.get("/collections/{id}")

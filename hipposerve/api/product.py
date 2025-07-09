@@ -223,7 +223,7 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
     )
 
 
-@product_router.get("/products/{id}/{slug}")
+@product_router.get("/{id}/{slug}")
 @requires(["hippo:admin", "hippo:read"])
 async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
     NOT_FOUND = HTTPException(
@@ -248,6 +248,53 @@ async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
 
     return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
 
+
+@product_router.post("/{id}/diff")
+@requires(["hippo:admin", "hippo:write"])
+async def metadata_diff(
+    id: PydanticObjectId,
+    model: UpdateProductRequest,
+    request: Request,
+):
+    """
+    Calculates a diff between the current product and any new metadata.
+    """
+
+    logger.info("Update product request for {} from {}", id, request.user.display_name)
+
+    try:
+        item = await product.read_by_id(id=id, groups=request.user.groups)
+    except product.ProductNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
+        )
+
+    if model.owner is not None:
+        try:
+            await users.confirm_user(name=model.owner)
+        except users.UserNotFound:
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="User not found"
+            )
+        
+    if not item.current:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot update a product that is not the current version",
+        )
+    
+    diff = await product.metadata_diff(
+        product=item,
+        name=model.name,
+        description=model.description,
+        metadata=model.metadata,
+        level=model.level,
+    )
+
+    logger.debug("Found metadata diff for product {} (id: {}): {}", item.name, item.id, diff)
+
+    return diff
+    
 
 @product_router.post("/{id}/update")
 @requires(["hippo:admin", "hippo:write"])

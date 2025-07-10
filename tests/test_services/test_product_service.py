@@ -56,7 +56,7 @@ async def test_create_file_with_multiple_sources(database, created_user, storage
     created_product, uploads = await product.create(
         name="Multiple Source Product",
         description="A product with multiple sources",
-        metadata=hippometa.MapSet(pixelisation="cartesian"),
+        metadata=hippometa.MapSet(pixelisation="equirectangular"),
         sources=sources,
         user_name=created_user.display_name,
         storage=storage,

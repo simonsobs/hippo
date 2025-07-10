@@ -29,7 +29,7 @@ class MapSet(BaseMetadata):
         "data",  # Generic
     }
 
-    pixelisation: Literal["healpix", "cartesian"]
+    pixelisation: Literal["equirectangular", "healpix", "cartesian"]
 
     telescope: str | None = None
     "Telescope that this map is created from"
@@ -62,10 +62,10 @@ class MapSet(BaseMetadata):
         with fits.open(filename) as hdul:
             metadata = hdul[0].header
             pixelisation = metadata.get("PIXELIS", "healpix").lower()
-            if pixelisation not in ["healpix", "cartesian"]:
+            if pixelisation not in ["healpix", "equirectangular"]:
                 # Check if CAR in ctype
                 if "CTYPE1" in metadata and any("CAR" in metadata["CTYPE1"].upper()):
-                    pixelisation = "cartesian"
+                    pixelisation = "equirectangular"
                 else:
                     raise ValueError(f"Invalid pixelisation: {pixelisation}")
 

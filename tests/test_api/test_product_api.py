@@ -34,7 +34,7 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
         json={
             "name": TEST_PRODUCT_NAME,
             "description": TEST_PRODUCT_DESCRIPTION,
-            "metadata": {"metadata_type": "mapset", "pixelisation": "cartesian"},
+            "metadata": {"metadata_type": "mapset", "pixelisation": "equirectangular"},
             "sources": TEST_PRODUCT_SOURCES,
             "product_readers": [test_api_user],
             "product_writers": [test_api_user],

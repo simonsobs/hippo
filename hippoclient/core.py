@@ -86,4 +86,6 @@ class ClientSettings(BaseSettings):
         """
         Return a Client object for the API.
         """
-        return Client(token_tag=self.token_tag, host=self.host, timeout=self.client_timeout)
+        return Client(
+            token_tag=self.token_tag, host=self.host, timeout=self.client_timeout
+        )

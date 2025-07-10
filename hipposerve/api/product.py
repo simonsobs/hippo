@@ -69,6 +69,32 @@ async def create_product(
     return CreateProductResponse(id=item.id, upload_urls=presigned)
 
 
+@product_router.get("/search/{text}")
+@requires(["hippo:admin", "hippo:read"])
+async def search(
+    text: str,
+    request: Request,
+) -> list[ProductMetadata]:
+    """
+    Search for a product by name.
+    """
+
+    logger.info(
+        "Search for product {} request from {}", text, request.user.display_name
+    )
+
+    items = await product.search_by_name(name=text, groups=request.user.groups)
+
+    logger.info(
+        "Successfully found {} product(s) matching {} requested by {}",
+        len(items),
+        text,
+        request.user.display_name,
+    )
+
+    return await asyncio.gather(*[item.to_metadata() for item in items])
+
+
 @product_router.post("/{id}/complete")
 @requires(["hippo:admin", "hippo:write"])
 async def complete_product(
@@ -478,29 +504,3 @@ async def delete_tree(
         item.name,
         item.id,
     )
-
-
-@product_router.get("/search/{text}")
-@requires(["hippo:admin", "hippo:read"])
-async def search(
-    text: str,
-    request: Request,
-) -> list[ProductMetadata]:
-    """
-    Search for a product by name.
-    """
-
-    logger.info(
-        "Search for product {} request from {}", text, request.user.display_name
-    )
-
-    items = await product.search_by_name(name=text, groups=request.user.groups)
-
-    logger.info(
-        "Successfully found {} product(s) matching {} requested by {}",
-        len(items),
-        text,
-        request.user.display_name,
-    )
-
-    return await asyncio.gather(*[item.to_metadata() for item in items])

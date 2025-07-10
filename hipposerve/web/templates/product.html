@@ -87,7 +87,7 @@
                     Parents:
                     <ul>
                         {% for parent in product.child_of %}
-                        <li><a href='{{ web_root }}/product/{{ parent.id | e}}'>{{ parent.name }}</a></li>
+                        <li><a href='{{ web_root }}/products/{{ parent.id | e}}'>{{ parent.name }}</a></li>
                         {% endfor %}
                     </ul>
                 </p>
@@ -100,7 +100,7 @@
                     Children:
                     <ul>
                         {% for child in product.parent_of %}
-                        <li><a href='{{ web_root }}/product/{{ child.id | e }}'>{{ child.name }}</a></li>
+                        <li><a href='{{ web_root }}/products/{{ child.id | e }}'>{{ child.name }}</a></li>
                         {% endfor %}
                     </ul>
                 </p>

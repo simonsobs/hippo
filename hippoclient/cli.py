@@ -177,6 +177,32 @@ def product_remove_writer(id: str, group: str):
     CONSOLE.print(f"Removed {group} from {id} writers. New id is {updated_id}")
 
 
+@product_app.command("add-child")
+def product_add_child(parent: str, child: str):
+    """
+    Add a child relationship between two products.
+    """
+    global CLIENT
+
+    sc.relationships.add_child(
+        client=CLIENT, parent=parent, child=child, console=CONSOLE
+    )
+    CONSOLE.print(f"Added {child} as child of {parent}")
+
+
+@product_app.command("remove-child")
+def product_remove_child(parent: str, child: str):
+    """
+    Remove a child relationship between two products.
+    """
+    global CLIENT
+
+    sc.relationships.remove_child(
+        client=CLIENT, parent=parent, child=child, console=CONSOLE
+    )
+    CONSOLE.print(f"Removed {child} as child of {parent}")
+
+
 @collection_app.command("read")
 def collection_read(id: str):
     """

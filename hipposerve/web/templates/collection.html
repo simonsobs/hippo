@@ -1,19 +1,23 @@
 {% extends "core.html" %}
 {% block content %}
 <div class="container-fluid fs-base">
-<h2>{{ collection.name }}</h2>
-<div class="d-flex align-items-center gap-1">
-    <div class="rounded-circle" style="height: 12px; width: 12px; background-color: {{cmap.get(collection.id|string)}};"></div>
-    <span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
-    <span class="badge text-bg-danger mb-1 p-2">Owner: {{ collection.owner }}</span>
-    {% for reader in collection.readers %}
-      <span class="badge text-bg-success mb-1 p-2">Reader: {{ reader }}</span>
-    {% endfor %}
-    {% for writer in collection.writers %}
-      <span class="badge text-bg-warning mb-1 p-2">Writer: {{ writer }}</span>
-    {% endfor %}
-</div>
-{% markdown %}{{ collection.description }}{% endmarkdown %}
+    <h2>{{ collection.name }}</h2>
+    <div class="d-flex align-items-center gap-1">
+        <div class="rounded-circle"
+            style="height: 12px; width: 12px; background-color: {{cmap.get(collection.id|string)}};"></div>
+        <span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
+        <span class="badge text-bg-danger mb-1 p-2">Owner: {{ collection.owner }}</span>
+        {% for reader in collection.readers %}
+        <span class="badge text-bg-success mb-1 p-2">Reader: {{ reader }}</span>
+        {% endfor %}
+        {% for writer in collection.writers %}
+        <span class="badge text-bg-warning mb-1 p-2">Writer: {{ writer }}</span>
+        {% endfor %}
+    </div>
+    {% markdown %}{{ collection.description }}{% endmarkdown %}
+    {% if request.user.groups.intersection(collection.writers) %}
+    <a href="./{{collection.id}}/edit">Edit</a>
+    {% endif %}
     <div>
         <h3>Products</h3>
         <table class="table table-sm border border-secondary-subtle shadow-sm" style="max-width: 800px;">
@@ -26,13 +30,13 @@
             </thead>
             <tbody>
                 {% if collection.products | length > 0 %}
-                    {% for product in collection.products %}
-                    <tr class="small">
-                        <td><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></td>
-                        <td>{{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                        <td>{{ product.version }}</td>
-                    </tr>
-                    {% endfor %}
+                {% for product in collection.products %}
+                <tr class="small">
+                    <td><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></td>
+                    <td>{{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ product.version }}</td>
+                </tr>
+                {% endfor %}
                 {% else %}
                 <tr class="small">
                     <td class="fst-italic">No products</td>

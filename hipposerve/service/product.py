@@ -424,9 +424,13 @@ async def metadata_diff(
         if metadata_diff:
             changes["metadata"] = metadata_diff
 
-    changes["version"] = [product.version, versioning.revise_version(product.version, level=level)]
+    changes["version"] = [
+        product.version,
+        versioning.revise_version(product.version, level=level),
+    ]
 
     return changes
+
 
 async def update_metadata(
     product: Product,

@@ -106,16 +106,18 @@ if SETTINGS.web:  # pragma: no cover
         logger.warning(
             "Debug mode is disabled, enabling wide-ranging HTTPException handler"
         )
+
         @app.exception_handler(HTTPException)
         async def page_not_found_handler(
             request: Request,
             exc: HTTPException,
         ):
             return not_found_template(request, "generic", None)
-        
+
         logger.warning(
             "Debug mode is disabled, enabling wide-ranging validation handler"
         )
+
         @app.exception_handler(RequestValidationError)
         async def validation_exception_handler(
             request: Request,
@@ -133,7 +135,6 @@ if SETTINGS.web:  # pragma: no cover
             except KeyError:
                 return not_found_template(request, requested_item_type, requested_id)
 
-
     @app.exception_handler(CollectionNotFound)
     async def collection_not_found_handler(
         request: Request,
@@ -149,8 +150,6 @@ if SETTINGS.web:  # pragma: no cover
     ):
         requested_id = request.path_params["id"]
         return not_found_template(request, "product", requested_id)
-
-
 
     @app.get("/")
     async def web_redirect(request: Request):

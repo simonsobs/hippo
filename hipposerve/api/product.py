@@ -276,13 +276,13 @@ async def metadata_diff(
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="User not found"
             )
-        
+
     if not item.current:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot update a product that is not the current version",
         )
-    
+
     diff = await product.metadata_diff(
         product=item,
         name=model.name,
@@ -291,10 +291,12 @@ async def metadata_diff(
         level=model.level,
     )
 
-    logger.debug("Found metadata diff for product {} (id: {}): {}", item.name, item.id, diff)
+    logger.debug(
+        "Found metadata diff for product {} (id: {}): {}", item.name, item.id, diff
+    )
 
     return diff
-    
+
 
 @product_router.post("/{id}/update")
 @requires(["hippo:admin", "hippo:write"])

@@ -1,0 +1,117 @@
+{% extends "core.html" %}
+{% block content %}
+<div class="container-fluid">
+    <form>
+        <div class="form-group">
+            <label for="collection_name" class="mt-2 mb-1 h5">Collection Name</label>
+            <input type="text" class="form-control" value="{{collection.name}}" id="collection_name">
+        </div>
+        <div class="form-group">
+            <label for="collection_description" class="mt-2 mb-1 h5">Collection Description</label>
+            <textarea class="form-control" id="collection_description" , rows="10"
+                aria-describedby="description_help">{{collection.description}}</textarea>
+            <small id="description_help" class="form-text text-muted">Markdown formatting is accepted</small>
+        </div>
+        <button type="button" id="preview_changes" class="btn btn-primary mt-3">Preview</button>
+        <!-- Modal -->
+        <div class="modal fade" id="update_modal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="update_modal_label">Your Update</h5>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="update_modal_body">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="close_modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="save_changes">Save changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    modal = new bootstrap.Modal(update_modal);
+
+    close_modal.addEventListener("click", () => { modal.hide() })
+    preview_changes.addEventListener("click", () => {
+        fetch(
+            "/relationships/collection/{{collection.id}}/diff",
+            {
+                method: "POST",
+                body: JSON.stringify(parseUpdate()),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            },
+        ).then(response => {
+            if (response.ok) {
+                response.json().then(content => {
+                    update_modal_body.innerHTML = createDiffHTML(content);
+                    modal.show();
+                })
+            } else {
+                response.json().then(content => {
+                    update_modal_body.innerHTML = `<div class="alert alert-danger"><h5>${response.statusText}</h5>${JSON.stringify(content)}</div>`;
+                    modal.show();
+                })
+            }
+
+        })
+    })
+    save_changes.addEventListener("click", (e) => {
+        fetch(
+            "/relationships/collection/{{collection.id}}",
+            {
+                method: "POST",
+                "body": JSON.stringify(parseUpdate()),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            }
+        ).then(
+            response => {
+                if (response.ok) {
+                    response.json().then(
+                        content => {
+                            location.href = `{{ web_root }}/collections/{{collection.id}}`
+                        }
+                    )
+                } else {
+                    response.text().then(
+                        text => {
+                            update_modal_body.innerHTML = `<div class="alert alert-danger"><h5>${response.statusText}</h5>${text}</div>`
+                        }
+                    )
+                        ;
+                }
+            }
+        )
+    })
+
+    function createDiffHTML(dictionary) {
+        let output = "<ul>";
+
+        for (const [key, value] of Object.entries(dictionary)) {
+            line = `<span class="badge text-bg-danger p-2">${value[0]}</span> → <span class="badge text-bg-success p-2">${value[1]}</span>`
+            output += `<li>${key}: ${line}</li>\n`
+        }
+
+        output += "</ul>"
+
+        return output
+    }
+
+    function parseUpdate() {
+        const update = {};
+        update["name"] = collection_name.value;
+        update["description"] = collection_description.value;
+
+        return update;
+    }
+</script>
+{% endblock %}

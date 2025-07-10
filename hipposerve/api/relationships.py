@@ -225,6 +225,32 @@ async def remove_product_from_collection(
         )
 
 
+@relationship_router.post("/collection/{id}/diff")
+@requires(["hippo:admin", "hippo:write"])
+async def diff_collection(
+    id: PydanticObjectId,
+    model: UpdateCollectionRequest,
+    request: Request,
+) -> dict[str, list[str]]:
+    """
+    Diff a collection's current state with the proposed changes.
+    """
+
+    logger.info("Request to diff collection: {} from {}", id, request.user.display_name)
+
+    diff = await collection.diff(
+        id=id,
+        access_groups=request.user.groups,
+        name=model.name,
+        description=model.description,
+    )
+
+    logger.info(
+        "Successfully diffed collection {} from {}", id, request.user.display_name
+    )
+    return diff
+
+
 @relationship_router.post("/collection/{id}")
 @requires(["hippo:admin", "hippo:write"])
 async def update_collection(

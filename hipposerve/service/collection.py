@@ -107,6 +107,27 @@ async def search_by_owner(
     return filtered_collection_list
 
 
+async def diff(
+    id: PydanticObjectId,
+    access_groups: list[str],
+    name: str | None = None,
+    description: str | None = None,
+):
+    """
+    Diff a collection against the current version.
+    """
+    collection = await read(id=id, groups=access_groups)
+    diff_dict = {}
+
+    if name and name != collection.name:
+        diff_dict["name"] = [collection.name, name]
+
+    if description and description != collection.description:
+        diff_dict["description"] = [collection.description, description]
+
+    return diff_dict
+
+
 async def update(
     id: PydanticObjectId,
     access_groups: list[str],

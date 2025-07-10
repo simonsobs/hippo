@@ -91,6 +91,7 @@ async def product_view(request: Request, id: str):
         },
     )
 
+
 @web_router.get("/products/{id}/edit")
 async def product_edit(request: Request, id: str):
     product_instance = await product.read_by_id(id, request.user.groups)
@@ -123,6 +124,20 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
 
     return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
 
+
+@web_router.get("/collections/{id}/edit")
+async def collection_edit(request: Request, id: PydanticObjectId):
+    collection_instance = await collection.read(id, request.user.groups)
+
+    return templates.TemplateResponse(
+        "collection_edit.html",
+        {
+            "request": request,
+            "collection": collection_instance,
+            "user": request.user.display_name,
+            "web_root": SETTINGS.web_root,
+        },
+    )
 
 
 @web_router.get("/collections/{id}")

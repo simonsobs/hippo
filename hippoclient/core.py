@@ -20,9 +20,10 @@ console = Console()
 def Client(
     host: str,
     token_tag: str | None,
+    timeout: int | None = None,
 ) -> httpx.Client:
     auth = SOAuth(token_tag) if token_tag else None
-    return httpx.Client(base_url=host, auth=auth)
+    return httpx.Client(base_url=host, auth=auth, timeout=httpx.Timeout(timeout or 60))
 
 
 class ClientSettings(BaseSettings):
@@ -41,7 +42,9 @@ class ClientSettings(BaseSettings):
     verbose: bool = False
     "Verbosity control: set to true for extra info"
     use_multipart_upload: bool = False
-    "The size of the multipart upload parts in bytes. If set to zero, no multipart uploads will be used."
+    "The size of the multipart upload parts in bytes. If set to zero, no multipart uploads will be used"
+    client_timeout: int = 60
+    "The timeout for the client in seconds. Default is 60 seconds (up from the httpx default of 5)"
 
     default_readers: list[str] = []
     "Default readers for new collections and products"
@@ -83,4 +86,4 @@ class ClientSettings(BaseSettings):
         """
         Return a Client object for the API.
         """
-        return Client(token_tag=self.token_tag, host=self.host)
+        return Client(token_tag=self.token_tag, host=self.host, timeout=self.client_timeout)

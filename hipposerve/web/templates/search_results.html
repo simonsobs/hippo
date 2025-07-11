@@ -22,7 +22,7 @@
             <tbody>
                 {% for result in results %}
                     <tr>
-                        <td><a href='{{ web_root }}/{{ filter }}/{{ result.id | e}}'>{{ result.name }}</a></td>
+                        <td><a href='{{ web_root }}/{{ "collections" if result.products is defined else "products" }}/{{ result.id | e}}'>{{ result.name }}</a></td>
                         {% if filter == "owner" %}
                         <td>{{ "Collection" if result.products is defined else "Product" }}</td>
                         {% endif %}

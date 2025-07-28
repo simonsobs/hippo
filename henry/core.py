@@ -7,7 +7,7 @@ from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
 from hippometa import ALL_METADATA_TYPE
 
-from .collection import CollectionInstance, LocalCollection
+from .collection import CollectionInstance, LocalCollection, RemoteCollection
 from .product import LocalProduct, ProductInstance, RemoteProduct
 
 
@@ -78,5 +78,20 @@ class Henry:
             client=self.client,
             cache=self.cache,
             console=self.console,
+            realize_sources=realize_sources,
+        )
+
+    def pull_collection(
+        self,
+        collection_id: str,
+        realize_sources: bool = True,
+        pull_children: bool = True,
+    ) -> CollectionInstance:
+        return RemoteCollection.pull(
+            collection_id=collection_id,
+            client=self.client,
+            cache=self.cache,
+            console=self.console,
+            pull_children=pull_children,
             realize_sources=realize_sources,
         )

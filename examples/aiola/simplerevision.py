@@ -9,7 +9,7 @@ revision = prod.create_revision(major=True)
 revision.name = "New name"
 revision.description = "Haha"
 newmeta = revision.revision_of.metadata.model_copy()
-newmeta.pixelisation = "cartesian"
+newmeta.pixelisation = "equirectangular"
 newmeta.patch = "D4"
 revision.metadata = newmeta
 

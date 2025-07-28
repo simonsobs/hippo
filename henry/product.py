@@ -16,6 +16,16 @@ from .exceptions import InvalidSlugError, PreflightFailedError
 class ProductInstance(BaseModel):
     pass
 
+    def _upload(
+        self,
+        client: httpx.Client,
+        console: Console,
+        skip_preflight: bool = False,
+        readers: list[str] | None = None,
+        writers: list[str] | None = None,
+    ) -> str:
+        return
+
 
 class LocalProduct(ProductInstance):
     """

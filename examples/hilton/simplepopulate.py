@@ -94,7 +94,7 @@ catalog_names = {
 }
 
 mask = MapSet(
-    pixelisation="cartesian",
+    pixelisation="equirectangular",
     telescope="ACT",
     instrument="ACTPol",
     release="DR5",

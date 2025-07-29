@@ -4,6 +4,7 @@ Methods for interacting with the product layer of the hippo API.
 
 from pathlib import Path
 
+import httpx
 import xxhash
 from httpx import Client, Response
 from rich.console import Console
@@ -572,6 +573,90 @@ def cache(
             console.print(f"Cached file {file.name} ({file.uuid})", style="yellow")
 
     return response_paths
+
+
+def download(
+    client: Client, id: str, directory: Path, console: Console | None = None
+) -> Path:
+    """
+    Download a product from HIPPO onto the local filesystem, storing the data
+    in the provided 'directory'. Data is stored as follows:
+
+    directory/Product Name
+        product.json < Metadata for this product
+        slug/
+          file.fits
+        data/
+          file2.fits
+
+    So inside the provided directory, we create a new directory with the product's
+    name. In there, each slug is stored in its own directory.
+
+    Arguments
+    ----------
+    client: Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the product to cache.
+    console : Console, optional
+        The rich console to print to.
+
+    Returns
+    -------
+    Path
+        The path to the cached sources.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails
+    FileNotFoundError
+        If the directory does not exist or is not a directory.
+    """
+
+    response = client.get(f"/product/{id}/files")
+
+    response.raise_for_status()
+
+    post_upload_files = {
+        x: PostUploadFile.model_validate(y) for x, y in response.json()["files"].items()
+    }
+
+    metadata = ProductMetadata.model_validate(response.json()["product"])
+
+    if console:
+        console.print(f"Successfully read product {id}")
+
+    product_directory = directory / metadata.name
+
+    # Raises FileNotFoundError if `directory` does not exist.
+    product_directory.mkdir(exist_ok=True, parents=False)
+
+    with open(product_directory / "product.json", "w") as handle:
+        handle.write(metadata.model_dump_json(indent=2))
+
+        if console:
+            console.print(f"Successfully wrote metadata for product {metadata.name}")
+
+    for source_slug, source_data in post_upload_files.items():
+        slug_directory = product_directory / source_slug
+        slug_directory.mkdir()
+        slug_path = slug_directory / source_data.name
+
+        # TODO: Need to actually buffer this and provide a progress bar (same thing for
+        #       the caching side)
+
+        response = httpx.get(source_data.url)
+
+        response.raise_for_status()
+
+        with open(slug_path, "wb") as handle:
+            handle.write(response.content)
+
+        if console:
+            console.print(f"Downloaded slug {source_slug} to {slug_path}")
+
+    return product_directory
 
 
 def uncache(

@@ -8,6 +8,7 @@ from rich.console import Console
 from henry.source import LocalSource, RemoteSource
 from hippoclient import product as product_client
 from hippoclient.caching import MultiCache
+from hippoclient.product import ProductMetadata
 from hippometa import ALL_METADATA_TYPE
 
 from .exceptions import InvalidSlugError, PreflightFailedError
@@ -311,6 +312,44 @@ class RemoteProduct(ProductInstance):
             sources=sources,
             readers=product_metadata.readers,
             writers=product_metadata.writers,
+        )
+
+    @classmethod
+    def read(
+        cls,
+        directory: Path | str,
+    ) -> "RemoteProduct":
+        """
+        Read a product that was serialized to disk, usually with the
+        `henry prodcut download $ID` command.
+        """
+        directory = Path(directory)
+
+        with open(directory / "product.json", "r") as handle:
+            core_metadata = ProductMetadata.model_validate_json(handle.read())
+
+        sources = {
+            x: RemoteSource(
+                path=directory / x / y.name,
+                slug=x,
+                name=y.name,
+                description=y.description,
+                source_id=y.uuid,
+                cached=True,
+                cache=None,
+                realize=False,
+            )
+            for x, y in core_metadata.sources.items()
+        }
+
+        return cls(
+            product_id=str(core_metadata.id),
+            name=core_metadata.name,
+            description=core_metadata.description,
+            metadata=core_metadata.metadata,
+            sources=sources,
+            readers=core_metadata.readers,
+            writers=core_metadata.writers,
         )
 
     def keys(self):

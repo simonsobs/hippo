@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from httpx import Client
 from rich.console import Console
 
@@ -80,6 +82,9 @@ class Henry:
             console=self.console,
             realize_sources=realize_sources,
         )
+
+    def read_product(self, directory: str | Path) -> RemoteProduct:
+        return RemoteProduct.read(directory=directory)
 
     def pull_collection(
         self,

@@ -2,6 +2,7 @@
 A CLI interface to the hippo client.
 """
 
+from pathlib import Path
 from typing import Annotated
 
 import rich
@@ -101,6 +102,20 @@ def product_cache(id: str):
     response = sc.product.cache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Cached product {id} including {len(response)} files")
+
+
+@product_app.command("download")
+def product_download(id: str, directory: str | None = "."):
+    """
+    Download a product to a location.
+    """
+    global CLIENT
+
+    response = sc.product.download(
+        client=CLIENT, id=id, directory=Path(directory), console=CONSOLE
+    )
+
+    CONSOLE.print(f"Data cached to {response}")
 
 
 @product_app.command("uncache")

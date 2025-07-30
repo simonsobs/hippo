@@ -15,6 +15,16 @@ and Reuseable) data access easier. Through the use of the very flexible MongoDB 
 _true_ metadata storage and MinIO as a data storage backend, hippo provides metadata-driven
 access to reusable products.
 
+Installing
+----------
+
+As well as running the server in a docker container, the python package can be installed
+as `pyhippo`:
+```
+uv pip install pyhippo
+```
+This gives you access to the `henry` command suite.
+
 Use-Cases
 ---------
 

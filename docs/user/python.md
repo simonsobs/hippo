@@ -288,3 +288,19 @@ for slug, source in realized_product.items():
 >>> coadd /tmp/test_user/84c9cc2d-f284-4e8b-b61c-c1b8e2c47083/act-planck_dr4dr6_coadd_AA_daynight_f150_map.fits
 ```
 which is a local path and can be loaded howver we wish.
+
+Loading Downloaded Data
+-----------------------
+
+Downloaded products and collections can be read from disk using the `read_product`
+and `read_collection` functions on the `Henry` client:
+```python
+downloaded_product = henry.read_product("./ACTxPlanck DR6 f150 coadd map")
+```
+By default, we allow partial loading of products and collections that are not
+fully downloaded. To be more strict, you can use the `allow_incomplete=False`
+argument in these read functions:
+```python
+henry.read_collection("./Unfinished Collection", False)
+>>> CollectionIncompleteError(...)
+```

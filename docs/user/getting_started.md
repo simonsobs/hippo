@@ -119,3 +119,18 @@ to use HIPPO on your own laptop or another machine, it's wise to set up a cache
 in a consistent place. Consider a directory in your home folder called `hippo`
 or `hippo_cache`. It can even be hidden (using the `.` prefix). The cache can
 be managed through the use of the `henry` command line tool.
+
+Downloads
+---------
+
+You can download collections and products using the `henry {x} download` commands:
+```
+henry product download 6884743dea8105a84f0432da
+>>> Successfully read product 6884743dea8105a84f0432da
+>>> Successfully wrote metadata for product Security Cameras (17534)
+>>> Downloading ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.4/7.4 MB 9.6 MB/s 0:00:00
+>>> ...
+>>> Downloading ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.6/15.6 MB 18.0 MB/s 0:00:00
+>>> Downloaded slug highbay_back to Security Cameras (17534)/highbay_back/highbay_back_17534.mp4
+>>> Data cached to Security Cameras (17534)
+```

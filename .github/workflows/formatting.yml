@@ -1,4 +1,4 @@
-name: Formatting (Ruff)
+name: Formatting (Ruff) 🐶
 on: push
 jobs:
   build:
@@ -14,5 +14,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
       # Update output format to enable automatic inline annotations.
-      - name: Run Ruff
+      - name: Run Ruff 🐶
         run: ruff check --output-format=github .

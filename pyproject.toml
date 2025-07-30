@@ -13,8 +13,10 @@ exclude=["*tests*", "*examples*", "*htmlcov*"]
 hipposerve = ["web/static/*.svg", "web/static/*.ico", "web/static/*.png", "web/templates/*.html"]
 
 [project]
-name = "hipposerve"
-version = "0.2.1"
+name = "pyhippo"
+description = "The Hierarchical Product Post Office, developed for the Simons Observatory."
+version = "0.2.0"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic<2.11", # Needed until beanie fixes or merges https://github.com/BeanieODM/beanie/pull/1150
@@ -42,6 +44,23 @@ dependencies = [
     "textual[syntax]",
     "soauth>=0.5.2",
 ]
+authors = [
+    {name = "Josh Borrow", email = "josh@joshborow.com"},
+    {name = "Jeremy Myers"},
+    {name = "Divesh Jain"}
+]
+license = "MIT"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Scientific/Engineering :: Astronomy"
+]
+
+[project.urls]
+Repository = "https://github.com/simonsobs/hippo.git"
+Issues = "https://github.com/simonsobs/hippo/issues"
 
 [project.optional-dependencies]
 dev = [

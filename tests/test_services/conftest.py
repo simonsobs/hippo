@@ -10,7 +10,7 @@ import uuid
 import pytest_asyncio
 import requests
 from beanie import init_beanie
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from soauth.toolkit.fastapi import SOUser
 
 import hippometa
@@ -21,7 +21,7 @@ from hipposerve.database import BEANIE_MODELS
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def database(database_container):
-    db = AsyncIOMotorClient(database_container["url"])
+    db = AsyncMongoClient(database_container["url"])
     await init_beanie(
         database=db.db_name,
         document_models=BEANIE_MODELS,

@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
@@ -28,7 +28,7 @@ from hipposerve.web.router import templates
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize application services."""
-    app.db = AsyncIOMotorClient(SETTINGS.mongo_uri).account
+    app.db = AsyncMongoClient(SETTINGS.mongo_uri).account
     await init_beanie(app.db, document_models=BEANIE_MODELS)
     app.storage = Storage(
         url=SETTINGS.minio_url,

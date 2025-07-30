@@ -14,10 +14,10 @@ hipposerve = ["web/static/*.svg", "web/static/*.ico", "web/static/*.png", "web/t
 
 [project]
 name = "hipposerve"
-version = "0.1.1"
+version = "0.2.1"
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic<2.11",
+    "pydantic",
     "pydantic-settings",
     # 4.1.0 and above introduce a deprecation warning
     # that breaks the latest versions of asyncer.
@@ -25,7 +25,7 @@ dependencies = [
     "asyncer",
     "fastapi",
     "uvicorn",
-    "beanie",
+    "beanie>=2.0.0",
     "minio",
     "jinja2",
     "xxhash",
@@ -38,7 +38,7 @@ dependencies = [
     "python-multipart",
     "loguru",
     "tqdm",
-    "motor",
+    "pymongo",
     "textual[syntax]",
     "soauth>=0.5.2",
 ]

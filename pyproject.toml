@@ -38,6 +38,7 @@ dependencies = [
     "python-multipart",
     "loguru",
     "tqdm",
+    "motor",
     "textual[syntax]",
     "soauth>=0.5.2",
 ]

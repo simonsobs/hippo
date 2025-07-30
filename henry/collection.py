@@ -1,4 +1,5 @@
 from itertools import chain
+from pathlib import Path
 from typing import Iterable
 
 import httpx
@@ -8,8 +9,13 @@ from rich.console import Console
 from henry.product import ProductInstance, RemoteProduct
 from hippoclient import collections, relationships
 from hippoclient.caching import MultiCache
+from hipposerve.api.models.relationships import ReadCollectionResponse
 
-from .exceptions import PreflightFailedError
+from .exceptions import (
+    CollectionIncompleteError,
+    PreflightFailedError,
+    ProductIncompleteError,
+)
 
 
 class CollectionInstance(BaseModel):
@@ -286,6 +292,74 @@ class RemoteCollection(CollectionInstance):
             original_description=collection.description,
             original_product_ids={str(p.id) for p in collection.products},
             original_collection_ids={str(c.id) for c in collection.child_collections},
+        )
+
+    @classmethod
+    def read(cls, directory: Path | str, allow_incomplete: bool) -> "RemoteProduct":
+        """
+        Read a collection that was serialized to disk, usually with the
+        `henry collection download $ID` command.
+        """
+        directory = Path(directory)
+
+        with open(directory / "collection.json", "r") as handle:
+            core_metadata = ReadCollectionResponse.model_validate_json(handle.read())
+
+        products = []
+
+        for product in core_metadata.products:
+            try:
+                products.append(
+                    RemoteProduct.read(
+                        directory / product.name, allow_incomplete=allow_incomplete
+                    )
+                )
+            except FileNotFoundError:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Product {product.name} not found, consider re-downloading "
+                        "or setting allow_incomplete=True"
+                    )
+            except ProductIncompleteError as e:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Collection not complete due to error reading {product.name}: {e}"
+                    )
+
+        collections = []
+
+        for collection in core_metadata.child_collections:
+            try:
+                collections.append(
+                    RemoteCollection.read(
+                        directory / collection.name, allow_incomplete=allow_incomplete
+                    )
+                )
+            except FileNotFoundError:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Child collection {collection.name} not found, consider "
+                        "re-downloading or setting allow_incomplete=True"
+                    )
+            except CollectionIncompleteError as e:
+                if not allow_incomplete:
+                    raise e
+
+        return cls(
+            collection_id=str(core_metadata.id),
+            name=core_metadata.name,
+            description=core_metadata.description,
+            products=products,
+            owner=core_metadata.owner,
+            collections=collections,
+            readers=core_metadata.readers,
+            writers=core_metadata.writers,
+            original_name=core_metadata.name,
+            original_description=core_metadata.description,
+            original_product_ids={str(p.id) for p in core_metadata.products},
+            original_collection_ids={
+                str(c.id) for c in core_metadata.child_collections
+            },
         )
 
     def __get_global_index(self, key: int, /) -> tuple[str, int]:

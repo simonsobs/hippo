@@ -11,6 +11,7 @@ from hipposerve.api.models.relationships import ReadCollectionResponse
 
 from .core import MultiCache
 from .product import cache as cache_product
+from .product import download as download_product
 from .product import uncache as uncache_product
 
 
@@ -332,7 +333,82 @@ def cache(
     for product in collection.products:
         paths += cache_product(client, cache, product.id)
 
+    for child in collection.child_collections:
+        paths += cache(client, cache, child.id)
+
     return paths
+
+
+def download(
+    client: Client, id: str, directory: Path, console: Console | None = None
+) -> Path:
+    """
+    Download a collection from HIPPO onto the local filesystem, storing the data
+    in the provided 'directory'. Data is stored as follows:
+
+    directory/Collection Name
+      collection.json < Metadata for this collection
+      Product Name/
+        ... < See product.download
+      Child Collection/
+        collection.json
+        Product Name/
+          ... < See product.download
+
+    Inside the provided directory, we create a new directory with the collection name.
+    In there we store each product and child collection recursively, and store
+    the metadata for the collection as `collection.json`.
+
+    Arguments
+    ---------
+    client: Client
+        The client to use for interacting with the hippo API
+    id: str
+        The ID of the collection to download.
+    console : Console, optional
+        The rich console to print to.
+
+    Returns
+    -------
+    Path
+        The path to the cached collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails
+    FileNotFoundError
+        If the directory does not exist or is not a directory.
+    """
+
+    collection = read(client, id)
+
+    collection_directory = directory / collection.name
+
+    collection_directory.mkdir(exist_ok=True, parents=False)
+
+    with open(collection_directory / "collection.json", "w") as handle:
+        handle.write(collection.model_dump_json(indent=2))
+
+        if console:
+            console.print(
+                f"Successfully wrote metadata for collection {collection.name}"
+            )
+
+    for product in collection.products:
+        download_product(
+            client=client,
+            id=product.id,
+            directory=collection_directory,
+            console=console,
+        )
+
+    for child in collection.child_collections:
+        download(
+            client=client, id=child.id, directory=collection_directory, console=console
+        )
+
+    return collection_directory
 
 
 def uncache(

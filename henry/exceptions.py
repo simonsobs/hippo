@@ -4,3 +4,11 @@ class PreflightFailedError(Exception):
 
 class InvalidSlugError(KeyError):
     pass
+
+
+class ProductIncompleteError(Exception):
+    pass
+
+
+class CollectionIncompleteError(Exception):
+    pass

@@ -83,8 +83,12 @@ class Henry:
             realize_sources=realize_sources,
         )
 
-    def read_product(self, directory: str | Path) -> RemoteProduct:
-        return RemoteProduct.read(directory=directory)
+    def read_product(
+        self, directory: str | Path, allow_incomplete: bool = True
+    ) -> RemoteProduct:
+        return RemoteProduct.read(
+            directory=directory, allow_incomplete=allow_incomplete
+        )
 
     def pull_collection(
         self,
@@ -99,4 +103,11 @@ class Henry:
             console=self.console,
             pull_children=pull_children,
             realize_sources=realize_sources,
+        )
+
+    def read_collection(
+        self, directory: str | Path, allow_incomplete: bool = True
+    ) -> RemoteCollection:
+        return RemoteCollection.read(
+            directory=directory, allow_incomplete=allow_incomplete
         )

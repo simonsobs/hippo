@@ -105,11 +105,13 @@ def product_cache(id: str):
 
 
 @product_app.command("download")
-def product_download(id: str, directory: str | None = "."):
+def product_download(id: str, directory: str | None = None):
     """
     Download a product to a location.
     """
     global CLIENT
+
+    directory = Path(directory or ".")
 
     response = sc.product.download(
         client=CLIENT, id=id, directory=Path(directory), console=CONSOLE
@@ -252,19 +254,35 @@ def collection_search(name: str):
 @collection_app.command("cache")
 def collection_cache(id: str):
     """
-    Cache a collection by its name.
+    Cache a collection by its ID.
     """
-    global CLIENT, CACHE
+    global CLIENT, CACHE, CONSOLE
 
     response = sc.collections.cache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Cached collection {id} including {len(response)} files")
 
 
+@collection_app.command("download")
+def collection_download(id: str, directory: str | None = None):
+    """
+    Download a collection by its ID.
+    """
+    global CLIENT, CONSOLE
+
+    directory = Path(directory or ".")
+
+    response = sc.collections.download(
+        client=CLIENT, id=id, directory=directory, console=CONSOLE
+    )
+
+    CONSOLE.print(f"Downloaded collection to {response}")
+
+
 @collection_app.command("uncache")
 def collection_uncache(id: str):
     """
-    Uncache a collection by its name.
+    Uncache a collection by its ID.
     """
     global CACHE
 
@@ -276,7 +294,7 @@ def collection_uncache(id: str):
 @collection_app.command("delete")
 def collection_delete(id: str):
     """
-    Delete a collection by its name.
+    Delete a collection by its ID.
     """
     global CLIENT
 

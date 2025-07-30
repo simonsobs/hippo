@@ -14,12 +14,14 @@ Python sqlite3 module.
 """
 
 import os
+import shutil
 import sqlite3
 from pathlib import Path
 
-import httpx
 from pydantic import BaseModel
+from rich.console import Console
 
+from hippoclient.downloads import downloader
 from hipposerve.database import FileMetadata
 
 
@@ -229,18 +231,32 @@ class Cache(BaseModel):
         if not self.writeable:
             raise CacheNotWriteableError
 
-        self._add(id=id, path=path, checksum=checksum, size=size)
+        try:
+            self._add(id=id, path=path, checksum=checksum, size=size)
 
-        # Download the file
-        destination_path = self.path / Path(path)
-        destination_path.parent.mkdir(parents=True, exist_ok=True)
+            # Download the file
+            destination_path = self.path / Path(path)
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with httpx.stream("GET", presigned_url) as response:
-            with open(destination_path, "wb") as f:
-                for chunk in response.iter_bytes():
-                    f.write(chunk)
+            downloader(
+                presigned_url=presigned_url,
+                output_destination=destination_path,
+                console=Console(),
+            )
 
-        self._mark_available(id)
+            self._mark_available(id)
+        except BaseException as e:
+            # Atomic! Not super threadsafe but this is sqlite anyway. Usually when someone kills this
+            # with a KeyboardInterrupt -- we don't wanna leave dangling db items. We could probably handle
+            # this with an actual transaction...
+            self._remove(id=id)
+            try:
+                shutil.rmtree(destination_path)
+            except NotADirectoryError:
+                os.remove(destination_path)
+            except FileNotFoundError:
+                pass
+            raise e
 
         return destination_path
 

@@ -79,7 +79,7 @@ async def created_full_product(database, storage, created_user):
     data, file_puts = await product.create(
         name=PRODUCT_NAME,
         description=PRODUCT_DESCRIPTION,
-        metadata=hippometa.MapSet(pixelisation="cartesian"),
+        metadata=hippometa.MapSet(pixelisation="equirectangular"),
         sources=SOURCES,
         user_name=created_user.display_name,
         storage=storage,

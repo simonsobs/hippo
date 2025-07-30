@@ -11,7 +11,7 @@ from hippoclient.caching import MultiCache
 from hippoclient.product import ProductMetadata
 from hippometa import ALL_METADATA_TYPE
 
-from .exceptions import InvalidSlugError, PreflightFailedError
+from .exceptions import InvalidSlugError, PreflightFailedError, ProductIncompleteError
 
 
 class ProductInstance(BaseModel):
@@ -315,10 +315,7 @@ class RemoteProduct(ProductInstance):
         )
 
     @classmethod
-    def read(
-        cls,
-        directory: Path | str,
-    ) -> "RemoteProduct":
+    def read(cls, directory: Path | str, allow_incomplete: bool) -> "RemoteProduct":
         """
         Read a product that was serialized to disk, usually with the
         `henry prodcut download $ID` command.
@@ -328,19 +325,27 @@ class RemoteProduct(ProductInstance):
         with open(directory / "product.json", "r") as handle:
             core_metadata = ProductMetadata.model_validate_json(handle.read())
 
-        sources = {
-            x: RemoteSource(
-                path=directory / x / y.name,
-                slug=x,
-                name=y.name,
-                description=y.description,
-                source_id=y.uuid,
-                cached=True,
-                cache=None,
-                realize=False,
-            )
-            for x, y in core_metadata.sources.items()
-        }
+        sources = {}
+
+        for slug, source_metadata in core_metadata.sources.items():
+            path = directory / slug / source_metadata.name
+            exists = path.exists()
+
+            if (not allow_incomplete) and (not exists):
+                raise ProductIncompleteError(
+                    "This product is incomplete, try redownloading or set allow_incomplete=True"
+                )
+            else:
+                sources[slug] = RemoteSource(
+                    path=path,
+                    slug=slug,
+                    name=source_metadata.name,
+                    description=source_metadata.description,
+                    source_id=source_metadata.uuid,
+                    cached=exists,
+                    cache=None,
+                    realize=False,
+                )
 
         return cls(
             product_id=str(core_metadata.id),

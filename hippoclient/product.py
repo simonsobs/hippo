@@ -4,12 +4,11 @@ Methods for interacting with the product layer of the hippo API.
 
 from pathlib import Path
 
-import httpx
-import xxhash
 from httpx import Client, Response
 from rich.console import Console
 from tqdm import tqdm
 
+from hippoclient.downloads import downloader, file_info
 from hippometa import ALL_METADATA_TYPE
 from hippometa.simple import SimpleMetadata
 from hipposerve.api.models.product import ReadProductResponse
@@ -172,16 +171,10 @@ def create(
         filename = sources[slug]
         desc = source_descriptions[slug]
 
-        with filename.open("rb") as file:
-            file_info = {
-                "name": filename.name,
-                "size": filename.stat().st_size,
-                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
-                "description": desc,
-            }
-            source_metadata[slug] = file_info
-            if console:
-                console.print("Successfully validated file:", file_info)
+        source_metadata[slug] = file_info(filename, desc)
+
+        if console:
+            console.print("Successfully validated file:", source_metadata[slug])
 
     # Make a request to hippo to create the product.
     if metadata is None:
@@ -370,32 +363,20 @@ def update(
         filename = new_sources[slug]
         desc = new_source_descriptions[slug]
 
-        with filename.open("rb") as file:
-            file_info = {
-                "name": filename.name,
-                "size": filename.stat().st_size,
-                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
-                "description": desc,
-            }
-            new_source_metadata[slug] = file_info
-            if console:
-                console.print("Successfully validated file:", file_info)
+        new_source_metadata[slug] = file_info(filename, desc)
+
+        if console:
+            console.print("Successfully validated file:", new_source_metadata[slug])
 
     replace_source_metadata = {}
     for slug in (replace_sources or {}).keys():
         filename = replace_sources[slug]
         desc = replace_source_descriptions[slug]
 
-        with filename.open("rb") as file:
-            file_info = {
-                "name": filename.name,
-                "size": filename.stat().st_size,
-                "checksum": f"xxh64:{xxhash.xxh64(file.read()).hexdigest()}",
-                "description": desc,
-            }
-            replace_source_metadata[slug] = file_info
-            if console:
-                console.print("Successfully validated file:", file_info)
+        replace_source_metadata[slug] = file_info(filename, desc)
+
+        if console:
+            console.print("Successfully validated file:", replace_source_metadata[slug])
 
     response = client.post(
         f"/product/{id}/update",
@@ -597,7 +578,7 @@ def download(
     client: Client
         The client to use for interacting with the hippo API.
     id : str
-        The ID of the product to cache.
+        The ID of the product to download.
     console : Console, optional
         The rich console to print to.
 
@@ -640,18 +621,21 @@ def download(
 
     for source_slug, source_data in post_upload_files.items():
         slug_directory = product_directory / source_slug
-        slug_directory.mkdir()
+        slug_directory.mkdir(exist_ok=True)
         slug_path = slug_directory / source_data.name
 
-        # TODO: Need to actually buffer this and provide a progress bar (same thing for
-        #       the caching side)
+        # Check if it's already there and if it matches our checksum
+        if slug_path.exists():
+            if file_info(slug_path)["checksum"] == source_data.checksum:
+                if console:
+                    console.print(f"Valid {source_slug} already exists at {slug_path}")
+                continue
 
-        response = httpx.get(source_data.url)
-
-        response.raise_for_status()
-
-        with open(slug_path, "wb") as handle:
-            handle.write(response.content)
+        downloader(
+            presigned_url=source_data.url,
+            output_destination=slug_path,
+            console=console,
+        )
 
         if console:
             console.print(f"Downloaded slug {source_slug} to {slug_path}")

@@ -65,7 +65,7 @@ def get_patch(path: Path) -> str:
 
 
 def get_set(path: Path) -> str:
-    sets = ["set0", "set1", "set2", "set3", "coadd"]
+    sets = ["set0", "set1", "set2", "set3", "map"]
 
     for set_ in sets:
         if set_ in path.name:
@@ -96,7 +96,7 @@ def get_description(path: Path) -> str:
         "set1": "ACT DR4 4-way Split 1. Includes all the maps from the 4-way split 1, see the collection for more details",
         "set2": "ACT DR4 4-way Split 2. Includes all the maps from the 4-way split 2, see the collection for more details",
         "set3": "ACT DR4 4-way Split 3. Includes all the maps from the 4-way split 3, see the collection for more details",
-        "coadd": "ACT DR4 4-way Co-added Maps. Includes all the maps from the co-added maps, see the collection for more details",
+        "map": "ACT DR4 4-way Co-added Maps. Includes all the maps from the co-added maps, see the collection for more details",
     }
 
     patch = get_patch(path)

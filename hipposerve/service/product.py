@@ -110,12 +110,12 @@ def validate_slugs(sources: dict[str, PreUploadFile], metadata: ALL_METADATA_TYP
         if k not in metadata.valid_slugs:
             errors.append(
                 ValueError(
-                    f"Slug {k} not part of acceptable slugs: {metadata.valid_slugs} for this metadata type"
+                    f"Slug '{k}' not part of acceptable slugs: {metadata.valid_slugs} for this metadata type"
                 )
             )
 
     if errors:
-        raise ValidationError(errors, metadata)
+        raise ExceptionGroup("Invalid slugs", errors)
 
 
 async def create(
@@ -197,7 +197,7 @@ async def read_by_name(name: str, version: str | None, groups: list[str]) -> Pro
 async def read_by_id(id: PydanticObjectId, groups: list[str]) -> Product:
     try:
         potential = await Product.get(document_id=id, **LINK_POLICY)
-    except (InvalidId, ValidationError):
+    except (InvalidId, ValidationError, ValueError):
         raise ProductNotFound
 
     if potential is None:

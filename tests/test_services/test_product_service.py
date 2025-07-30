@@ -49,8 +49,8 @@ async def test_get_existing_file(created_full_product, database, created_user):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_create_file_with_multiple_sources(database, created_user, storage):
     sources = {
-        "coadd": product.PreUploadFile(name="file1.txt", size=128, checksum="not_real"),
-        "split": product.PreUploadFile(name="file2.txt", size=128, checksum="not_real"),
+        "map": product.PreUploadFile(name="file1.txt", size=128, checksum="not_real"),
+        "hits": product.PreUploadFile(name="file2.txt", size=128, checksum="not_real"),
     }
 
     created_product, uploads = await product.create(
@@ -241,7 +241,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
     FILE_CONTENTS = b"0x0" * 128
 
     new = {
-        "coadd": product.PreUploadFile(
+        "map": product.PreUploadFile(
             name="additional_file.txt", size=128, checksum="not_real"
         )
     }
@@ -281,8 +281,8 @@ async def test_update_sources(created_full_product, database, storage, created_u
         created_full_product.name, version=None, groups=created_user.groups
     )
 
-    assert "coadd" not in created_full_product.sources
-    assert "coadd" in new_product.sources
+    assert "map" not in created_full_product.sources
+    assert "map" in new_product.sources
     assert (
         created_full_product.sources["data"].name
         != "you_can_call_this_whatever_u_like.txt"
@@ -292,7 +292,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
     _, uploads = await product.update(
         new_product,
         created_user.groups,
-        drop_sources=["coadd"],
+        drop_sources=["map"],
         storage=storage,
         level=versioning.VersionRevision.MINOR,
     )
@@ -302,7 +302,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
         created_full_product.name, version=None, groups=created_user.groups
     )
 
-    assert "coadd" not in reverted_product.sources
+    assert "map" not in reverted_product.sources
 
 
 @pytest.mark.asyncio(loop_scope="session")

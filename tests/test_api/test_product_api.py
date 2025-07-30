@@ -24,7 +24,7 @@ def test_api_product(test_api_client: TestClient, test_api_user: str):
         "data": PreUploadFile(
             name="test_file", size=9, checksum="test_checksum"
         ).model_dump(),
-        "coadd": PreUploadFile(
+        "map": PreUploadFile(
             name="test_file2", size=9, checksum="test_checksum"
         ).model_dump(),
     }

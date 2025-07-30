@@ -96,7 +96,7 @@ map_set = client.new_product(
     name="ACTxPlanck DR6 f090 coadd map",
     description="One of the many coadd maps",
     metadata=MapSet.from_fits(filename=map_file),
-    sources={"coadd": {"path": map_file, "description": "actxplanck coadd"}},
+    sources={"map": {"path": map_file, "description": "actxplanck coadd"}},
 )
 ```
 Note the use of the `from_fits` classmethod on the `MapSet` class - this allows
@@ -140,7 +140,7 @@ So, if you, for instance, had a large collection of these coadd maps, you could 
 iterate through them all (ignoring, for example, cross-linking maps):
 ```python
 for product in collection:
-    with open(product["coadd"].path, "r") as handle:
+    with open(product["map"].path, "r") as handle:
         process(handle=handle)
 ```
 Hopefully you can begin to see how idiomatic pipelines can be built with the
@@ -204,7 +204,7 @@ is stored in HIPPO. We've also set `realize_sources=False` here, because
 we don't want to download a copy of what we just uploaded. By default,
 `realize_sources=True`, and when we `pull_product`, we also ensure that 
 all of its data files are cached. That would allow us to do
-`remote["coadd"].path` and have this automatically resolve to a local path
+`remote["map"].path` and have this automatically resolve to a local path
 for a valid copy of the file!
 
 
@@ -232,8 +232,8 @@ to upload the f150 map:
 second_map = "act-planck_dr4dr6_coadd_AA_daynight_f150_map.fits"
 revision.name = "ACTxPlanck DR6 f150 coadd map"
 revision.metadata = MapSet.from_fits(second_map)
-revision["coadd"] = second_map
-revision["coadd"].description = "actxplanck coadd"
+revision["map"] = second_map
+revision["map"].description = "actxplanck coadd"
 ```
 If we now print the revision:
 ```

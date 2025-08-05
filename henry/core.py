@@ -7,6 +7,7 @@ from henry.source import LocalSource
 from hippoclient.caching import MultiCache
 from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
+from hippoclient.product import download as download_product
 from hippometa import ALL_METADATA_TYPE
 
 from .collection import CollectionInstance, LocalCollection, RemoteCollection
@@ -110,4 +111,15 @@ class Henry:
     ) -> RemoteCollection:
         return RemoteCollection.read(
             directory=directory, allow_incomplete=allow_incomplete
+        )
+
+    def download_product(
+        self, product_id: str, directory: str | Path, slugs: list[str] | None = None
+    ) -> Path:
+        return download_product(
+            client=self.client,
+            id=product_id,
+            directory=Path(directory),
+            console=self.console,
+            slugs=slugs,
         )

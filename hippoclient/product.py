@@ -557,7 +557,11 @@ def cache(
 
 
 def download(
-    client: Client, id: str, directory: Path, console: Console | None = None
+    client: Client,
+    id: str,
+    directory: Path,
+    console: Console | None = None,
+    slugs: list[str] | None = None,
 ) -> Path:
     """
     Download a product from HIPPO onto the local filesystem, storing the data
@@ -581,6 +585,8 @@ def download(
         The ID of the product to download.
     console : Console, optional
         The rich console to print to.
+    slugs : list[str], optional
+        Only download specific slugs.
 
     Returns
     -------
@@ -620,6 +626,9 @@ def download(
             console.print(f"Successfully wrote metadata for product {metadata.name}")
 
     for source_slug, source_data in post_upload_files.items():
+        if slugs and source_slug not in slugs:
+            continue
+
         slug_directory = product_directory / source_slug
         slug_directory.mkdir(exist_ok=True)
         slug_path = slug_directory / source_data.name

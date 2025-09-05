@@ -5,7 +5,6 @@ that occurs in production when reading collections with many linked products.
 
 import io
 
-import pymongo.errors
 import pytest
 import requests
 
@@ -118,13 +117,10 @@ async def test_oversized_collection_fails_with_fetch_links(
             user_groups=created_user.groups,
             storage=storage,
         )
-        with pytest.raises(pymongo.errors.OperationFailure) as exc_info:
-            collection_obj = await collection_sc.read(
-                id=massive_coll.id, groups=created_user.groups
-            )
-            assert collection_obj.products is not None
-
-        print(f"Caught error: {exc_info}")
+        collection_obj = await collection_sc.read(
+            id=massive_coll.id, groups=created_user.groups
+        )
+        assert collection_obj.products is not None
 
     finally:
         await cleanup_test_collections([str(massive_coll.id)], storage)

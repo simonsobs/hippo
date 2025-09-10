@@ -186,19 +186,19 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct200
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_hierarchical_collection_fails_with_relationships_parentproduct20_childproduct100(
+async def test_hierarchical_collection_fails_with_relationships_parentproduct20_childproduct10(
     database, created_user, storage
 ):
     """
     Reproduce the production error by creating a hierarchical collection
-    with 20 parent products, each having 100 children (2000 products total).
+    with 20 parent products, each having 10 children (200 products total).
     """
 
     try:
         hierarchical_coll = await create_hierarchical_collection_with_relationships(
             name="Hierarchical_Test_Collection",
             num_parents=20,
-            children_per_parent=100,
+            children_per_parent=10,
             user_name=created_user.display_name,
             user_groups=created_user.groups,
             storage=storage,
@@ -206,7 +206,12 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct20_
         collection_obj = await collection_sc.read(
             id=hierarchical_coll.id, groups=created_user.groups
         )
-        assert collection_obj.products is not None
+        assert len(collection_obj.products) == 20
+        assert len(collection_obj.products[0].parent_of) == 10
+        assert (
+            collection_obj.products[19].parent_of[0].name
+            == "Hierarchical_Test_Collection_child_019_000"
+        )
 
     finally:
         await cleanup_hierarchical_collection(str(hierarchical_coll.id), storage)

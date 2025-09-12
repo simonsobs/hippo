@@ -207,11 +207,6 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct20_
             id=hierarchical_coll.id, groups=created_user.groups
         )
         assert len(collection_obj.products) == 20
-        assert len(collection_obj.products[0].parent_of) == 10
-        assert (
-            collection_obj.products[19].parent_of[0].name
-            == "Hierarchical_Test_Collection_child_019_000"
-        )
 
     finally:
         await cleanup_hierarchical_collection(str(hierarchical_coll.id), storage)

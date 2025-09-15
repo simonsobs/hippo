@@ -14,6 +14,11 @@ from fastapi import HTTPException
 from hipposerve.database import Collection
 from hipposerve.service.acl import check_user_access
 
+LINK_POLICY = {
+    "fetch_links": True,
+    "nesting_depth": 1,
+}
+
 
 class CollectionNotFound(Exception):
     pass
@@ -43,7 +48,7 @@ async def read(
     id: PydanticObjectId,
     groups: list[str],
 ):
-    collection = await Collection.find_one(Collection.id == id, fetch_links=True)
+    collection = await Collection.find_one(Collection.id == id, **LINK_POLICY)
 
     if collection is None:
         raise CollectionNotFound
@@ -56,20 +61,20 @@ async def read(
 
 async def read_most_recent(
     groups: list[str],
-    fetch_links: bool = False,
     maximum: int = 16,
 ) -> list[Collection]:
     # TODO: Implement updated time for collections.
     access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
-    collection_list = await Collection.find(
-        access_query, fetch_links=fetch_links
-    ).to_list(maximum)
+    collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
+        maximum
+    )
     filtered_collection_list = await collection_product_filter(groups, collection_list)
     return filtered_collection_list
 
 
 async def search_by_name(
-    name: str, groups: list[str], fetch_links: bool = True
+    name: str,
+    groups: list[str],
 ) -> list[Collection]:
     """
     Search for Collections by name using the text index.
@@ -77,7 +82,7 @@ async def search_by_name(
 
     access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
     results = (
-        await Collection.find(access_query, Text(name), fetch_links=fetch_links)  # noqa: E712
+        await Collection.find(access_query, Text(name), **LINK_POLICY)  # noqa: E712
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
@@ -89,7 +94,6 @@ async def search_by_name(
 async def search_by_owner(
     owner: str,
     groups: list[str],
-    fetch_links: bool = True,
 ) -> list[Collection]:
     """
     Search for Collections by owner; owner search is case insensitive
@@ -100,7 +104,7 @@ async def search_by_owner(
 
     access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
     results = await Collection.find(
-        {**access_query, "owner": owner_regex}, fetch_links=fetch_links
+        {**access_query, "owner": owner_regex}, **LINK_POLICY
     ).to_list()
 
     filtered_collection_list = await collection_product_filter(groups, results)

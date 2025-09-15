@@ -29,6 +29,7 @@ from hipposerve.storage import Storage
 INITIAL_VERSION = "1.0.0"
 LINK_POLICY = {
     "fetch_links": True,
+    "nesting_depth": 2,
 }
 
 

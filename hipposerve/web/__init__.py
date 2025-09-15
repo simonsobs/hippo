@@ -56,7 +56,7 @@ async def index(request: Request):
         groups=request.user.groups, fetch_links=True, maximum=16
     )
     collections = await collection.read_most_recent(
-        groups=request.user.groups, fetch_links=True, maximum=16
+        groups=request.user.groups, maximum=16
     )
     return templates.TemplateResponse(
         "index.html",

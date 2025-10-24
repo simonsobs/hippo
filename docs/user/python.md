@@ -169,7 +169,7 @@ Local products and collections can easily be synchronized with the remote HIPPO 
 analogously to `git`. To send up a collection and all of its products, you simply need
 to tell the client to `push` it:
 ```python
-henry.push(collection)
+client.push(collection)
 ```
 Depending on your client verbosity, you may see progress bars for uploading individual
 products like:
@@ -194,7 +194,7 @@ Pulling
 
 To pull down a remote product, you can use the `pull_product` method:
 ```python
-remote = henry.pull_product(
+remote = client.pull_product(
     product_id=map_set.product_id, realize_sources=False
 )
 ```
@@ -241,7 +241,7 @@ Name: 'ACTxPlanck DR6 f090 coadd map' -> 'ACTxPlanck DR6 f150 coadd map'
 Metadata diff: [frequency] 090 -> 150  
 Replace sources: coadd
 ```
-When we call `henry.push(revision)`, we'll upload the new `coadd` source (which
+When we call `client.push(revision)`, we'll upload the new `coadd` source (which
 is now a different file), we'll change the metadata object to include the
 different frequency information, and update the name.
 
@@ -268,7 +268,7 @@ Realizing Sources
 If we now pull down our revised product, realizing its sources, we can see how
 the caching works:
 ```python3
-realized_product = henry.pull_product(product_id=revision.product_id)
+realized_product = client.pull_product(product_id=revision.product_id)
 ```
 In the background, we can see what's going on with a verbose client:
 ```
@@ -295,12 +295,12 @@ Loading Downloaded Data
 Downloaded products and collections can be read from disk using the `read_product`
 and `read_collection` functions on the `Henry` client:
 ```python
-downloaded_product = henry.read_product("./ACTxPlanck DR6 f150 coadd map")
+downloaded_product = client.read_product("./ACTxPlanck DR6 f150 coadd map")
 ```
 By default, we allow partial loading of products and collections that are not
 fully downloaded. To be more strict, you can use the `allow_incomplete=False`
 argument in these read functions:
 ```python
-henry.read_collection("./Unfinished Collection", False)
+client.read_collection("./Unfinished Collection", False)
 >>> CollectionIncompleteError(...)
 ```

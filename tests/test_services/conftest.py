@@ -108,14 +108,16 @@ async def created_full_product(database, storage, created_user):
 
     assert await product.confirm(data, storage)
 
-    yield await product.read_by_id(data.id, created_user.groups)
+    yield await product.read_by_id(data.id, created_user.groups, scopes=set())
 
     # Go get it again just in case someone mutated, revved, etc.
     data = await product.read_by_name(
-        name=data.name, version=None, groups=created_user.groups
+        name=data.name, version=None, groups=created_user.groups, scopes=set()
     )
 
-    await product.delete_tree(data, created_user.groups, storage=storage, data=True)
+    await product.delete_tree(
+        data, created_user.groups, storage=storage, data=True, scopes=set()
+    )
 
 
 @pytest_asyncio.fixture(scope="session")

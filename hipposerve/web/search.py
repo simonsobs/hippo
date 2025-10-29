@@ -22,12 +22,16 @@ async def search_results_view(
     filter: str = "products",
 ):
     if filter == "products":
-        results = await product.search_by_name(q, request.user.groups)
+        results = await product.search_by_name(q, request.user.groups, scopes=())
     elif filter == "collections":
-        results = await collection.search_by_name(q, request.user.groups)
+        results = await collection.search_by_name(q, request.user.groups, scopes=())
     else:
-        collection_results = await collection.search_by_owner(q, request.user.groups)
-        product_results = await product.search_by_owner(q, request.user.groups)
+        collection_results = await collection.search_by_owner(
+            q, request.user.groups, scopes=set()
+        )
+        product_results = await product.search_by_owner(
+            q, request.user.groups, scopes=set()
+        )
         results = collection_results + product_results
 
     return templates.TemplateResponse(
@@ -104,7 +108,9 @@ async def searchmetadata_results_view(
         else:
             metadata_filters[key] = {"$regex": value, "$options": "i"}
 
-    results = await product.search_by_metadata(metadata_filters, request.user.groups)
+    results = await product.search_by_metadata(
+        metadata_filters, request.user.groups, scopes=request.auth.scopes
+    )
 
     return templates.TemplateResponse(
         "search_results.html",

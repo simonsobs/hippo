@@ -62,7 +62,9 @@ async def read_collection(
     logger.info("Request to read collection: {} from {}", id, request.user.display_name)
 
     try:
-        item = await collection.read(id=id, groups=request.user.groups)
+        item = await collection.read(
+            id=id, groups=request.user.groups, scopes=request.user.scopes
+        )
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
@@ -170,16 +172,23 @@ async def add_product_to_collection(
     )
 
     try:
-        coll = await collection.read(id=collection_id, groups=request.user.groups)
+        coll = await collection.read(
+            id=collection_id, groups=request.user.groups, scopes=request.user.scopes
+        )
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
 
     try:
-        item = await product.read_by_id(id=product_id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=product_id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         await product.add_collection(
-            product=item, access_groups=request.user.groups, collection=coll
+            product=item,
+            access_groups=request.user.groups,
+            collection=coll,
+            scopes=request.auth.scopes,
         )
         logger.info("Successfully added {} to collection {}", item.name, coll.name)
     except product.ProductNotFound:
@@ -207,16 +216,23 @@ async def remove_product_from_collection(
     )
 
     try:
-        coll = await collection.read(id=collection_id, groups=request.user.groups)
+        coll = await collection.read(
+            id=collection_id, groups=request.user.groups, scopes=request.user.scopes
+        )
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
 
     try:
-        item = await product.read_by_id(id=product_id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=product_id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         await product.remove_collection(
-            product=item, access_groups=request.user.groups, collection=coll
+            product=item,
+            access_groups=request.user.groups,
+            collection=coll,
+            scopes=request.auth.scopes,
         )
         logger.info("Successfully removed {} from collection {}", item.name, coll.name)
     except product.ProductNotFound:
@@ -241,6 +257,7 @@ async def diff_collection(
     diff = await collection.diff(
         id=id,
         access_groups=request.user.groups,
+        scopes=request.auth.scopes,
         name=model.name,
         description=model.description,
     )
@@ -264,6 +281,7 @@ async def update_collection(
     coll = await collection.update(
         id=id,
         access_groups=request.user.groups,
+        scopes=request.auth.scopes,
         name=model.name,
         description=model.description,
     )
@@ -299,15 +317,22 @@ async def delete_collection(
 
     try:
         # Check if we have a parent; if we do, we need to remove its link to us.
-        coll = await collection.read(id=id, groups=request.user.groups)
+        coll = await collection.read(
+            id=id, groups=request.user.groups, scopes=request.user.scopes
+        )
 
         if coll.parent_collections:
             for parent in coll.parent_collections:
                 await collection.remove_child(
-                    parent_id=parent.id, child_id=id, groups=request.user.groups
+                    parent_id=parent.id,
+                    child_id=id,
+                    groups=request.user.groups,
+                    scopes=request.auth.scopes,
                 )
 
-        await collection.delete(id=id, groups=request.user.groups)
+        await collection.delete(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         logger.info(
             "Successfully deleted collection {} from {}", id, request.user.display_name
         )
@@ -336,13 +361,18 @@ async def add_child_product(
     )
 
     try:
-        source = await product.read_by_id(id=parent_id, groups=request.user.groups)
-        destination = await product.read_by_id(id=child_id, groups=request.user.groups)
+        source = await product.read_by_id(
+            id=parent_id, groups=request.user.groups, scopes=request.auth.scopes
+        )
+        destination = await product.read_by_id(
+            id=child_id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         await product.add_relationship(
             source=source,
             destination=destination,
             access_groups=request.user.groups,
             type="child",
+            scopes=request.auth.scopes,
         )
         logger.info(
             "Successfully added {} as child of {}", destination.name, source.name
@@ -372,13 +402,18 @@ async def remove_child_product(
     )
 
     try:
-        source = await product.read_by_id(id=parent_id, groups=request.user.groups)
-        destination = await product.read_by_id(id=child_id, groups=request.user.groups)
+        source = await product.read_by_id(
+            id=parent_id, groups=request.user.groups, scopes=request.auth.scopes
+        )
+        destination = await product.read_by_id(
+            id=child_id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         await product.remove_relationship(
             source=source,
             destination=destination,
             access_groups=request.user.groups,
             type="child",
+            scopes=request.auth.scopes,
         )
         logger.info(
             "Successfully removed {} as child of {}", destination.name, source.name
@@ -409,7 +444,10 @@ async def add_child_collection(
 
     try:
         await collection.add_child(
-            parent_id=parent_id, child_id=child_id, groups=request.user.groups
+            parent_id=parent_id,
+            child_id=child_id,
+            groups=request.user.groups,
+            scopes=request.auth.scopes,
         )
         logger.info("Successfully added {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:
@@ -438,7 +476,10 @@ async def remove_child_collection(
 
     try:
         await collection.remove_child(
-            parent_id=parent_id, child_id=child_id, groups=request.user.groups
+            parent_id=parent_id,
+            child_id=child_id,
+            groups=request.user.groups,
+            scopes=request.auth.scopes,
         )
         logger.info("Successfully removed {} as child of {}", child_id, parent_id)
     except collection.CollectionNotFound:

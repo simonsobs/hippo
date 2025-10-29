@@ -23,7 +23,7 @@ async def test_created_product_groups(created_full_product, database):
 @pytest.mark.asyncio(loop_scope="session")
 async def test_get_existing_file(created_full_product, database, created_user):
     selected_product = await product.read_by_id(
-        created_full_product.id, created_user.groups
+        created_full_product.id, created_user.groups, scopes=set()
     )
 
     assert selected_product.name == created_full_product.name
@@ -88,7 +88,7 @@ async def test_create_file_with_multiple_sources(database, created_user, storage
     assert await product.confirm(created_product, storage=storage)
 
     await product.delete_one(
-        created_product, created_user.groups, storage=storage, data=True
+        created_product, created_user.groups, storage=storage, data=True, scopes=set()
     )
 
 
@@ -104,16 +104,21 @@ async def test_presign_read(created_full_product, storage):
 async def test_get_missing_file(database, created_user):
     with pytest.raises(product.ProductNotFound):
         await product.read_by_name(
-            name="Missing Product", version=None, groups=created_user.groups
+            name="Missing Product",
+            version=None,
+            groups=created_user.groups,
+            scopes=set(),
         )
 
     with pytest.raises(product.ProductNotFound):
         await product.read_by_id(
-            id=PydanticObjectId("7" * 24), groups=created_user.groups
+            id=PydanticObjectId("7" * 24), groups=created_user.groups, scopes=set()
         )
 
     with pytest.raises(product.ProductNotFound):
-        await product.read_by_id(id="abcdefghijk", groups=created_user.groups)
+        await product.read_by_id(
+            id="abcdefghijk", groups=created_user.groups, scopes=set()
+        )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -124,10 +129,11 @@ async def test_add_to_collection(
         product=created_full_product,
         access_groups=created_user.groups,
         collection=created_collection,
+        scopes=set(),
     )
 
     selected_product = await product.read_by_id(
-        created_full_product.id, created_user.groups
+        created_full_product.id, created_user.groups, scopes=set()
     )
 
     assert created_collection.name in [c.name for c in selected_product.collections]
@@ -136,10 +142,11 @@ async def test_add_to_collection(
         product=selected_product,
         access_groups=created_user.groups,
         collection=created_collection,
+        scopes=set(),
     )
 
     selected_product = await product.read_by_id(
-        created_full_product.id, created_user.groups
+        created_full_product.id, created_user.groups, scopes=set()
     )
 
     assert created_collection.name not in [c.name for c in selected_product.collections]
@@ -179,6 +186,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
     await product.update(
         created_full_product,
         created_user.groups,
+        scopes=set(),
         name=None,
         description="New description",
         metadata={"metadata_type": "simple"},
@@ -190,7 +198,10 @@ async def test_update_metadata(created_full_product, database, storage, created_
     )
 
     new_product = await product.read_by_name(
-        name=created_full_product.name, version=None, groups=created_user.groups
+        name=created_full_product.name,
+        version=None,
+        groups=created_user.groups,
+        scopes=set(),
     )
 
     assert new_product.name == created_full_product.name
@@ -205,6 +216,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
         name=created_full_product.name,
         version=existing_version,
         groups=created_user.groups,
+        scopes=set(),
     )
 
     assert not metadata.current
@@ -224,7 +236,7 @@ async def test_update_metadata(created_full_product, database, storage, created_
 
     assert new_product.current
     await product.delete_one(
-        new_product, created_user.groups, storage=storage, data=True
+        new_product, created_user.groups, storage=storage, data=True, scopes=set()
     )
 
 
@@ -233,7 +245,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
     # Get the current version of the created_full_product in case it has been
     # mutated.
     created_full_product = await product.walk_to_current(
-        product=created_full_product, groups=created_user.groups
+        product=created_full_product, groups=created_user.groups, scopes=set()
     )
 
     assert created_full_product.current
@@ -256,6 +268,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
     _, uploads = await product.update(
         created_full_product,
         created_user.groups,
+        scopes=set(),
         name=None,
         description="Updated version of the created_full_product",
         metadata=None,
@@ -278,7 +291,10 @@ async def test_update_sources(created_full_product, database, storage, created_u
 
     # Grab it back and check
     new_product = await product.read_by_name(
-        created_full_product.name, version=None, groups=created_user.groups
+        created_full_product.name,
+        version=None,
+        groups=created_user.groups,
+        scopes=set(),
     )
 
     assert "map" not in created_full_product.sources
@@ -292,6 +308,7 @@ async def test_update_sources(created_full_product, database, storage, created_u
     _, uploads = await product.update(
         new_product,
         created_user.groups,
+        scopes=set(),
         drop_sources=["map"],
         storage=storage,
         level=versioning.VersionRevision.MINOR,
@@ -299,7 +316,10 @@ async def test_update_sources(created_full_product, database, storage, created_u
 
     # Grab it back and check
     reverted_product = await product.read_by_name(
-        created_full_product.name, version=None, groups=created_user.groups
+        created_full_product.name,
+        version=None,
+        groups=created_user.groups,
+        scopes=set(),
     )
 
     assert "map" not in reverted_product.sources
@@ -310,7 +330,7 @@ async def test_update_sources_failure_modes(
     created_full_product, database, storage, created_user
 ):
     created_full_product = await product.walk_to_current(
-        product=created_full_product, groups=created_user.groups
+        product=created_full_product, groups=created_user.groups, scopes=set()
     )
 
     # Check we do not rev the version when stuff fails!
@@ -319,9 +339,10 @@ async def test_update_sources_failure_modes(
     with pytest.raises(FileExistsError):
         await product.update(
             await product.walk_to_current(
-                created_full_product, groups=created_user.groups
+                created_full_product, groups=created_user.groups, scopes=set()
             ),
             created_user.groups,
+            scopes=set(),
             name=None,
             description=None,
             metadata=None,
@@ -341,9 +362,10 @@ async def test_update_sources_failure_modes(
     with pytest.raises(FileNotFoundError):
         await product.update(
             await product.walk_to_current(
-                created_full_product, groups=created_user.groups
+                created_full_product, groups=created_user.groups, scopes=set()
             ),
             created_user.groups,
+            scopes=set(),
             name=None,
             description=None,
             metadata=None,
@@ -363,9 +385,10 @@ async def test_update_sources_failure_modes(
     with pytest.raises(FileNotFoundError):
         await product.update(
             await product.walk_to_current(
-                created_full_product, groups=created_user.groups
+                created_full_product, groups=created_user.groups, scopes=set()
             ),
             created_user.groups,
+            scopes=set(),
             name=None,
             description=None,
             metadata=None,
@@ -377,7 +400,7 @@ async def test_update_sources_failure_modes(
         )
 
     current = await product.walk_to_current(
-        created_full_product, groups=created_user.groups
+        created_full_product, groups=created_user.groups, scopes=set()
     )
     assert current.version == starting_version
 
@@ -396,7 +419,11 @@ async def test_read_most_recent_products(database, created_user, storage):
         )
 
     products = await product.read_most_recent(
-        groups=created_user.groups, fetch_links=False, maximum=8, current_only=False
+        groups=created_user.groups,
+        scopes=set(),
+        fetch_links=False,
+        maximum=8,
+        current_only=False,
     )
 
     assert len(products) == 8
@@ -415,7 +442,7 @@ async def test_read_most_recent_products(database, created_user, storage):
         bad_ids.add(x.id)
 
     products = await product.read_most_recent(
-        groups=created_user.groups, fetch_links=False, current_only=True
+        groups=created_user.groups, scopes=set(), fetch_links=False, current_only=True
     )
 
     for x in products:
@@ -425,7 +452,10 @@ async def test_read_most_recent_products(database, created_user, storage):
     for i in range(20):
         await product.delete_tree(
             product=await product.read_by_name(
-                name=f"product_{i}", version=None, groups=created_user.groups
+                name=f"product_{i}",
+                version=None,
+                groups=created_user.groups,
+                scopes=set(),
             ),
             access_groups=created_user.groups,
             storage=storage,
@@ -433,13 +463,15 @@ async def test_read_most_recent_products(database, created_user, storage):
         )
 
     products = await product.read_most_recent(
-        groups=created_user.groups, fetch_links=False, maximum=8
+        groups=created_user.groups, scopes=set(), fetch_links=False, maximum=8
     )
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_walk_history(database, created_full_product, created_user):
-    latest = await product.walk_to_current(created_full_product, created_user.groups)
+    latest = await product.walk_to_current(
+        created_full_product, created_user.groups, scopes=set()
+    )
 
     versions = await product.walk_history(latest)
 
@@ -464,15 +496,16 @@ async def test_add_relationships(database, created_user, created_full_product, s
         destination=created_full_product,
         access_groups=created_user.groups,
         type="child",
+        scopes=set(),
     )
 
     # Grab the original product and check that the created_full_product is a _parent_
     # of the child.
     secondary_product = await product.read_by_id(
-        secondary_product.id, groups=created_user.groups
+        secondary_product.id, groups=created_user.groups, scopes=set()
     )
     original_product = await product.read_by_id(
-        created_full_product.id, groups=created_user.groups
+        created_full_product.id, groups=created_user.groups, scopes=set()
     )
 
     assert original_product.name in [c.name for c in secondary_product.child_of]
@@ -483,20 +516,25 @@ async def test_add_relationships(database, created_user, created_full_product, s
         source=secondary_product,
         destination=created_full_product,
         access_groups=created_user.groups,
+        scopes=set(),
         type="child",
     )
 
     original_product = await product.read_by_id(
-        created_full_product.id, groups=created_user.groups
+        created_full_product.id, groups=created_user.groups, scopes=set()
     )
 
     assert secondary_product.name not in [c.name for c in original_product.parent_of]
 
     await product.delete_tree(
         product=await product.read_by_name(
-            name=secondary_product.name, version=None, groups=created_user.groups
+            name=secondary_product.name,
+            version=None,
+            groups=created_user.groups,
+            scopes=set(),
         ),
         access_groups=created_user.groups,
+        scopes=set(),
         storage=storage,
         data=True,
     )
@@ -516,6 +554,7 @@ async def test_product_middle_deletion(database, created_user, storage):
     middle, uploads = await product.update(
         initial,
         created_user.groups,
+        scopes=set(),
         name=None,
         metadata=None,
         description=None,
@@ -555,6 +594,7 @@ async def test_product_middle_deletion(database, created_user, storage):
     final, _ = await product.update(
         middle,
         created_user.groups,
+        scopes=set(),
         name=None,
         metadata=None,
         description=None,
@@ -571,13 +611,16 @@ async def test_product_middle_deletion(database, created_user, storage):
             access_groups=created_user.groups,
             storage=storage,
             data=False,
+            scopes=set(),
         )
 
-    await product.delete_one(middle, created_user.groups, storage, data=True)
+    await product.delete_one(
+        middle, created_user.groups, storage, data=True, scopes=set()
+    )
 
     # Refresh them from the database to give this the best chance
-    initial = await product.read_by_id(initial.id, created_user.groups)
-    final = await product.read_by_id(final.id, created_user.groups)
+    initial = await product.read_by_id(initial.id, created_user.groups, scopes=set())
+    final = await product.read_by_id(final.id, created_user.groups, scopes=set())
 
     assert final.current
     assert final.replaces == initial
@@ -585,7 +628,7 @@ async def test_product_middle_deletion(database, created_user, storage):
     # Make sure we deleted the object.
     with pytest.raises(product.ProductNotFound):
         await product.read_by_name(
-            initial.name, version="1.0.1", groups=created_user.groups
+            initial.name, version="1.0.1", groups=created_user.groups, scopes=set()
         )
 
     # See if we deleted that file we uploaded. As it was not part of v1.0.2 and
@@ -620,7 +663,9 @@ async def test_text_name_search(database, created_user, storage):
 
     # Search for them
 
-    results = await product.search_by_name("my favorite", created_user.groups)
+    results = await product.search_by_name(
+        "my favorite", created_user.groups, scopes=set()
+    )
 
     assert len(results) == 2
 
@@ -628,8 +673,12 @@ async def test_text_name_search(database, created_user, storage):
 
     # Clean up.
 
-    await product.delete_one(product_A, created_user.groups, storage=storage, data=True)
-    await product.delete_one(product_B, created_user.groups, storage=storage, data=True)
+    await product.delete_one(
+        product_A, created_user.groups, storage=storage, data=True, scopes=set()
+    )
+    await product.delete_one(
+        product_B, created_user.groups, storage=storage, data=True, scopes=set()
+    )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -648,6 +697,7 @@ async def test_product_with_five_versions(database, created_user, storage):
         new_product, _ = await product.update(
             product=new_product,
             access_groups=created_user.groups,
+            scopes=set(),
             description=f"Version {i + 1} of the product",
             storage=storage,
             level=versioning.VersionRevision.MINOR,
@@ -655,9 +705,7 @@ async def test_product_with_five_versions(database, created_user, storage):
 
     # Now try to get the fifth version by name.
     final_product = await product.read_by_name(
-        name=new_product.name,
-        version=None,
-        groups=created_user.groups,
+        name=new_product.name, version=None, groups=created_user.groups, scopes=set()
     )
 
     history = await product.walk_history(final_product)
@@ -668,6 +716,7 @@ async def test_product_with_five_versions(database, created_user, storage):
     await product.delete_tree(
         product=final_product,
         access_groups=created_user.groups,
+        scopes=set(),
         storage=storage,
         data=True,
     )

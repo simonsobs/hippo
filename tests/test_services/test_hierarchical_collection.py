@@ -85,7 +85,10 @@ async def create_hierarchical_collection_with_relationships(
 
         # Add parent to collection
         await product_sc.add_collection(
-            product=parent_prod, access_groups=user_groups, collection=coll
+            product=parent_prod,
+            access_groups=user_groups,
+            collection=coll,
+            scopes=set(),
         )
 
     # Create child products and establish parent-child relationships
@@ -126,6 +129,7 @@ async def create_hierarchical_collection_with_relationships(
                 destination=parent_prod,
                 access_groups=user_groups,
                 type="child",
+                scopes=set(),
             )
 
     return coll
@@ -150,7 +154,9 @@ async def cleanup_hierarchical_collection(collection_id: str, storage):
         for prod_id in all_products:
             prod = await Product.find_one(Product.id == prod_id)
             if prod:
-                await product_sc.delete_tree(prod, ["admin"], storage, data=True)
+                await product_sc.delete_tree(
+                    prod, ["admin"], storage, data=True, scopes=set()
+                )
 
         await Collection.find_one(Collection.id == collection_id).delete()
 

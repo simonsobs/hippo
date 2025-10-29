@@ -44,56 +44,75 @@ async def create(
     return collection
 
 
-async def read(
-    id: PydanticObjectId,
-    groups: list[str],
-):
+async def read(id: PydanticObjectId, groups: list[str], scopes: set[str]):
     collection = await Collection.find_one(Collection.id == id, **LINK_POLICY)
 
     if collection is None:
         raise CollectionNotFound
-    assert check_user_access(groups, collection.readers + collection.writers)
+    assert check_user_access(
+        groups, collection.readers + collection.writers, scopes=scopes
+    )
     if collection.products:
-        collection_list = await collection_product_filter(groups, [collection])
+        collection_list = await collection_product_filter(
+            groups, [collection], scopes=scopes
+        )
         collection = collection_list[0]
     return collection
 
 
 async def read_most_recent(
     groups: list[str],
+    scopes: set[str],
     maximum: int = 16,
 ) -> list[Collection]:
     # TODO: Implement updated time for collections.
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+    if "hippo:admin" not in scopes:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
+    else:
+        access_query = {}
+
     collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
         maximum
     )
-    filtered_collection_list = await collection_product_filter(groups, collection_list)
+
+    filtered_collection_list = await collection_product_filter(
+        groups, collection_list, scopes=scopes
+    )
+
     return filtered_collection_list
 
 
 async def search_by_name(
-    name: str,
-    groups: list[str],
+    name: str, groups: list[str], scopes: set[str]
 ) -> list[Collection]:
     """
     Search for Collections by name using the text index.
     """
 
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
+
     results = (
         await Collection.find(access_query, Text(name), **LINK_POLICY)  # noqa: E712
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
 
-    filtered_collection_list = await collection_product_filter(groups, results)
+    filtered_collection_list = await collection_product_filter(
+        groups, results, scopes=scopes
+    )
+
     return filtered_collection_list
 
 
 async def search_by_owner(
-    owner: str,
-    groups: list[str],
+    owner: str, groups: list[str], scopes: set[str]
 ) -> list[Collection]:
     """
     Search for Collections by owner; owner search is case insensitive
@@ -102,25 +121,36 @@ async def search_by_owner(
 
     owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
 
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
+
     results = await Collection.find(
         {**access_query, "owner": owner_regex}, **LINK_POLICY
     ).to_list()
 
-    filtered_collection_list = await collection_product_filter(groups, results)
+    filtered_collection_list = await collection_product_filter(
+        groups, results, scopes=scopes
+    )
+
     return filtered_collection_list
 
 
 async def diff(
     id: PydanticObjectId,
     access_groups: list[str],
+    scopes: set[str],
     name: str | None = None,
     description: str | None = None,
 ):
     """
     Diff a collection against the current version.
     """
-    collection = await read(id=id, groups=access_groups)
+    collection = await read(id=id, groups=access_groups, scopes=scopes)
+
     diff_dict = {}
 
     if name and name != collection.name:
@@ -135,11 +165,13 @@ async def diff(
 async def update(
     id: PydanticObjectId,
     access_groups: list[str],
+    scopes: set[str],
     name: str | None,
     description: str | None,
 ):
-    collection = await read(id=id, groups=access_groups)
-    assert check_user_access(access_groups, collection.writers)
+    collection = await read(id=id, groups=access_groups, scopes=scopes)
+
+    assert check_user_access(access_groups, collection.writers, scopes=scopes)
 
     if name:
         collection.name = name
@@ -156,10 +188,11 @@ async def add_child(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
     groups: list[str],
+    scopes: set[str],
 ) -> Collection:
-    parent = await read(id=parent_id, groups=groups)
-    child = await read(id=child_id, groups=groups)
-    assert check_user_access(groups, parent.writers)
+    parent = await read(id=parent_id, groups=groups, scopes=scopes)
+    child = await read(id=child_id, groups=groups, scopes=scopes)
+    assert check_user_access(groups, parent.writers, scopes=scopes)
     parent.child_collections.append(child)
     await parent.save()
 
@@ -170,9 +203,10 @@ async def remove_child(
     parent_id: PydanticObjectId,
     child_id: PydanticObjectId,
     groups: list[str],
+    scopes: set[str],
 ) -> Collection:
-    parent = await read(id=parent_id, groups=groups)
-    assert check_user_access(groups, parent.writers)
+    parent = await read(id=parent_id, groups=groups, scopes=scopes)
+    assert check_user_access(groups, parent.writers, scopes=scopes)
     await parent.set(
         {
             Collection.child_collections: [
@@ -184,12 +218,11 @@ async def remove_child(
     return parent
 
 
-async def delete(
-    id: PydanticObjectId,
-    groups: list[str],
-):
-    collection = await read(id=id, groups=groups)
-    assert check_user_access(groups, collection.readers + collection.writers)
+async def delete(id: PydanticObjectId, groups: list[str], scopes: set[str]):
+    collection = await read(id=id, groups=groups, scopes=scopes)
+    assert check_user_access(
+        groups, collection.readers + collection.writers, scopes=scopes
+    )
     await collection.delete()
 
     return
@@ -197,6 +230,7 @@ async def delete(
 
 async def collection_product_filter(
     groups: list[str],
+    scopes: set[str],
     collection_list: list[Collection],
 ) -> list[Collection]:
     filtered_collection_list = []
@@ -205,7 +239,9 @@ async def collection_product_filter(
             product_list = []
             for product in collection.products:
                 try:
-                    assert check_user_access(groups, product.readers + product.writers)
+                    assert check_user_access(
+                        groups, product.readers + product.writers, scopes=scopes
+                    )
                     product_list.append(product)
                 except HTTPException:
                     continue

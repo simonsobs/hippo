@@ -1,6 +1,7 @@
 *.vscode
 
 *.ruff_cache
+uv.lock
 
 *.egg-info
 *.pyc
@@ -20,3 +21,5 @@ examples/*.fits
 # Data
 *.fits
 *.tar.gz
+*.mp4
+*product.json

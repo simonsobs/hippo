@@ -17,7 +17,7 @@ async def test_create(created_user):
     )
     assert new_collection.name == "Test Collection x"
     assert created_user.display_name in new_collection.writers
-    await collection.delete(new_collection.id, created_user.groups)
+    await collection.delete(new_collection.id, created_user.groups, scopes=())
 
 
 @pytest.mark.asyncio(loop_scope="session")

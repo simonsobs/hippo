@@ -183,7 +183,7 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct200
             storage=storage,
         )
         collection_obj = await collection_sc.read(
-            id=hierarchical_coll.id, groups=created_user.groups
+            id=hierarchical_coll.id, groups=created_user.groups, scopes=()
         )
         assert collection_obj.products is not None
 
@@ -210,7 +210,7 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct20_
             storage=storage,
         )
         collection_obj = await collection_sc.read(
-            id=hierarchical_coll.id, groups=created_user.groups
+            id=hierarchical_coll.id, groups=created_user.groups, scopes=()
         )
         assert len(collection_obj.products) == 20
 

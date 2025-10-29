@@ -460,6 +460,7 @@ async def test_read_most_recent_products(database, created_user, storage):
             access_groups=created_user.groups,
             storage=storage,
             data=True,
+            scopes=set(),
         )
 
     products = await product.read_most_recent(
@@ -615,7 +616,7 @@ async def test_product_middle_deletion(database, created_user, storage):
         )
 
     await product.delete_one(
-        middle, created_user.groups, storage, data=True, scopes=set()
+        middle, created_user.groups, storage=storage, data=True, scopes=set()
     )
 
     # Refresh them from the database to give this the best chance

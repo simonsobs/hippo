@@ -120,7 +120,7 @@ async def test_oversized_collection_fails_with_fetch_links(
             storage=storage,
         )
         collection_obj = await collection_sc.read(
-            id=massive_coll.id, groups=created_user.groups
+            id=massive_coll.id, groups=created_user.groups, scopes=()
         )
         assert collection_obj.products is not None
 

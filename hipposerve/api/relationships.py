@@ -63,7 +63,7 @@ async def read_collection(
 
     try:
         item = await collection.read(
-            id=id, groups=request.user.groups, scopes=request.user.scopes
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
         )
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -130,7 +130,9 @@ async def search_collection(
         "Request to search for collection: {} from {}", name, request.user.display_name
     )
 
-    results = await collection.search_by_name(name=name, groups=request.user.groups)
+    results = await collection.search_by_name(
+        name=name, groups=request.user.groups, scopes=request.auth.scopes
+    )
 
     logger.info(
         "Found {} collections for {} from {}",
@@ -173,7 +175,7 @@ async def add_product_to_collection(
 
     try:
         coll = await collection.read(
-            id=collection_id, groups=request.user.groups, scopes=request.user.scopes
+            id=collection_id, groups=request.user.groups, scopes=request.auth.scopes
         )
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -217,7 +219,7 @@ async def remove_product_from_collection(
 
     try:
         coll = await collection.read(
-            id=collection_id, groups=request.user.groups, scopes=request.user.scopes
+            id=collection_id, groups=request.user.groups, scopes=request.auth.scopes
         )
     except collection.CollectionNotFound:
         raise HTTPException(
@@ -318,7 +320,7 @@ async def delete_collection(
     try:
         # Check if we have a parent; if we do, we need to remove its link to us.
         coll = await collection.read(
-            id=id, groups=request.user.groups, scopes=request.user.scopes
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
         )
 
         if coll.parent_collections:

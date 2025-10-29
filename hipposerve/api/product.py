@@ -83,7 +83,9 @@ async def search(
         "Search for product {} request from {}", text, request.user.display_name
     )
 
-    items = await product.search_by_name(name=text, groups=request.user.groups)
+    items = await product.search_by_name(
+        name=text, groups=request.user.groups, scopes=request.auth.scopes
+    )
 
     logger.info(
         "Successfully found {} product(s) matching {} requested by {}",
@@ -310,7 +312,7 @@ async def metadata_diff(
         acl.check_user_access(
             user_groups=request.user.groups,
             document_groups=item.writers,
-            scopes=request.user.scopes,
+            scopes=request.auth.scopes,
         )
     except AuthenticationError:
         raise HTTPException(
@@ -374,7 +376,7 @@ async def update_product(
         acl.check_user_access(
             user_groups=request.user.groups,
             document_groups=item.writers,
-            scopes=request.user.scopes,
+            scopes=request.auth.scopes,
         )
     except AuthenticationError:
         raise HTTPException(

@@ -53,9 +53,7 @@ async def read(id: PydanticObjectId, groups: list[str], scopes: set[str]):
         groups, collection.readers + collection.writers, scopes=scopes
     )
     if collection.products:
-        collection_list = await collection_product_filter(
-            groups, [collection], scopes=scopes
-        )
+        collection_list = await collection_product_filter(groups, scopes, [collection])
         collection = collection_list[0]
     return collection
 
@@ -78,7 +76,7 @@ async def read_most_recent(
     )
 
     filtered_collection_list = await collection_product_filter(
-        groups, collection_list, scopes=scopes
+        groups, scopes, collection_list
     )
 
     return filtered_collection_list
@@ -104,9 +102,7 @@ async def search_by_name(
         .to_list()
     )
 
-    filtered_collection_list = await collection_product_filter(
-        groups, results, scopes=scopes
-    )
+    filtered_collection_list = await collection_product_filter(groups, scopes, results)
 
     return filtered_collection_list
 
@@ -132,9 +128,7 @@ async def search_by_owner(
         {**access_query, "owner": owner_regex}, **LINK_POLICY
     ).to_list()
 
-    filtered_collection_list = await collection_product_filter(
-        groups, results, scopes=scopes
-    )
+    filtered_collection_list = await collection_product_filter(groups, scopes, results)
 
     return filtered_collection_list
 

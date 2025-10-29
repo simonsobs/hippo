@@ -82,7 +82,7 @@ def check_user_access(
     AuthenticationError
         When there is no overlap between `user_groups` and `document_groups`
     """
-    allowed = set(document_groups) | {"admin"}
+    allowed = set(document_groups) | {"hippo:admin"}
     user_groups = set(user_groups)
 
     overlap = user_groups & allowed

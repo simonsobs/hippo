@@ -20,7 +20,7 @@ from hipposerve.api.models.product import (
 )
 from hipposerve.database import ProductMetadata
 from hipposerve.service import acl, product, storage, users
-from hipposerve.service.auth import requires
+from hipposerve.service.auth import AuthenticationError, requires
 
 product_router = APIRouter(prefix="/product")
 
@@ -267,10 +267,7 @@ async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
             file=product_instance.sources[slug], storage=request.app.storage
         )
     except (FileNotFoundError, KeyError):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Slug {slug} not found for product {id}",
-        )
+        raise NOT_FOUND
 
     return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
 
@@ -295,6 +292,19 @@ async def metadata_diff(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
+    try:
+        allowed = acl.check_user_access(
+            user_groups=request.user.groups, document_groups=item.writers
+        )
+        if not allowed:
+            raise AuthenticationError
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have write access to this product",
+        )
+
+    # Check the _new_ owner is an existing user
     if model.owner is not None:
         try:
             await users.confirm_user(name=model.owner)
@@ -344,6 +354,19 @@ async def update_product(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
+    try:
+        allowed = acl.check_user_access(
+            user_groups=request.user.groups, document_groups=item.writers
+        )
+        if not allowed:
+            raise AuthenticationError
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have write access to this product",
+        )
+
+    # Check the _new_ owner is an existing user
     if model.owner is not None:
         try:
             await users.confirm_user(name=model.owner)
@@ -353,18 +376,24 @@ async def update_product(
             )
 
     if model.level:
-        new_product, upload_urls = await product.update(
-            product=item,
-            access_groups=request.user.groups,
-            name=model.name,
-            description=model.description,
-            metadata=model.metadata,
-            new_sources=model.new_sources,
-            replace_sources=model.replace_sources,
-            drop_sources=model.drop_sources,
-            storage=request.app.storage,
-            level=model.level,
-        )
+        try:
+            new_product, upload_urls = await product.update(
+                product=item,
+                access_groups=request.user.groups,
+                name=model.name,
+                description=model.description,
+                metadata=model.metadata,
+                new_sources=model.new_sources,
+                replace_sources=model.replace_sources,
+                drop_sources=model.drop_sources,
+                storage=request.app.storage,
+                level=model.level,
+            )
+        except AuthenticationError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User does not have write access to this product",
+            )
 
         logger.info(
             "Successfully updated product {} (new id: {}; {}; old id: {}; {}) from {}",

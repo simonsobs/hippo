@@ -141,4 +141,5 @@ async def created_collection(database, created_user):
     await collection.delete(
         id=data.id,
         groups=created_user.groups,
+        scopes=set(),
     )

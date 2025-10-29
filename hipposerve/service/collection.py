@@ -64,12 +64,12 @@ async def read_most_recent(
     maximum: int = 16,
 ) -> list[Collection]:
     # TODO: Implement updated time for collections.
-    if "hippo:admin" not in scopes:
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
         access_query = {
             "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
         }
-    else:
-        access_query = {}
 
     collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
         maximum

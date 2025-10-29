@@ -17,7 +17,7 @@ async def test_create(created_user):
     )
     assert new_collection.name == "Test Collection x"
     assert created_user.display_name in new_collection.writers
-    await collection.delete(new_collection.id, created_user.groups, scopes=())
+    await collection.delete(new_collection.id, created_user.groups, scopes=set())
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -73,7 +73,7 @@ async def test_update(created_collection, created_user):
 async def test_search(created_collection, created_user):
     read = (
         await collection.search_by_name(
-            name=created_collection.name, groups=created_user.groups, scopes=()
+            name=created_collection.name, groups=created_user.groups, scopes=set()
         )
     )[0]
 

@@ -353,11 +353,9 @@ async def update_product(
         )
 
     try:
-        allowed = acl.check_user_access(
+        acl.check_user_access(
             user_groups=request.user.groups, document_groups=item.writers
         )
-        if not allowed:
-            raise AuthenticationError
     except AuthenticationError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

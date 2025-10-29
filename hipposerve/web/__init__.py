@@ -136,7 +136,9 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
 
 @web_router.get("/collections/{id}/edit")
 async def collection_edit(request: Request, id: PydanticObjectId):
-    collection_instance = await collection.read(id, request.user.groups)
+    collection_instance = await collection.read(
+        id, request.user.groups, scopes=request.auth.scopes
+    )
 
     return templates.TemplateResponse(
         "collection_edit.html",
@@ -151,7 +153,9 @@ async def collection_edit(request: Request, id: PydanticObjectId):
 
 @web_router.get("/collections/{id}")
 async def collection_view(request: Request, id: PydanticObjectId):
-    collection_instance = await collection.read(id, request.user.groups)
+    collection_instance = await collection.read(
+        id, request.user.groups, scopes=request.auth.scopes
+    )
     parents_overflow_content = get_overflow_content(
         collection_instance.parent_collections, "collection"
     )

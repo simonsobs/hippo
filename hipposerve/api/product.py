@@ -83,7 +83,9 @@ async def search(
         "Search for product {} request from {}", text, request.user.display_name
     )
 
-    items = await product.search_by_name(name=text, groups=request.user.groups)
+    items = await product.search_by_name(
+        name=text, groups=request.user.groups, scopes=request.auth.scopes
+    )
 
     logger.info(
         "Successfully found {} product(s) matching {} requested by {}",
@@ -110,7 +112,9 @@ async def complete_product(
     )
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -145,7 +149,9 @@ async def read_product(
     logger.info("Read product request for {} from {}", id, request.user.display_name)
 
     try:
-        product_item = await product.read_by_id(id, request.user.groups)
+        product_item = await product.read_by_id(
+            id, request.user.groups, scopes=request.auth.scopes
+        )
         item = await product_item.to_metadata()
 
         response = ReadProductResponse(
@@ -184,9 +190,13 @@ async def read_tree(
     )
 
     try:
-        requested_item = await product.read_by_id(id=id, groups=request.user.groups)
+        requested_item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         current_item = await product.walk_to_current(
-            product=requested_item, groups=request.user.groups
+            product=requested_item,
+            groups=request.user.groups,
+            scopes=request.auth.scopes,
         )
         history = await product.walk_history(product=current_item)
 
@@ -227,7 +237,9 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
     logger.info("Read files request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -257,7 +269,9 @@ async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
         detail=f"Slug {slug} not found for product {id}",
     )
     try:
-        product_instance = await product.read_by_id(id, request.user.groups)
+        product_instance = await product.read_by_id(
+            id, request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise NOT_FOUND
 
@@ -286,7 +300,9 @@ async def metadata_diff(
     logger.info("Update product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -294,7 +310,9 @@ async def metadata_diff(
 
     try:
         acl.check_user_access(
-            user_groups=request.user.groups, document_groups=item.writers
+            user_groups=request.user.groups,
+            document_groups=item.writers,
+            scopes=request.auth.scopes,
         )
     except AuthenticationError:
         raise HTTPException(
@@ -346,7 +364,9 @@ async def update_product(
     logger.info("Update product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
@@ -354,7 +374,9 @@ async def update_product(
 
     try:
         acl.check_user_access(
-            user_groups=request.user.groups, document_groups=item.writers
+            user_groups=request.user.groups,
+            document_groups=item.writers,
+            scopes=request.auth.scopes,
         )
     except AuthenticationError:
         raise HTTPException(
@@ -376,6 +398,7 @@ async def update_product(
             new_product, upload_urls = await product.update(
                 product=item,
                 access_groups=request.user.groups,
+                scopes=request.auth.scopes,
                 name=model.name,
                 description=model.description,
                 metadata=model.metadata,
@@ -436,7 +459,9 @@ async def confirm_product(id: PydanticObjectId, request: Request) -> None:
     logger.info("Confirm product request for {} from {}", id, request.user.display_name)
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
         success = await product.confirm(
             product=item,
             storage=request.app.storage,
@@ -471,7 +496,9 @@ async def delete_product(
     )
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
@@ -482,6 +509,7 @@ async def delete_product(
         access_groups=request.user.groups,
         storage=request.app.storage,
         data=data,
+        scopes=request.auth.scopes,
     )
 
     logger.info(
@@ -509,7 +537,9 @@ async def delete_tree(
     )
 
     try:
-        item = await product.read_by_id(id=id, groups=request.user.groups)
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
     except product.ProductNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
@@ -520,6 +550,7 @@ async def delete_tree(
         access_groups=request.user.groups,
         storage=request.app.storage,
         data=data,
+        scopes=request.auth.scopes,
     )
 
     logger.info(

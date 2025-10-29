@@ -69,7 +69,9 @@ async def update_access_control(
 
 
 def check_user_access(
-    user_groups: Iterable[str], document_groups: Iterable[str]
+    user_groups: Iterable[str],
+    document_groups: Iterable[str],
+    scopes: Iterable[str] = set(),
 ) -> bool:
     """
     Check whether a user (based on their groups) has access to a specific
@@ -82,7 +84,11 @@ def check_user_access(
     AuthenticationError
         When there is no overlap between `user_groups` and `document_groups`
     """
-    allowed = set(document_groups) | {"hippo:admin"}
+
+    if "hippo:admin" in scopes:
+        return True
+
+    allowed = set(document_groups)
     user_groups = set(user_groups)
 
     overlap = user_groups & allowed

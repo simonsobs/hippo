@@ -15,7 +15,7 @@
         {% endfor %}
     </div>
     {% markdown %}{{ collection.description }}{% endmarkdown %}
-    {% if request.user.groups.intersection(collection.writers) or "hippo:admin" in request.user.groups %}
+    {% if request.user.groups.intersection(collection.writers) or "hippo:admin" in request.auth.scopes %}
     <a href="./{{collection.id}}/edit">Edit</a>
     {% endif %}
     <div>

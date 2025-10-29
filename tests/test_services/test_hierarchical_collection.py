@@ -85,7 +85,10 @@ async def create_hierarchical_collection_with_relationships(
 
         # Add parent to collection
         await product_sc.add_collection(
-            product=parent_prod, access_groups=user_groups, collection=coll
+            product=parent_prod,
+            access_groups=user_groups,
+            collection=coll,
+            scopes=set(),
         )
 
     # Create child products and establish parent-child relationships
@@ -126,6 +129,7 @@ async def create_hierarchical_collection_with_relationships(
                 destination=parent_prod,
                 access_groups=user_groups,
                 type="child",
+                scopes=set(),
             )
 
     return coll
@@ -150,7 +154,9 @@ async def cleanup_hierarchical_collection(collection_id: str, storage):
         for prod_id in all_products:
             prod = await Product.find_one(Product.id == prod_id)
             if prod:
-                await product_sc.delete_tree(prod, ["admin"], storage, data=True)
+                await product_sc.delete_tree(
+                    prod, ["admin"], storage, data=True, scopes=set()
+                )
 
         await Collection.find_one(Collection.id == collection_id).delete()
 
@@ -177,7 +183,7 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct200
             storage=storage,
         )
         collection_obj = await collection_sc.read(
-            id=hierarchical_coll.id, groups=created_user.groups
+            id=hierarchical_coll.id, groups=created_user.groups, scopes=set()
         )
         assert collection_obj.products is not None
 
@@ -204,7 +210,7 @@ async def test_hierarchical_collection_fails_with_relationships_parentproduct20_
             storage=storage,
         )
         collection_obj = await collection_sc.read(
-            id=hierarchical_coll.id, groups=created_user.groups
+            id=hierarchical_coll.id, groups=created_user.groups, scopes=set()
         )
         assert len(collection_obj.products) == 20
 

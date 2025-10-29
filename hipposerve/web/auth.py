@@ -108,8 +108,18 @@ PotentialLoggedInUser = Annotated[
 @router.get("/user")
 async def read_user(request: Request):
     username = request.user.display_name
-    collections = await collection.search_by_owner(username, request.user.groups) or []
-    products = await product.search_by_owner(username, request.user.groups) or []
+    collections = (
+        await collection.search_by_owner(
+            username, request.user.groups, scopes=request.auth.scopes
+        )
+        or []
+    )
+    products = (
+        await product.search_by_owner(
+            username, request.user.groups, scopes=request.auth.scopes
+        )
+        or []
+    )
 
     return templates.TemplateResponse(
         "user.html",

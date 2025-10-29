@@ -17,7 +17,7 @@ async def test_create(created_user):
     )
     assert new_collection.name == "Test Collection x"
     assert created_user.display_name in new_collection.writers
-    await collection.delete(new_collection.id, created_user.groups)
+    await collection.delete(new_collection.id, created_user.groups, scopes=set())
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -52,6 +52,7 @@ async def test_update(created_collection, created_user):
     updated = await collection.update(
         id=created_collection.id,
         access_groups=created_user.groups,
+        scopes=set(),
         name="New Name",
         description="New description",
     )
@@ -62,6 +63,7 @@ async def test_update(created_collection, created_user):
     updated = await collection.update(
         id=created_collection.id,
         access_groups=created_user.groups,
+        scopes=set(),
         name=ORIGINAL_NAME,
         description=ORIGINAL_DESCRIPTION,
     )
@@ -71,7 +73,7 @@ async def test_update(created_collection, created_user):
 async def test_search(created_collection, created_user):
     read = (
         await collection.search_by_name(
-            name=created_collection.name, groups=created_user.groups
+            name=created_collection.name, groups=created_user.groups, scopes=set()
         )
     )[0]
 
@@ -84,6 +86,7 @@ async def test_update_missing(created_user):
         await collection.update(
             id=PydanticObjectId("7" * 24),
             access_groups=created_user.groups,
+            scopes=set(),
             name=None,
             description="New description",
         )
@@ -100,23 +103,30 @@ async def test_child_relationship(created_user):
     )
 
     await collection.add_child(
-        parent_id=parent.id, child_id=child.id, groups=created_user.groups
+        parent_id=parent.id, child_id=child.id, groups=created_user.groups, scopes=set()
     )
 
     # Grab both from the database.
-    parent = await collection.read(id=parent.id, groups=created_user.groups)
-    child = await collection.read(id=child.id, groups=created_user.groups)
+    parent = await collection.read(
+        id=parent.id, groups=created_user.groups, scopes=set()
+    )
+    child = await collection.read(id=child.id, groups=created_user.groups, scopes=set())
 
     assert child.id in (x.id for x in parent.child_collections)
     assert parent.id in (x.id for x in child.parent_collections)
 
     await collection.remove_child(
-        parent_id=parent.id, child_id=child.id, groups=created_user.groups
+        parent_id=parent.id,
+        child_id=child.id,
+        groups=created_user.groups,
+        scopes=set(),
     )
 
     # Grab both from the database.
-    parent = await collection.read(id=parent.id, groups=created_user.groups)
-    child = await collection.read(id=child.id, groups=created_user.groups)
+    parent = await collection.read(
+        id=parent.id, groups=created_user.groups, scopes=set()
+    )
+    child = await collection.read(id=child.id, groups=created_user.groups, scopes=set())
 
     assert child.id not in (x.id for x in parent.child_collections)
     assert parent.id not in (x.id for x in child.parent_collections)

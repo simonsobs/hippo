@@ -79,7 +79,7 @@ async def create_custom_collection_with_large_products(
         )
         # Add to collection
         await product_sc.add_collection(
-            product=prod, access_groups=user_groups, collection=coll
+            product=prod, access_groups=user_groups, collection=coll, scopes=set()
         )
 
     return coll
@@ -93,7 +93,9 @@ async def cleanup_test_collections(collection_ids: list[str], storage):
         try:
             products = await Product.find({"collections": coll_id}).to_list()
             for prod in products:
-                await product_sc.delete_tree(prod, ["admin"], storage, data=True)
+                await product_sc.delete_tree(
+                    prod, ["admin"], storage, data=True, scopes=set()
+                )
             await Collection.find_one(Collection.id == coll_id).delete()
 
         except Exception as e:
@@ -118,7 +120,7 @@ async def test_oversized_collection_fails_with_fetch_links(
             storage=storage,
         )
         collection_obj = await collection_sc.read(
-            id=massive_coll.id, groups=created_user.groups
+            id=massive_coll.id, groups=created_user.groups, scopes=set()
         )
         assert collection_obj.products is not None
 

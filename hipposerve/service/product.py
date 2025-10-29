@@ -167,7 +167,9 @@ async def create(
     return product, presigned
 
 
-async def read_by_name(name: str, version: str | None, groups: list[str]) -> Product:
+async def read_by_name(
+    name: str, version: str | None, groups: list[str], scopes: set[str]
+) -> Product:
     """
     If version is None, we grab the latest version of a product.
     """
@@ -189,13 +191,17 @@ async def read_by_name(name: str, version: str | None, groups: list[str]) -> Pro
         raise ProductNotFound
 
     assert check_user_access(
-        user_groups=groups, document_groups=potential.readers + potential.writers
+        user_groups=groups,
+        document_groups=potential.readers + potential.writers,
+        scopes=scopes,
     )
 
     return potential
 
 
-async def read_by_id(id: PydanticObjectId, groups: list[str]) -> Product:
+async def read_by_id(
+    id: PydanticObjectId, groups: list[str], scopes: set[str]
+) -> Product:
     try:
         potential = await Product.get(document_id=id, **LINK_POLICY)
     except (InvalidId, ValidationError, ValueError):
@@ -205,19 +211,28 @@ async def read_by_id(id: PydanticObjectId, groups: list[str]) -> Product:
         raise ProductNotFound
 
     assert check_user_access(
-        user_groups=groups, document_groups=potential.readers + potential.writers
+        user_groups=groups,
+        document_groups=potential.readers + potential.writers,
+        scopes=scopes,
     )
 
     return potential
 
 
 async def search_by_name(
-    name: str, groups: list[str], fetch_links: bool = True
+    name: str, groups: list[str], scopes: set[str], fetch_links: bool = True
 ) -> list[Product]:
     """
     Search for products by name using the text index.
     """
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
+
     results = (
         await Product.find(
             access_query,
@@ -233,23 +248,35 @@ async def search_by_name(
 
 
 async def search_by_metadata(
-    metadata_filters: dict[str, Any], groups: list[str], fetch_links: bool = True
+    metadata_filters: dict[str, Any],
+    groups: list[str],
+    scopes: set[str],
+    fetch_links: bool = True,
 ) -> list[Product]:
     """
     Search for products by metadata.
     """
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
+
     # Construct the query by embedding metadata field names and values
     query = {f"metadata.{key}": value for key, value in metadata_filters.items()}
 
     # Execute the query
     results = await Product.find(access_query, query, fetch_links=fetch_links).to_list()
+
     return results
 
 
 async def search_by_owner(
     owner: str,
     groups: list[str],
+    scopes: set[str],
     fetch_links: bool = True,
 ) -> list[Collection]:
     """
@@ -259,7 +286,12 @@ async def search_by_owner(
 
     owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
 
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
 
     results = await Product.find(
         {**access_query, "owner": owner_regex},
@@ -290,7 +322,9 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     return versions
 
 
-async def walk_to_current(product: Product, groups: list[str]) -> Product:
+async def walk_to_current(
+    product: Product, groups: list[str], scopes: set[str]
+) -> Product:
     """
     Walk the list of products until you get to the one
     marked 'current'.
@@ -298,7 +332,7 @@ async def walk_to_current(product: Product, groups: list[str]) -> Product:
 
     # Re-read the product from the database, in case it
     # is stale!
-    product = await read_by_id(id=product.id, groups=groups)
+    product = await read_by_id(id=product.id, groups=groups, scopes=scopes)
 
     while not product.current:
         product = await Product.find_one(
@@ -370,11 +404,17 @@ async def read_files(product: Product, storage: Storage) -> dict[str, PostUpload
 
 async def read_most_recent(
     groups: list[str],
+    scopes: set[str],
     fetch_links: bool = False,
     maximum: int = 16,
     current_only: bool = False,
 ) -> list[Product]:
-    access_query = {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]}
+    if "hippo:admin" in scopes:
+        access_query = {}
+    else:
+        access_query = {
+            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
+        }
 
     if current_only:
         query = {"$and": [{"current": True}, access_query]}
@@ -570,6 +610,7 @@ async def update_sources(
 async def update(
     product: Product,
     access_groups: list[str],
+    scopes: set[str],
     storage: Storage,
     level: versioning.VersionRevision,
     name: str | None = None,
@@ -582,7 +623,9 @@ async def update(
     """
     Rev the version of the product and update its contents.
     """
-    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
 
     new_product = await update_metadata(
         product=product,
@@ -604,7 +647,7 @@ async def update(
     # So we just re-fetch our object from the database.
 
     new_product = await read_by_id(
-        new_product.id, new_product.writers + new_product.readers
+        new_product.id, new_product.writers + new_product.readers, scopes=scopes
     )  # who should read this product?
 
     if any([len(new_sources) > 0, len(replace_sources) > 0, len(drop_sources) > 0]):
@@ -619,7 +662,11 @@ async def update(
         except Exception as e:
             # Need to roll-back our new product. Full transactions when?
             await delete_one(
-                new_product, [new_product.owner], storage=storage, data=False
+                new_product,
+                [new_product.owner],
+                storage=storage,
+                data=False,
+                scopes=scopes,
             )
             raise e
     else:
@@ -631,6 +678,7 @@ async def update(
 async def delete_one(
     product: Product,
     access_groups: list[str],
+    scopes: set[str],
     storage: Storage,
     data: bool = False,
 ):
@@ -639,7 +687,9 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -688,6 +738,7 @@ async def delete_one(
 async def delete_tree(
     product: Product,
     access_groups: list[str],
+    scopes: set[str],
     storage: Storage,
     data: bool = False,
 ):
@@ -695,7 +746,9 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -732,11 +785,14 @@ async def add_relationship(
     source: Product,
     destination: Product,
     access_groups: list[str],
+    scopes: set[str],
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = source.child_of + [destination]
-    assert check_user_access(user_groups=access_groups, document_groups=source.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=source.writers, scopes=scopes
+    )
     await source.save()
 
     return
@@ -746,31 +802,38 @@ async def remove_relationship(
     source: Product,
     destination: Product,
     access_groups: list[str],
+    scopes: set[str],
     type: Literal["child"],
 ):
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-    assert check_user_access(user_groups=access_groups, document_groups=source.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=source.writers, scopes=scopes
+    )
     await source.save()
 
     return
 
 
 async def add_collection(
-    product: Product, access_groups: list[str], collection: Collection
+    product: Product, access_groups: list[str], scopes: set[str], collection: Collection
 ):
     product.collections = product.collections + [collection]
-    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
     await product.save()
 
     return
 
 
 async def remove_collection(
-    product: Product, access_groups: list[str], collection: Collection
+    product: Product, access_groups: list[str], scopes: set[str], collection: Collection
 ):
     product.collections = [c for c in product.collections if c.id != collection.id]
-    assert check_user_access(user_groups=access_groups, document_groups=product.writers)
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
     await product.save()
 
     return product

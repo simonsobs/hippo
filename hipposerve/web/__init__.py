@@ -53,10 +53,13 @@ async def index(request: Request):
     products = []
     collections = []
     products = await product.read_most_recent(
-        groups=request.user.groups, fetch_links=True, maximum=16
+        groups=request.user.groups,
+        scopes=request.auth.scopes,
+        fetch_links=True,
+        maximum=16,
     )
     collections = await collection.read_most_recent(
-        groups=request.user.groups, maximum=16
+        groups=request.user.groups, scopes=request.auth.scopes, maximum=16
     )
     return templates.TemplateResponse(
         "index.html",
@@ -72,10 +75,12 @@ async def index(request: Request):
 
 @web_router.get("/products/{id}")
 async def product_view(request: Request, id: str):
-    product_instance = await product.read_by_id(id, request.user.groups)
+    product_instance = await product.read_by_id(
+        id, request.user.groups, scopes=request.auth.scopes
+    )
     # Grab the history!
     latest_version = await product.walk_to_current(
-        product_instance, request.user.groups
+        product_instance, request.user.groups, scopes=request.auth.scopes
     )
     version_history = await product.walk_history(latest_version)
 
@@ -94,7 +99,9 @@ async def product_view(request: Request, id: str):
 
 @web_router.get("/products/{id}/edit")
 async def product_edit(request: Request, id: str):
-    product_instance = await product.read_by_id(id, request.user.groups)
+    product_instance = await product.read_by_id(
+        id, request.user.groups, scopes=request.auth.scopes
+    )
 
     return templates.TemplateResponse(
         "product_edit.html",
@@ -109,7 +116,9 @@ async def product_edit(request: Request, id: str):
 
 @web_router.get("/products/{id}/{slug}")
 async def product_read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
-    product_instance = await product.read_by_id(id, request.user.groups)
+    product_instance = await product.read_by_id(
+        id, request.user.groups, scopes=request.auth.scopes
+    )
 
     # If they have not 401/403'd from reading the product, they can read sources
     try:

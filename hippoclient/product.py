@@ -95,15 +95,16 @@ def __upload_sources(
             if console:
                 console.print("Successfully uploaded file:", source.name)
 
-    # Close out the upload.
-    response = client.post(
-        f"/product/{this_product_id}/complete",
-        json={"headers": responses, "sizes": sizes},
-    )
+    if sources:
+        # Close out the upload.
+        response = client.post(
+            f"/product/{this_product_id}/complete",
+            json={"headers": responses, "sizes": sizes},
+        )
 
-    response.raise_for_status()
+        response.raise_for_status()
 
-    return response.json()
+        return response.json()
 
 
 def create(

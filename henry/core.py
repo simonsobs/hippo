@@ -19,12 +19,14 @@ class Henry:
     client: Client
     console: Console
     cache: MultiCache
+    slugify: bool
 
     def __init__(
         self,
         *,
         settings: ClientSettings | None = None,
         console: Console | None = None,
+        slugify: bool = False,
     ):
         self.settings = settings or ClientSettings()
         self.console = console or Console(quiet=(not self.settings.verbose))
@@ -34,6 +36,7 @@ class Henry:
         self.cache = self.settings.cache
         self.readers = self.settings.default_readers
         self.writers = self.settings.default_writers
+        self.slugify = slugify
 
         return
 
@@ -122,4 +125,5 @@ class Henry:
             directory=Path(directory),
             console=self.console,
             slugs=slugs,
+            slugify=self.slugify,
         )

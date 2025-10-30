@@ -16,6 +16,7 @@ from hipposerve.database import ProductMetadata
 from hipposerve.service.product import PostUploadFile, PreUploadFile
 
 from .core import MultiCache
+from .tools import slugify as apply_slugify
 
 MULTIPART_UPLOAD_SIZE = 50 * 1024 * 1024
 
@@ -563,6 +564,7 @@ def download(
     directory: Path,
     console: Console | None = None,
     slugs: list[str] | None = None,
+    slugify: bool = False,
 ) -> Path:
     """
     Download a product from HIPPO onto the local filesystem, storing the data
@@ -588,6 +590,11 @@ def download(
         The rich console to print to.
     slugs : list[str], optional
         Only download specific slugs.
+    directory: Path
+        The directory to download the product into.
+    slugify : bool, optional
+        Whether to convert product names into 'slugified' versions
+        that are esaier to read as directory names.
 
     Returns
     -------
@@ -614,6 +621,9 @@ def download(
 
     if console:
         console.print(f"Successfully read product {id}")
+
+    if slugify:
+        metadata.name = apply_slugify(metadata.name)
 
     product_directory = directory / metadata.name
 

@@ -13,6 +13,7 @@ from .core import MultiCache
 from .product import cache as cache_product
 from .product import download as download_product
 from .product import uncache as uncache_product
+from .tools import slugify as apply_slugify
 
 
 def create(
@@ -340,7 +341,11 @@ def cache(
 
 
 def download(
-    client: Client, id: str, directory: Path, console: Console | None = None
+    client: Client,
+    id: str,
+    directory: Path,
+    console: Console | None = None,
+    slugify: bool = False,
 ) -> Path:
     """
     Download a collection from HIPPO onto the local filesystem, storing the data
@@ -365,8 +370,12 @@ def download(
         The client to use for interacting with the hippo API
     id: str
         The ID of the collection to download.
+    directory: Path
+        The directory to download the collection into.
     console : Console, optional
         The rich console to print to.
+    slugify : bool, optional
+        Whether to convert names to valid 'slugs'.
 
     Returns
     -------
@@ -382,6 +391,9 @@ def download(
     """
 
     collection = read(client, id)
+
+    if slugify:
+        collection.name = apply_slugify(collection.name)
 
     collection_directory = directory / collection.name
 
@@ -401,11 +413,16 @@ def download(
             id=product.id,
             directory=collection_directory,
             console=console,
+            slugify=slugify,
         )
 
     for child in collection.child_collections:
         download(
-            client=client, id=child.id, directory=collection_directory, console=console
+            client=client,
+            id=child.id,
+            directory=collection_directory,
+            console=console,
+            slugify=slugify,
         )
 
     return collection_directory

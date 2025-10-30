@@ -105,7 +105,7 @@ def product_cache(id: str):
 
 
 @product_app.command("download")
-def product_download(id: str, directory: str | None = None):
+def product_download(id: str, directory: str | None = None, slugify: bool = False):
     """
     Download a product to a location.
     """
@@ -114,7 +114,11 @@ def product_download(id: str, directory: str | None = None):
     directory = Path(directory or ".")
 
     response = sc.product.download(
-        client=CLIENT, id=id, directory=Path(directory), console=CONSOLE
+        client=CLIENT,
+        id=id,
+        directory=Path(directory),
+        console=CONSOLE,
+        slugify=slugify,
     )
 
     CONSOLE.print(f"Data cached to {response}")
@@ -264,7 +268,7 @@ def collection_cache(id: str):
 
 
 @collection_app.command("download")
-def collection_download(id: str, directory: str | None = None):
+def collection_download(id: str, directory: str | None = None, slugify: bool = False):
     """
     Download a collection by its ID.
     """
@@ -273,7 +277,7 @@ def collection_download(id: str, directory: str | None = None):
     directory = Path(directory or ".")
 
     response = sc.collections.download(
-        client=CLIENT, id=id, directory=directory, console=CONSOLE
+        client=CLIENT, id=id, directory=directory, console=CONSOLE, slugify=slugify
     )
 
     CONSOLE.print(f"Downloaded collection to {response}")

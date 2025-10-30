@@ -249,6 +249,7 @@ class RemoteProduct(ProductInstance):
     name: str
     description: str
     metadata: ALL_METADATA_TYPE
+    version: str | None = None
     sources: dict[str, RemoteSource] = {}
     readers: list[str] = []
     writers: list[str] = []
@@ -310,6 +311,7 @@ class RemoteProduct(ProductInstance):
             description=product_metadata.description,
             metadata=product_metadata.metadata,
             sources=sources,
+            version=product_metadata.version,
             readers=product_metadata.readers,
             writers=product_metadata.writers,
         )

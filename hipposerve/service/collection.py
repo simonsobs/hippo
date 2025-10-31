@@ -201,13 +201,8 @@ async def remove_child(
 ) -> Collection:
     parent = await read(id=parent_id, groups=groups, scopes=scopes)
     assert check_user_access(groups, parent.writers, scopes=scopes)
-    await parent.set(
-        {
-            Collection.child_collections: [
-                x for x in parent.child_collections if x.id != child_id
-            ]
-        }
-    )
+    parent.child_collections = [x for x in parent.child_collections if x.id != child_id]
+    await parent.save()
 
     return parent
 

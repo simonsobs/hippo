@@ -213,6 +213,16 @@ def test_add_child_relationship_for_collection(test_api_client):
     assert response.status_code == 200
     assert response.json()["parent_collections"][0]["id"] == collection_b
 
+    # Now remove link A -> B
+    response = test_api_client.delete(
+        f"/relationships/collection/{collection_a}/child_of/{collection_b}"
+    )
+    assert response.status_code == 200
+    response = test_api_client.get(f"/relationships/collection/{collection_a}")
+    assert response.status_code == 200
+
+    assert len(response.json()["child_collections"]) == 0
+
     # Now delete B, and see what happens!
 
     response = test_api_client.delete(f"/relationships/collection/{collection_b}")

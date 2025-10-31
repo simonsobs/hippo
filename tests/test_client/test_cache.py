@@ -39,8 +39,7 @@ def test_add_real_file_to_cache(cache):
         path="my/path/to/file.png",
         checksum="not-a-real-checksum",
         size=1234,
-        # 2022 wikimedia picture of the year!
-        presigned_url="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Phalacrocorax_carbo%2C_Egretta_garzetta_and_Mareca_strepera_in_Taudha_Lake.jpg/640px-Phalacrocorax_carbo%2C_Egretta_garzetta_and_Mareca_strepera_in_Taudha_Lake.jpg",
+        presigned_url="https://picsum.photos/200/300",
     )
 
     assert path.exists()

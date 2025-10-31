@@ -20,7 +20,7 @@ def downloader(
     console: Optional[Console] = None,
 ):
     with httpx.Client() as client:
-        with client.stream("GET", presigned_url) as response:
+        with client.stream("GET", presigned_url, follow_redirects=True) as response:
             response.raise_for_status()
             total = int(response.headers.get("Content-Length", 0))
 

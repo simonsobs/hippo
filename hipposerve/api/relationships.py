@@ -458,7 +458,7 @@ async def add_child_collection(
         )
 
 
-@relationship_router.delete("/collection/{parent_id}/child_of/{child_id}")
+@relationship_router.delete("/collection/{child_id}/child_of/{parent_id}")
 @requires(["hippo:admin", "hippo:write"])
 async def remove_child_collection(
     parent_id: PydanticObjectId,

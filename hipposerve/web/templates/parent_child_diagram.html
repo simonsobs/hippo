@@ -17,6 +17,8 @@
 {% set text_item_padding = 15 %}
 {% set line_y_centering_adjustment = 5 %}
 {% set circle_radius = 5 %}
+{% set truncate_limit = 11 %}
+{% set truncate_leeway = 0 %}
 <svg width="{{ svg_width }}" height="{{ svg_height }}" class="font-monospace">
     <!--BEGIN SVG ELEMENTS FOR PARENT(S) -->
     {% if parent_length %}
@@ -33,7 +35,7 @@
                     data-bs-toggle="tooltip"
                     title="{{ parents[index].name }}"
                 >
-                    <a href="{{ web_root }}/{{relationship_type}}s/{{parents[index].id | e}}">{{parents[index].name|truncate(11, True)}}</a>
+                    <a href="{{ web_root }}/{{relationship_type}}s/{{parents[index].id | e}}">{{parents[index].name|truncate(truncate_limit, True, '...', truncate_leeway)}}</a>
                 </text>
             {% endif %}
             <!-- with multiple parents, we need some lines to show the connection -->
@@ -114,7 +116,7 @@
         data-bs-toggle="tooltip"
         title="{{ current_item_name }}"
         class="fw-bold"
-        >{{current_item_name|truncate(11, True)}}</text>
+        >{{current_item_name|truncate(truncate_limit, True, '...', truncate_leeway)}}</text>
     <!-- render line from current item to child(ren) if necessary -->
     {% if child_length %}
         {% set current_to_children_line_length = (horizontal_line_length * 2) if child_length == 1 else horizontal_line_length %}
@@ -172,7 +174,7 @@
                     data-bs-toggle="tooltip"
                     title="{{ children[index].name }}"
                 >
-                    <a href="{{ web_root }}/{{relationship_type}}s/{{children[index].id | e}}">{{children[index].name|truncate(11, True)}}</a>
+                    <a href="{{ web_root }}/{{relationship_type}}s/{{children[index].id | e}}">{{children[index].name|truncate(truncate_limit, True, '...', truncate_leeway)}}</a>
                 </text>
             {% endif %}
         {% endfor %}

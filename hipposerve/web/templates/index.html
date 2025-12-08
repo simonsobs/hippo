@@ -4,7 +4,7 @@
     <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
         <h2>Pinned Collections</h2>
         <div class="col-sm-6">
-            {% for collection in collections %}
+            {% for collection in pinned_collections %}
             {% if collection.pinned %}
             <div class="card" style="width:350px">
                 <h4 class="card-header">{{ collection.name }}</h4>
@@ -21,7 +21,7 @@
     <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
         <h2>Pinned Products</h2>
         <div class="card-group">
-            {% for product in products %}
+            {% for product in pinned_products %}
             {% if product.pinned %}
             <div class="card">
                 <h4 class="card-header">{{ product.name }}</h4>
@@ -46,7 +46,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for collection in collections %}
+                {% for collection in recent_collections %}
                 <tr>
                     <td class="px-2"><a href='{{ web_root }}/collections/{{ collection.id | e }}'>{{ collection.name }}</a></td>
                     <td class="px-2" colspan="2">{{ collection.description | truncate }}</td>
@@ -68,7 +68,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for product in products %}
+                {% for product in recent_products %}
                 <tr>
                     <td class="px-2"><a href='{{ web_root }}/products/{{ product.id | e }}'>{{ product.name }}</a></td>
                     <td class="px-2" colspan="2">{{ product.description | truncate }}</td>

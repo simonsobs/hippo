@@ -407,7 +407,7 @@ async def read_most_recent(
     scopes: set[str],
     fetch_links: bool = False,
     maximum: int = 16,
-    current_only: bool = False,
+    current_only: bool = True,
 ) -> list[Product]:
     if "hippo:admin" in scopes:
         access_query = {}
@@ -425,6 +425,34 @@ async def read_most_recent(
         query,
         fetch_links=fetch_links,
     )
+    return await found.sort(-Product.updated).to_list(maximum)
+
+
+async def read_pinned(
+    groups: list[str],
+    scopes: set[str],
+    fetch_links: bool = False,
+    maximum: int = 16,
+    current_only: bool = True,
+) -> list[Product]:
+    if "hippo:admin" in scopes:
+        access_query = {"pinned": True}
+    else:
+        access_query = {
+            "$and": [
+                {"pinned": True},
+                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
+            ]
+        }
+
+    if current_only:
+        access_query = {"$and": [access_query, {"current": True}]}
+
+    found = Product.find(
+        access_query,
+        fetch_links=fetch_links,
+    )
+
     return await found.sort(-Product.updated).to_list(maximum)
 
 

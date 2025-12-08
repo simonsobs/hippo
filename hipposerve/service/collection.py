@@ -82,6 +82,28 @@ async def read_most_recent(
     return filtered_collection_list
 
 
+async def read_pinned(
+    groups: list[str],
+    scopes: set[str],
+    maximum: int = 16,
+) -> list[Collection]:
+    if "hippo:admin" in scopes:
+        access_query = {"pinned": True}
+    else:
+        access_query = {
+            "$and": [
+                {"pinned": True},
+                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
+            ]
+        }
+
+    collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
+        maximum
+    )
+
+    return collection_list
+
+
 async def search_by_name(
     name: str, groups: list[str], scopes: set[str]
 ) -> list[Collection]:

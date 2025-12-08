@@ -177,5 +177,6 @@ async def collection_view(request: Request, id: PydanticObjectId):
             "cmap": cmap,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
+            "api_root": SETTINGS.api_root,
         },
     )

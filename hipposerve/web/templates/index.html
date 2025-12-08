@@ -2,6 +2,40 @@
 {% block content %}
 <div class="container-fluid d-flex flex-column gap-3">
     <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
+        <h2>Pinned Collections</h2>
+        <div class="col-sm-6">
+            {% for collection in collections %}
+            {% if collection.pinned %}
+            <div class="card" style="width:350px">
+                <h4 class="card-header">{{ collection.name }}</h4>
+                <div class="card-body">
+                {% markdown %}{{ collection.description }}{% endmarkdown %}
+                <p>{{ collection.products | length }} Products</p>
+                <a href="{{ web_root }}/collections/{{ collection.id | e }}" class="btn btn-primary">View</a>
+                </div>
+            </div>
+            {%endif%}
+            {%endfor%}
+        </div>
+    </div>
+    <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
+        <h2>Pinned Products</h2>
+        <div class="card-group">
+            {% for product in products %}
+            {% if product.pinned %}
+            <div class="card">
+                <h4 class="card-header">{{ product.name }}</h4>
+                <div class="card-body">
+                {% markdown %}{{ product.description }}{% endmarkdown %}
+                    <p>Uploaded {{ product.uploaded.strftime("%Y-%m-%d") }}</p>
+                    <a href="{{ web_root }}/products/{{ product.id | e }}" class="btn btn-primary">View</a>
+                </div>
+            </div>
+            {%endif%}
+            {%endfor%}
+        </div>
+    </div>
+    <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
         <h2>Recently Created Collections</h2>
         <table class="table table-sm small mb-0 border border-secondary-subtle">
             <thead class="table-primary">

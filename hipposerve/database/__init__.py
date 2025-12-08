@@ -104,6 +104,8 @@ class ProductMetadata(BaseModel):
 
     collections: list[PydanticObjectId]
 
+    pinned: bool = False
+
 
 class ProtectedDocument(Document):
     readers: list[str] = Field(default_factory=list)
@@ -174,6 +176,8 @@ class CollectionMetadata(BaseModel):
     products: list[ProductMetadata]
     child_collections: list[PydanticObjectId]
     parent_collections: list[PydanticObjectId]
+
+    pinned: bool = False
 
 
 class Collection(ProtectedDocument, CollectionMetadata):

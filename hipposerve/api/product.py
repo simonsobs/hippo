@@ -480,6 +480,60 @@ async def confirm_product(id: PydanticObjectId, request: Request) -> None:
     logger.info("Successfully confirmed product {} (id: {})", item.name, item.id)
 
 
+@product_router.post("/{id}/pin")
+@requires(["hippo:admin"])
+async def pin_product(
+    id: PydanticObjectId,
+    request: Request,
+) -> None:
+    """
+    Pin a product to place it on the homepage.
+    """
+
+    logger.info("Pin product request for {} from {}", id, request.user.display_name)
+
+    try:
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
+    except product.ProductNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
+        )
+
+    item.pinned = True
+    await item.save()
+
+    logger.info("Successfully pinned product {} (id: {})", item.name, item.id)
+
+
+@product_router.post("/{id}/unpin")
+@requires(["hippo:admin"])
+async def unpin_product(
+    id: PydanticObjectId,
+    request: Request,
+) -> None:
+    """
+    Unpin a product to remvove it from the homepage.
+    """
+
+    logger.info("Unpin product request for {} from {}", id, request.user.display_name)
+
+    try:
+        item = await product.read_by_id(
+            id=id, groups=request.user.groups, scopes=request.auth.scopes
+        )
+    except product.ProductNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Product not found."
+        )
+
+    item.pinned = False
+    await item.save()
+
+    logger.info("Successfully unpinned product {} (id: {})", item.name, item.id)
+
+
 @product_router.delete("/{id}")
 @requires(["hippo:admin", "hippo:write"])
 async def delete_product(

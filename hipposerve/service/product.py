@@ -675,6 +675,44 @@ async def update(
     return new_product, presigned
 
 
+async def pin(
+    product: Product,
+    access_groups: list[str],
+    scopes: set[str],
+):
+    """
+    Pin a product in the database.
+    """
+
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
+
+    product.pinned = True
+    await product.save()
+
+    return
+
+
+async def unpin(
+    product: Product,
+    access_groups: list[str],
+    scopes: set[str],
+):
+    """
+    Unpin a product in the database.
+    """
+
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
+
+    product.pinned = False
+    await product.save()
+
+    return
+
+
 async def delete_one(
     product: Product,
     access_groups: list[str],

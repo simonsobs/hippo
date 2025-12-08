@@ -141,7 +141,14 @@
                 <div class="container">
                     <h3 class="mt-2">Version History</h3>
                     {% if request.user.groups.intersection(product.writers) or "hippo:admin" in request.auth.scopes %}
-                    <a href="./{{product.id}}/edit">Edit</a>
+                    <a class="btn btn-primary mb-2" href="./{{product.id}}/edit">Edit</a>
+                    {% endif %}
+                    {% if "hippo:admin" in request.auth.scopes %}
+                    {% if product.pinned %}
+                    <button class="btn btn-danger mb-2" onclick="fetch('{{ api_root }}/product/{{ product.id }}/unpin', {method: 'POST'}).then(() => location.reload())">Unpin from Homepage</button>
+                    {% else %}
+                    <button class="btn btn-success mb-2" onclick="fetch('{{ api_root }}/product/{{ product.id }}/pin', {method: 'POST'}).then(() => location.reload())">Pin to Homepage</button>
+                    {% endif %}
                     {% endif %}
                     <table class="table table-sm small border border-secondary-subtle" style="max-width: 250px;">
                         <thead class="table-secondary">

@@ -207,6 +207,32 @@ async def remove_child(
     return parent
 
 
+async def pin(
+    id: PydanticObjectId,
+    groups: list[str],
+    scopes: set[str],
+) -> Collection:
+    collection = await read(id=id, groups=groups, scopes=scopes)
+    assert check_user_access(groups, collection.writers, scopes=scopes)
+    collection.pinned = True
+    await collection.save()
+
+    return collection
+
+
+async def unpin(
+    id: PydanticObjectId,
+    groups: list[str],
+    scopes: set[str],
+) -> Collection:
+    collection = await read(id=id, groups=groups, scopes=scopes)
+    assert check_user_access(groups, collection.writers, scopes=scopes)
+    collection.pinned = False
+    await collection.save()
+
+    return collection
+
+
 async def delete(id: PydanticObjectId, groups: list[str], scopes: set[str]):
     collection = await read(id=id, groups=groups, scopes=scopes)
     assert check_user_access(

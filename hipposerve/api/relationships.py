@@ -488,3 +488,49 @@ async def remove_child_collection(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
         )
+
+
+@relationship_router.post("/collection/{id}/pin")
+@requires(["hippo:admin"])
+async def pin_collection(
+    id: PydanticObjectId,
+    request: Request,
+) -> PydanticObjectId:
+    """
+    Pin a collection.
+    """
+
+    logger.info("Request to pin collection: {} from {}", id, request.user.display_name)
+
+    coll = await collection.pin(
+        id=id, groups=request.user.groups, scopes=request.auth.scopes
+    )
+
+    logger.info(
+        "Successfully pinned collection {} from {}", id, request.user.display_name
+    )
+    return coll.id
+
+
+@relationship_router.post("/collection/{id}/unpin")
+@requires(["hippo:admin"])
+async def unpin_collection(
+    id: PydanticObjectId,
+    request: Request,
+) -> PydanticObjectId:
+    """
+    Unpin a collection.
+    """
+
+    logger.info(
+        "Request to unpin collection: {} from {}", id, request.user.display_name
+    )
+
+    coll = await collection.unpin(
+        id=id, groups=request.user.groups, scopes=request.auth.scopes
+    )
+
+    logger.info(
+        "Successfully unpinned collection {} from {}", id, request.user.display_name
+    )
+    return coll.id

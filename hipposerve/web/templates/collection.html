@@ -16,7 +16,14 @@
     </div>
     {% markdown %}{{ collection.description }}{% endmarkdown %}
     {% if request.user.groups.intersection(collection.writers) or "hippo:admin" in request.auth.scopes %}
-    <a href="./{{collection.id}}/edit">Edit</a>
+    <a class="btn btn-primary mb-2" href="./{{collection.id}}/edit">Edit</a>
+    {% endif %}
+    {% if "hippo:admin" in request.auth.scopes %}
+    {% if collection.pinned %}
+    <button class="btn btn-danger mb-2" onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/unpin', {method: 'POST'}).then(() => location.reload())">Unpin from Homepage</button>
+    {% else %}
+    <button class="btn btn-success mb-2" onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/pin', {method: 'POST'}).then(() => location.reload())">Pin to Homepage</button>
+    {% endif %}
     {% endif %}
     <div>
         <h3>Products</h3>

@@ -50,23 +50,32 @@ def get_cmap(ids: list[str] = []):
 
 @web_router.get("/")
 async def index(request: Request):
-    products = []
-    collections = []
-    products = await product.read_most_recent(
+    recent_products = await product.read_most_recent(
         groups=request.user.groups,
         scopes=request.auth.scopes,
         fetch_links=True,
         maximum=16,
     )
-    collections = await collection.read_most_recent(
+    recent_collections = await collection.read_most_recent(
+        groups=request.user.groups, scopes=request.auth.scopes, maximum=16
+    )
+    pinned_products = await product.read_pinned(
+        groups=request.user.groups,
+        scopes=request.auth.scopes,
+        fetch_links=True,
+        maximum=16,
+    )
+    pinned_collections = await collection.read_pinned(
         groups=request.user.groups, scopes=request.auth.scopes, maximum=16
     )
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "products": products,
-            "collections": collections,
+            "recent_products": recent_products,
+            "recent_collections": recent_collections,
+            "pinned_products": pinned_products,
+            "pinned_collections": pinned_collections,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
         },
@@ -177,5 +186,6 @@ async def collection_view(request: Request, id: PydanticObjectId):
             "cmap": cmap,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
+            "api_root": SETTINGS.api_root,
         },
     )

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     title: str
     description: str
+    api_root: str = ""
 
     hasher: PasswordHash = PasswordHash([Argon2Hasher()])
 

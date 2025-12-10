@@ -83,7 +83,9 @@ def setup_auth(app: FastAPI) -> FastAPI:
             "Using mock authentication setup, this is not suitable for production use"
         )
 
-        app = mock_global_setup(app=app, grants=["hippo:read", "hippo:write"])
+        app = mock_global_setup(
+            app=app, grants=["hippo:read", "hippo:write", "hippo:admin"]
+        )
 
     # This middleware (above) is responsible for keeping the user
     # information up to date in the database.

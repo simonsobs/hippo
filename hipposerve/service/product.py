@@ -407,7 +407,7 @@ async def read_most_recent(
     scopes: set[str],
     fetch_links: bool = False,
     maximum: int = 16,
-    current_only: bool = False,
+    current_only: bool = True,
 ) -> list[Product]:
     if "hippo:admin" in scopes:
         access_query = {}
@@ -425,6 +425,34 @@ async def read_most_recent(
         query,
         fetch_links=fetch_links,
     )
+    return await found.sort(-Product.updated).to_list(maximum)
+
+
+async def read_pinned(
+    groups: list[str],
+    scopes: set[str],
+    fetch_links: bool = False,
+    maximum: int = 16,
+    current_only: bool = True,
+) -> list[Product]:
+    if "hippo:admin" in scopes:
+        access_query = {"pinned": True}
+    else:
+        access_query = {
+            "$and": [
+                {"pinned": True},
+                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
+            ]
+        }
+
+    if current_only:
+        access_query = {"$and": [access_query, {"current": True}]}
+
+    found = Product.find(
+        access_query,
+        fetch_links=fetch_links,
+    )
+
     return await found.sort(-Product.updated).to_list(maximum)
 
 
@@ -673,6 +701,44 @@ async def update(
         presigned = {}
 
     return new_product, presigned
+
+
+async def pin(
+    product: Product,
+    access_groups: list[str],
+    scopes: set[str],
+):
+    """
+    Pin a product in the database.
+    """
+
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
+
+    product.pinned = True
+    await product.save()
+
+    return
+
+
+async def unpin(
+    product: Product,
+    access_groups: list[str],
+    scopes: set[str],
+):
+    """
+    Unpin a product in the database.
+    """
+
+    assert check_user_access(
+        user_groups=access_groups, document_groups=product.writers, scopes=scopes
+    )
+
+    product.pinned = False
+    await product.save()
+
+    return
 
 
 async def delete_one(

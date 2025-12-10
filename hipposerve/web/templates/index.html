@@ -3,15 +3,17 @@
 <div class="container-fluid d-flex flex-column gap-3">
     <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
         <h2>Pinned Collections</h2>
-        <div class="col-sm-6">
+        <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for collection in pinned_collections %}
             {% if collection.pinned %}
-            <div class="card" style="width:350px">
-                <h4 class="card-header">{{ collection.name }}</h4>
-                <div class="card-body">
-                {% markdown %}{{ collection.description }}{% endmarkdown %}
-                <p>{{ collection.products | length }} Products</p>
-                <a href="{{ web_root }}/collections/{{ collection.id | e }}" class="btn btn-primary">View</a>
+            <div class="col">
+                <div class="card">
+                    <h4 class="card-header">{{ collection.name }}</h4>
+                    <div class="card-body">
+                        {% markdown %}{{ collection.description | truncate(512) }}{% endmarkdown %}
+                        <p>{{ collection.products | length }} Products</p>
+                        <a href="{{ web_root }}/collections/{{ collection.id | e }}" class="btn btn-primary">View</a>
+                    </div>
                 </div>
             </div>
             {%endif%}
@@ -20,15 +22,17 @@
     </div>
     <div class="border rounded p-3 shadow-sm xl" style="width: 100%; max-width: 1200px;">
         <h2>Pinned Products</h2>
-        <div class="card-group">
+        <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for product in pinned_products %}
             {% if product.pinned %}
-            <div class="card">
-                <h4 class="card-header">{{ product.name }}</h4>
-                <div class="card-body">
-                {% markdown %}{{ product.description }}{% endmarkdown %}
-                    <p>Uploaded {{ product.uploaded.strftime("%Y-%m-%d") }}</p>
-                    <a href="{{ web_root }}/products/{{ product.id | e }}" class="btn btn-primary">View</a>
+            <div class="col">
+                <div class="card">
+                    <h4 class="card-header">{{ product.name }}</h4>
+                    <div class="card-body">
+                        {% markdown %}{{ product.description | truncate(256) }}{% endmarkdown %}
+                        <p>Uploaded {{ product.uploaded.strftime("%Y-%m-%d") }}</p>
+                        <a href="{{ web_root }}/products/{{ product.id | e }}" class="btn btn-primary">View</a>
+                    </div>
                 </div>
             </div>
             {%endif%}
@@ -48,7 +52,8 @@
             <tbody>
                 {% for collection in recent_collections %}
                 <tr>
-                    <td class="px-2"><a href='{{ web_root }}/collections/{{ collection.id | e }}'>{{ collection.name }}</a></td>
+                    <td class="px-2"><a href='{{ web_root }}/collections/{{ collection.id | e }}'>{{ collection.name
+                            }}</a></td>
                     <td class="px-2" colspan="2">{{ collection.description | truncate }}</td>
                     <td class="px-2">{{ collection.products|length }}</td>
                 </tr>

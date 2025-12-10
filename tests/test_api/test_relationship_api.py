@@ -215,7 +215,7 @@ def test_add_child_relationship_for_collection(test_api_client):
 
     # Now remove link A -> B
     response = test_api_client.delete(
-        f"/relationships/collection/{collection_a}/child_of/{collection_b}"
+        f"/relationships/collection/{collection_b}/child_of/{collection_a}"
     )
     assert response.status_code == 200
     response = test_api_client.get(f"/relationships/collection/{collection_a}")

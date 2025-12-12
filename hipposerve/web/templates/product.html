@@ -36,6 +36,18 @@
             </tbody>
         </table>
     </div>
+    <div class="input-group mb-3" style="max-width: 600px;">
+        <span class="input-group-text">Download</span>
+
+        <input type="text" class="form-control font-monospace" id="henry-download" readonly
+            value="henry product download {{ product.id }}">
+
+        <button class="input-group-text" type="button"
+            onclick="navigator.clipboard.writeText(document.getElementById('henry-download').value)"
+            style="cursor: pointer;">
+            Copy
+        </button>
+    </div>
     <div class="row">
         <div class="col">
             {% if product.metadata %}

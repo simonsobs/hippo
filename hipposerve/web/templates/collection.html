@@ -4,7 +4,7 @@
     <h2>{{ collection.name }}</h2>
     <div class="d-flex align-items-center gap-1">
         <div class="rounded-circle"
-            style="height: 12px; width: 12px; background-color: {{cmap.get(collection.id|string)}};"></div>
+            style="height: 12px; width: 12px; background-color: {{ cmap.get(collection.id|string) }}"></div>
         <span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
         <span class="badge text-bg-danger mb-1 p-2">Owner: {{ collection.owner }}</span>
         {% for reader in collection.readers %}
@@ -15,14 +15,30 @@
         {% endfor %}
     </div>
     {% markdown %}{{ collection.description }}{% endmarkdown %}
+    <div class="input-group mb-3" style="max-width: 50em;">
+        <span class="input-group-text">Download</span>
+
+        <input type="text" class="form-control font-monospace" id="henry-download" readonly
+            value="henry collection download {{ collection.id }}">
+
+        <button class="input-group-text" type="button"
+            onclick="navigator.clipboard.writeText(document.getElementById('henry-download').value)"
+            style="cursor: pointer;">
+            Copy
+        </button>
+    </div>
     {% if request.user.groups.intersection(collection.writers) or "hippo:admin" in request.auth.scopes %}
     <a class="btn btn-primary mb-2" href="./{{collection.id}}/edit">Edit</a>
     {% endif %}
     {% if "hippo:admin" in request.auth.scopes %}
     {% if collection.pinned %}
-    <button class="btn btn-danger mb-2" onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/unpin', {method: 'POST'}).then(() => location.reload())">Unpin from Homepage</button>
+    <button class="btn btn-danger mb-2"
+        onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/unpin', {method: 'POST'}).then(() => location.reload())">Unpin
+        from Homepage</button>
     {% else %}
-    <button class="btn btn-success mb-2" onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/pin', {method: 'POST'}).then(() => location.reload())">Pin to Homepage</button>
+    <button class="btn btn-success mb-2"
+        onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/pin', {method: 'POST'}).then(() => location.reload())">Pin
+        to Homepage</button>
     {% endif %}
     {% endif %}
     <div>

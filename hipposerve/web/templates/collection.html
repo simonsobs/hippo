@@ -4,7 +4,7 @@
     <h2>{{ collection.name }}</h2>
     <div class="d-flex align-items-center gap-1">
         <div class="rounded-circle"
-            style="height: 12px; width: 12px; background-color: {{cmap.get(collection.id|string)}};"></div>
+            style="height: 12px; width: 12px; background-color: {{ cmap.get(collection.id|string) }}"></div>
         <span class="badge text-bg-secondary mb-1 p-2">ID: {{ collection.id }}</span>
         <span class="badge text-bg-danger mb-1 p-2">Owner: {{ collection.owner }}</span>
         {% for reader in collection.readers %}
@@ -15,14 +15,40 @@
         {% endfor %}
     </div>
     {% markdown %}{{ collection.description }}{% endmarkdown %}
+    <h3>Caching & Downloads</h3>
+    <label for="henry-download" class="form-label">Download or cache with <span class="font-monospace">henry</span> CLI</label>
+    <div class="input-group mb-3 input-group-sm" style="max-width: 50em;">
+        <!-- Dropdown -->
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+            aria-expanded="false" id="henry-action-btn">
+            Download
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" data-action="download">Download</a></li>
+            <li><a class="dropdown-item" href="#" data-action="cache">Cache</a></li>
+        </ul>
+
+        <input type="text" class="form-control font-monospace" id="henry-download" readonly
+            value="henry collection download {{ collection.id }}">
+
+        <button class="input-group-text" type="button"
+            onclick="navigator.clipboard.writeText(document.getElementById('henry-download').value)"
+            style="cursor: pointer;">
+            Copy
+        </button>
+    </div>
     {% if request.user.groups.intersection(collection.writers) or "hippo:admin" in request.auth.scopes %}
     <a class="btn btn-primary mb-2" href="./{{collection.id}}/edit">Edit</a>
     {% endif %}
     {% if "hippo:admin" in request.auth.scopes %}
     {% if collection.pinned %}
-    <button class="btn btn-danger mb-2" onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/unpin', {method: 'POST'}).then(() => location.reload())">Unpin from Homepage</button>
+    <button class="btn btn-danger mb-2"
+        onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/unpin', {method: 'POST'}).then(() => location.reload())">Unpin
+        from Homepage</button>
     {% else %}
-    <button class="btn btn-success mb-2" onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/pin', {method: 'POST'}).then(() => location.reload())">Pin to Homepage</button>
+    <button class="btn btn-success mb-2"
+        onclick="fetch('{{ api_root }}/relationships/collection/{{ collection.id }}/pin', {method: 'POST'}).then(() => location.reload())">Pin
+        to Homepage</button>
     {% endif %}
     {% endif %}
     <div>
@@ -121,5 +147,22 @@
     const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
         return new bootstrap.Popover(popoverTriggerEl)
     })
+
+    // Dropdown handling
+    document.querySelectorAll('.dropdown-item[data-action]').forEach(item => {
+        item.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            const action = this.getAttribute('data-action');
+            const text = action.charAt(0).toUpperCase() + action.slice(1);
+
+            // Update dropdown visible text
+            document.getElementById('henry-action-btn').textContent = text;
+
+            // Update CLI command
+            document.getElementById('henry-download').value =
+                `henry collection ${action} {{ collection.id }}`;
+        });
+    });
 </script>
 {% endblock %}

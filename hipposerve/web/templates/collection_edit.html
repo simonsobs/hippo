@@ -15,7 +15,7 @@
         <button type="button" id="preview_changes" class="btn btn-primary mt-3">Preview</button>
         <!-- Modal -->
         <div class="modal fade" id="update_modal" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog" role="document">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="update_modal_label">Your Update</h5>
@@ -94,18 +94,21 @@
     })
 
     function createDiffHTML(dictionary) {
-        let output = "<ul>";
+        let output = "";
 
         for (const [key, value] of Object.entries(dictionary)) {
-            line = `<span class="badge text-bg-danger p-2">${value[0]}</span> → <span class="badge text-bg-success p-2">${value[1]}</span>`
-            output += `<li>${key}: ${line}</li>\n`
+            if (key == "metadata") {
+                line = createMetadataDiffHTML(value);
+            } else if (key == "description") {
+                line = value;
+            } else {
+                line = `<span class="badge text-bg-danger p-2">${value[0]}</span> → <span class="badge text-bg-success p-2">${value[1]}</span>`
+            }
+            output += `<h3 style='text-transform: capitalize'>${key}</h3>${line}\n`
         }
-
-        output += "</ul>"
 
         return output
     }
-
     function parseUpdate() {
         const update = {};
         update["name"] = collection_name.value;

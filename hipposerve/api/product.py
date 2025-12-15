@@ -3,6 +3,7 @@ Routes for the product service.
 """
 
 import asyncio
+from difflib import Differ
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request, status
@@ -342,6 +343,81 @@ async def metadata_diff(
         metadata=model.metadata,
         level=model.level,
     )
+
+    if diff.get("description", None) is not None:
+        differ = Differ()
+        diffed_description = list(
+            differ.compare(
+                item.description.splitlines(),
+                model.description.splitlines() if model.description else [],
+            )
+        )
+
+        output_diff = "<table class='table table-bordered'><tbody>\n"
+        for line, next_line in zip(diffed_description, diffed_description[1:] + [""]):
+            if line.startswith("? "):
+                continue
+            if line.startswith("+ "):
+                line = line[2:]
+                if next_line.startswith("? "):
+                    # Two lines: first is addition, second is location in the original line
+                    position = next_line[2:]
+
+                    new_line = ""
+                    in_diff = False
+
+                    for outchar, indicator in zip(line, position + " " * len(line)):
+                        if indicator != " ":
+                            if not in_diff:
+                                new_line += "<b class='text-success'>"
+                                in_diff = True
+                                new_line += outchar
+                                continue
+                            else:
+                                new_line += outchar
+                                continue
+
+                        if in_diff:
+                            new_line += "</b>"
+                            in_diff = False
+
+                        new_line += outchar
+
+                    line = new_line
+                output_diff += f"<tr class='table-success'><td><b class='text-success'>+</b></td><td class='text-success'>{line}</td></tr>\n"
+            elif line.startswith("- "):
+                line = line[2:]
+                if next_line.startswith("? "):
+                    # Two lines: first is addition, second is location in the original line
+                    position = next_line[2:]
+
+                    new_line = ""
+                    in_diff = False
+
+                    for outchar, indicator in zip(line, position + " " * len(line)):
+                        if indicator != " ":
+                            if not in_diff:
+                                new_line += "<b class='text-danger'>"
+                                in_diff = True
+                                new_line += outchar
+                                continue
+                            else:
+                                new_line += outchar
+                                continue
+
+                        if in_diff:
+                            new_line += "</b>"
+                            in_diff = False
+
+                        new_line += outchar
+
+                    line = new_line
+                output_diff += f"<tr class='table-danger'><td><b class='text-danger'>-</b></td><td class='text-danger'>{line}</td></tr>\n"
+            else:
+                output_diff += f"<tr><td></td><td>{line[2:]}</td></tr>\n"
+
+        output_diff += "</tbody></table>\n"
+        diff["description"] = output_diff
 
     logger.debug(
         "Found metadata diff for product {} (id: {}): {}", item.name, item.id, diff

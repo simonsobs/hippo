@@ -45,7 +45,7 @@ async def search_results_view(
         filter,
         request.user.display_name,
         len(results),
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -134,7 +134,7 @@ async def searchmetadata_results_view(
         query_params["metadata_type"],
         request.user.display_name,
         len(results),
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -215,7 +215,7 @@ async def search_metadata_view(
     logger.info(
         "Search metadata page requested by {}, user has {} scopes",
         request.user.display_name,
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(

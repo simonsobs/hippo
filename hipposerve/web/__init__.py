@@ -77,7 +77,7 @@ async def index(request: Request):
         len(recent_collections),
         len(pinned_products),
         len(pinned_collections),
-        request.user.scopes,
+        request.auth.scopes,
     )
     return templates.TemplateResponse(
         "index.html",
@@ -108,7 +108,7 @@ async def product_view(request: Request, id: str):
         "Product page for {} requested by {}, user has {} scopes",
         id,
         request.user.display_name,
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -134,7 +134,7 @@ async def product_edit(request: Request, id: str):
         "Product edit page for {} requested by {}, user has {} scopes",
         id,
         request.user.display_name,
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -165,7 +165,7 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
             slug,
             id,
             request.user.display_name,
-            request.user.scopes,
+            request.auth.scopes,
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -177,7 +177,7 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
         slug,
         id,
         request.user.display_name,
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
@@ -193,7 +193,7 @@ async def collection_edit(request: Request, id: PydanticObjectId):
         "Collection edit page for {} requested by {}, user has {} scopes",
         id,
         request.user.display_name,
-        request.user.scopes,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -227,7 +227,7 @@ async def collection_view(request: Request, id: PydanticObjectId):
         "Collection page for {} requested by {}, user has {} scopes",
         id,
         request.user.display_name,
-        request.user.scopes,
+        request.auth.scopes,
     )
     return templates.TemplateResponse(
         "collection.html",

@@ -12,6 +12,7 @@ from typing import Literal
 from beanie import PydanticObjectId
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from loguru import logger
 
 from hipposerve.database import Collection
 from hipposerve.service import collection, product, storage
@@ -68,6 +69,16 @@ async def index(request: Request):
     pinned_collections = await collection.read_pinned(
         groups=request.user.groups, scopes=request.auth.scopes, maximum=16
     )
+    logger.info(
+        "Index page requested by {} with {}/{} recent products/collections and {}/{} "
+        "pinned products/collections, user has {} scopes",
+        request.user.display_name,
+        len(recent_products),
+        len(recent_collections),
+        len(pinned_products),
+        len(pinned_collections),
+        request.auth.scopes,
+    )
     return templates.TemplateResponse(
         "index.html",
         {
@@ -93,6 +104,13 @@ async def product_view(request: Request, id: str):
     )
     version_history = await product.walk_history(latest_version)
 
+    logger.info(
+        "Product page for {} requested by {}, user has {} scopes",
+        id,
+        request.user.display_name,
+        request.auth.scopes,
+    )
+
     return templates.TemplateResponse(
         "product.html",
         {
@@ -110,6 +128,13 @@ async def product_view(request: Request, id: str):
 async def product_edit(request: Request, id: str):
     product_instance = await product.read_by_id(
         id, request.user.groups, scopes=request.auth.scopes
+    )
+
+    logger.info(
+        "Product edit page for {} requested by {}, user has {} scopes",
+        id,
+        request.user.display_name,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -135,10 +160,25 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
             file=product_instance.sources[slug], storage=request.app.storage
         )
     except (FileNotFoundError, KeyError):
+        logger.warning(
+            "Slug {} not found for product {}, requested by {}, user has {} scopes",
+            slug,
+            id,
+            request.user.display_name,
+            request.auth.scopes,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Slug {slug} not found for product {id}",
         )
+
+    logger.info(
+        "Product source {} for product {} requested by {}, user has {} scopes, redirecting",
+        slug,
+        id,
+        request.user.display_name,
+        request.auth.scopes,
+    )
 
     return RedirectResponse(url=presigned, status_code=status.HTTP_302_FOUND)
 
@@ -147,6 +187,13 @@ async def product_read_slug(request: Request, id: str, slug: str) -> RedirectRes
 async def collection_edit(request: Request, id: PydanticObjectId):
     collection_instance = await collection.read(
         id, request.user.groups, scopes=request.auth.scopes
+    )
+
+    logger.info(
+        "Collection edit page for {} requested by {}, user has {} scopes",
+        id,
+        request.user.display_name,
+        request.auth.scopes,
     )
 
     return templates.TemplateResponse(
@@ -175,6 +222,12 @@ async def collection_view(request: Request, id: PydanticObjectId):
         [str(id)]
         + [str(x.id) for x in collection_instance.parent_collections]
         + [str(x.id) for x in collection_instance.child_collections]
+    )
+    logger.info(
+        "Collection page for {} requested by {}, user has {} scopes",
+        id,
+        request.user.display_name,
+        request.auth.scopes,
     )
     return templates.TemplateResponse(
         "collection.html",

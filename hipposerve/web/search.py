@@ -4,6 +4,7 @@ Utilities for product search and rendering search results.
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+from loguru import logger
 
 from hippometa import ALL_METADATA
 from hipposerve.service import collection, product
@@ -37,6 +38,15 @@ async def search_results_view(
             q, request.user.groups, scopes=request.auth.scopes
         )
         results = collection_results + product_results
+
+    logger.info(
+        "Search results for query '{}' with filter '{}' requested by {}, found {} results, user has {} scopes",
+        q,
+        filter,
+        request.user.display_name,
+        len(results),
+        request.auth.scopes,
+    )
 
     return templates.TemplateResponse(
         "search_results.html",
@@ -116,6 +126,17 @@ async def searchmetadata_results_view(
         metadata_filters, request.user.groups, scopes=request.auth.scopes
     )
 
+    logger.info(
+        "Metadata search results for query '{}' with filter '{}' on metadata type '{}' requested by {}, found "
+        "{} results, user has {} scopes",
+        q,
+        filter_on,
+        query_params["metadata_type"],
+        request.user.display_name,
+        len(results),
+        request.auth.scopes,
+    )
+
     return templates.TemplateResponse(
         "search_results.html",
         {
@@ -190,6 +211,12 @@ async def search_metadata_view(
                 }
 
         metadata_info[class_name] = {**number_fields, **other_fields}
+
+    logger.info(
+        "Search metadata page requested by {}, user has {} scopes",
+        request.user.display_name,
+        request.auth.scopes,
+    )
 
     return templates.TemplateResponse(
         "search_metadata.html",

@@ -10,6 +10,7 @@ from urllib.parse import urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from loguru import logger
 
 from hipposerve.service import collection, product
 from hipposerve.service import users as users_service
@@ -119,6 +120,13 @@ async def read_user(request: Request):
             username, request.user.groups, scopes=request.auth.scopes
         )
         or []
+    )
+
+    logger.info(
+        "User page for {} has {} products and {} collections",
+        username,
+        len(products),
+        len(collections),
     )
 
     return templates.TemplateResponse(

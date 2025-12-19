@@ -59,6 +59,7 @@
                     <th>Product</th>
                     <th>Uploaded</th>
                     <th>Version</th>
+                    <th>Type</th>
                 </tr>
             </thead>
             <tbody>
@@ -68,6 +69,7 @@
                     <td><a href='{{ web_root }}/products/{{ product.id | e}}'>{{ product.name }}</a></td>
                     <td>{{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                     <td>{{ product.version }}</td>
+                    <td>{{ product.metadata.metadata_type }}</td>
                 </tr>
                 {% endfor %}
                 {% else %}

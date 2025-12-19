@@ -5,6 +5,7 @@
     <div class="d-flex gap-1 flex-wrap">
         <span class="badge text-bg-success p-2">Version: {{ product.version }}</span>
         <span class="badge text-bg-secondary p-2">ID: {{ product.id }}</span>
+        <span class="badge text-bg-info p-2">Type: {{ product.metadata.metadata_type }}</span>
         <span class="badge text-bg-warning p-2">Uploaded: {{ product.uploaded.strftime('%Y-%m-%d %H:%M:%S') }}</span>
         <span class="badge text-bg-warning p-2">Modified: {{ product.updated.strftime('%Y-%m-%d %H:%M:%S') }}</span>
         <span class="badge text-bg-danger p-2">Owner: {{ product.owner }}</span>

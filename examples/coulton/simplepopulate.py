@@ -38,7 +38,7 @@ map_set = henry.new_product(
         tags=["ymap"],
     ),
     sources=dict(
-        coadd=LocalSource(
+        map=LocalSource(
             path="ilc_actplanck_ymap.fits",
             description="Compton-y map from ACT DR6, lowpass filtered to ell=17000",
         ),

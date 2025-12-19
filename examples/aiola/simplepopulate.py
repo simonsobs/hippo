@@ -65,7 +65,7 @@ def get_patch(path: Path) -> str:
 
 
 def get_set(path: Path) -> str:
-    sets = ["set0", "set1", "set2", "set3", "map"]
+    sets = ["set0", "set1", "set2", "set3", "coadd"]
 
     for set_ in sets:
         if set_ in path.name:
@@ -76,18 +76,20 @@ def get_map_type(path: Path) -> str:
     map_types = {
         "coadd_srcs": "source_only",
         "coadd_map_srcfree": "source_free",
-        "coadd_ivar": "ivar_coadd",
-        "coadd_xlink": "xlink_coadd",
+        "coadd_ivar": "ivar",
+        "coadd_xlink": "xlink",
         # Coadd is primary, fallback is splits
-        "map_srcfree": "source_free_split",
-        "srcs": "source_only_split",
-        "ivar": "ivar_split",
-        "xlink": "xlink_split",
+        "map_srcfree": "source_free",
+        "srcs": "source_only",
+        "ivar": "ivar",
+        "xlink": "xlink",
     }
 
     for map_type, return_value in map_types.items():
         if map_type in path.name:
             return return_value
+
+    raise ValueError(f"Could not determine map type for file {path.name}")
 
 
 def get_description(path: Path) -> str:
@@ -96,7 +98,7 @@ def get_description(path: Path) -> str:
         "set1": "ACT DR4 4-way Split 1. Includes all the maps from the 4-way split 1, see the collection for more details",
         "set2": "ACT DR4 4-way Split 2. Includes all the maps from the 4-way split 2, see the collection for more details",
         "set3": "ACT DR4 4-way Split 3. Includes all the maps from the 4-way split 3, see the collection for more details",
-        "map": "ACT DR4 4-way Co-added Maps. Includes all the maps from the co-added maps, see the collection for more details",
+        "coadd": "ACT DR4 4-way Co-added Maps. Includes all the maps from the co-added maps, see the collection for more details",
     }
 
     patch = get_patch(path)
@@ -111,10 +113,17 @@ def find_primary_map(list: dict[str, Path]) -> Path:
         if "source_free" in val:
             return path
 
+    for val, path in list.items():
+        if "coadd" in val:
+            return path
+
 
 def get_name(path: Path) -> str:
     patch = get_patch(path)
     set_ = get_set(path)
+
+    if set_ is None or patch is None:
+        raise ValueError(f"Could not determine name for file {path.name}")
 
     return f"ACT DR4 (Patch {patch}) 4-way ({set_})"
 
@@ -167,6 +176,9 @@ if __name__ == "__main__":
             polarization_convention="IAU",
         )
         primary_map = find_primary_map(sub_sets[sub_set])
+
+        if primary_map is None:
+            raise ValueError(f"No primary map found for subset {sub_set}")
 
         product = henry.new_product(
             name=sub_set,

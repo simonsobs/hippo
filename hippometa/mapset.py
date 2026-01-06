@@ -64,13 +64,12 @@ class MapSet(BaseMetadata):
             pixelisation = metadata.get("PIXELIS", "healpix").lower()
             if pixelisation not in ["healpix", "equirectangular"]:
                 # Check if CAR in ctype
-                if "CTYPE1" in metadata and any("CAR" in metadata["CTYPE1"].upper()):
+                if "CTYPE1" in metadata and ("CAR" in metadata["CTYPE1"].upper()):
                     pixelisation = "equirectangular"
                 else:
                     raise ValueError(f"Invalid pixelisation: {pixelisation}")
 
             return cls(
-                filename=filename,
                 pixelisation=pixelisation,
                 telescope=metadata.get("TELESCOP"),
                 instrument=metadata.get("INSTRUME"),

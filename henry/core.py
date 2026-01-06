@@ -11,7 +11,7 @@ from hippoclient.product import download as download_product
 from hippometa import ALL_METADATA_TYPE
 
 from .collection import CollectionInstance, LocalCollection, RemoteCollection
-from .product import LocalProduct, ProductInstance, RemoteProduct
+from .product import LocalProduct, ProductInstance, RemoteProduct, RevisionProduct
 
 
 class Henry:
@@ -66,7 +66,9 @@ class Henry:
         )
 
     def push(
-        self, item: LocalProduct | LocalCollection, skip_preflight: bool = False
+        self,
+        item: LocalProduct | LocalCollection | RevisionProduct | RemoteCollection,
+        skip_preflight: bool = False,
     ) -> str:
         return item._upload(
             client=self.client,
@@ -99,7 +101,7 @@ class Henry:
         collection_id: str,
         realize_sources: bool = True,
         pull_children: bool = True,
-    ) -> CollectionInstance:
+    ) -> RemoteCollection:
         return RemoteCollection.pull(
             collection_id=collection_id,
             client=self.client,

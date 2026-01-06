@@ -15,6 +15,8 @@ from .exceptions import InvalidSlugError, PreflightFailedError, ProductIncomplet
 
 
 class ProductInstance(BaseModel):
+    product_id: str | None
+
     pass
 
     def _upload(

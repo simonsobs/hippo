@@ -19,6 +19,8 @@ from .exceptions import (
 
 
 class CollectionInstance(BaseModel):
+    collection_id: str | None
+
     pass
 
 
@@ -159,7 +161,7 @@ class LocalCollection(CollectionInstance):
             return self.colleciton_id
 
         if not skip_preflight:
-            # This runs _all_ preflight checks - for all connected collecitons and products.
+            # This runs _all_ preflight checks - for all connected collections and products.
             self.preflight()
 
         self.collection_id = collections.create(
@@ -295,7 +297,7 @@ class RemoteCollection(CollectionInstance):
         )
 
     @classmethod
-    def read(cls, directory: Path | str, allow_incomplete: bool) -> "RemoteProduct":
+    def read(cls, directory: Path | str, allow_incomplete: bool) -> "RemoteCollection":
         """
         Read a collection that was serialized to disk, usually with the
         `henry collection download $ID` command.
@@ -493,7 +495,9 @@ class RemoteCollection(CollectionInstance):
             )
 
         product_ids_to_connect = [
-            p.id for p in self.products if p.id not in self.original_product_ids
+            p.product_id
+            for p in self.products
+            if p.product_id not in self.original_product_ids
         ]
 
         for product_id in product_ids_to_connect:
@@ -515,7 +519,9 @@ class RemoteCollection(CollectionInstance):
 
         # Recurse!
         child_collection_ids_to_connect = [
-            c.id for c in self.collections if c.id not in self.original_collection_ids
+            c.collection_id
+            for c in self.collections
+            if c.collection_id not in self.original_collection_ids
         ]
 
         for collection_id in child_collection_ids_to_connect:

@@ -473,12 +473,14 @@ class RemoteCollection(CollectionInstance):
         readers: list[str] | None = None,
         writers: list[str] | None = None,
     ):
-        if self.collection_id:
-            # We've already been uploaded!
-            return self.colleciton_id
+        # Cannot do the usual skip as there's no 'revision' system for
+        # collections. So we must check first whether any of our children
+        # actually need to be uploaded. Because we know that this is a
+        # "RemoteCollection", too, there's no need to skip anything as
+        # we never actually upload 'self', only children.
 
         if not skip_preflight:
-            # This runs _all_ preflight checks - for all connected collecitons and products.
+            # This runs _all_ preflight checks - for all connected collections and products.
             self.preflight()
 
         for product in self.products:

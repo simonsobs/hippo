@@ -23,3 +23,6 @@ examples/*.fits
 *.tar.gz
 *.mp4
 *product.json
+
+.nova/*
+*.swp

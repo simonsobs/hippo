@@ -21,6 +21,16 @@ from .exceptions import (
 class CollectionInstance(BaseModel):
     collection_id: str | None
 
+    def _upload(
+        self,
+        client: httpx.Client,
+        console: Console,
+        skip_preflight: bool = False,
+        readers: list[str] | None = None,
+        writers: list[str] | None = None,
+    ) -> str:
+        raise NotImplementedError
+
     pass
 
 
@@ -72,7 +82,7 @@ class LocalCollection(CollectionInstance):
         else:
             return self.collections[index]
 
-    def __iter__(self) -> Iterable[CollectionInstance | ProductInstance]:
+    def __iter__(self):
         return chain(self.products, self.collections)
 
     def __reversed__(self) -> Iterable[ProductInstance | CollectionInstance]:
@@ -158,7 +168,7 @@ class LocalCollection(CollectionInstance):
     ):
         if self.collection_id:
             # We've already been uploaded!
-            return self.colleciton_id
+            return self.collection_id
 
         if not skip_preflight:
             # This runs _all_ preflight checks - for all connected collections and products.
@@ -250,7 +260,7 @@ class RemoteCollection(CollectionInstance):
             # Ensure it's cached
             collections.cache(
                 client=client,
-                cache=cache,
+                multi_cache=cache,
                 id=collection_id,
                 console=console,
             )
@@ -397,7 +407,7 @@ class RemoteCollection(CollectionInstance):
         else:
             return self.collections[index]
 
-    def __iter__(self) -> Iterable[CollectionInstance | ProductInstance]:
+    def __iter__(self):
         return chain(self.products, self.collections)
 
     def __reversed__(self) -> Iterable[ProductInstance | CollectionInstance]:
@@ -498,6 +508,7 @@ class RemoteCollection(CollectionInstance):
             p.product_id
             for p in self.products
             if p.product_id not in self.original_product_ids
+            and p.product_id is not None
         ]
 
         for product_id in product_ids_to_connect:
@@ -522,6 +533,7 @@ class RemoteCollection(CollectionInstance):
             c.collection_id
             for c in self.collections
             if c.collection_id not in self.original_collection_ids
+            and c.collection_id is not None
         ]
 
         for collection_id in child_collection_ids_to_connect:

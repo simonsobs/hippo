@@ -298,7 +298,7 @@ def delete(client: Client, id: str, console: Console | None = None) -> bool:
 
 
 def cache(
-    client: Client, cache: MultiCache, id: str, console: Console | None = None
+    client: Client, multi_cache: MultiCache, id: str, console: Console | None = None
 ) -> list[Path]:
     """
     Cache a collection from hippo.
@@ -332,10 +332,10 @@ def cache(
     paths = []
 
     for product in collection.products:
-        paths += cache_product(client, cache, product.id)
+        paths += cache_product(client, multi_cache, str(product.id))
 
     for child in collection.child_collections:
-        paths += cache(client, cache, child.id)
+        paths += cache(client, multi_cache, str(child.id))
 
     return paths
 

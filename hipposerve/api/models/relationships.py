@@ -70,9 +70,9 @@ class ReadCollectionResponse(BaseModel):
     id: PydanticObjectId
     name: str
     description: str
-    products: list[ReadCollectionProductResponse] | None
-    child_collections: list[ReadCollectionCollectionResponse] | None = None
-    parent_collections: list[ReadCollectionCollectionResponse] | None = None
+    products: list[ReadCollectionProductResponse] = []
+    child_collections: list[ReadCollectionCollectionResponse] = []
+    parent_collections: list[ReadCollectionCollectionResponse] = []
     readers: list[str]
     writers: list[str]
     owner: str

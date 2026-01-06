@@ -18,7 +18,7 @@ import shutil
 import sqlite3
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 from rich.console import Console
 
 from hippoclient.downloads import downloader
@@ -88,8 +88,8 @@ class Cache(BaseModel):
     path: Path
     database_name: str = "cache.db"
 
-    _database: Path
-    _connection: sqlite3.Connection
+    _database: Path = PrivateAttr()
+    _connection: sqlite3.Connection = PrivateAttr()
 
     def model_post_init(self, __context):
         self._database = self.path / self.database_name

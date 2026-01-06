@@ -262,7 +262,9 @@ def collection_cache(id: str):
     """
     global CLIENT, CACHE, CONSOLE
 
-    response = sc.collections.cache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
+    response = sc.collections.cache(
+        client=CLIENT, multi_cache=CACHE, id=id, console=CONSOLE
+    )
 
     CONSOLE.print(f"Cached collection {id} including {len(response)} files")
 

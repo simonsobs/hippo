@@ -27,7 +27,9 @@ class ProductInstance(BaseModel):
         readers: list[str] | None = None,
         writers: list[str] | None = None,
     ) -> str:
-        return
+        raise NotImplementedError(
+            "ProductInstance is a base class, and this method must be implemented"
+        )
 
 
 class LocalProduct(ProductInstance):

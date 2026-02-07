@@ -43,6 +43,7 @@ dependencies = [
     "pymongo",
     "textual[syntax]",
     "soauth>=0.5.2",
+    "nh3==0.3.2",
 ]
 authors = [
     {name = "Josh Borrow", email = "josh@joshborow.com"},

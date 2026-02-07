@@ -2,6 +2,7 @@
 Utilities for product search and rendering search results.
 """
 
+import nh3
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
@@ -19,9 +20,12 @@ router = APIRouter()
 @router.get("/search/results", response_class=HTMLResponse)
 async def search_results_view(
     request: Request,
-    q: str = None,
+    q: str | None = None,
     filter: str = "products",
 ):
+    q = nh3.clean(q)
+    filter = nh3.filter(q)
+
     if filter == "products":
         results = await product.search_by_name(
             q, request.user.groups, scopes=request.auth.scopes
@@ -65,10 +69,12 @@ async def search_results_view(
 @router.get("/searchmetadata/results", response_class=HTMLResponse)
 async def searchmetadata_results_view(
     request: Request,
-    q: str = None,
+    q: str | None = None,
     filter_on: str = "products",
 ):
-    query_params = dict(request.query_params)
+    query_params = {nh3.clean(x): nh3.clean(y) for x, y in request.query_params}
+    q = nh3.clean(q)
+    filter_on = nh3.clean(filter_on)
 
     # Determine which metadata_class we're searching on so we can get the fields;
     # we will use the fields with the query_params to craft type-specific queries

@@ -88,6 +88,9 @@ def check_user_access(
     if "hippo:admin" in scopes:
         return True
 
+    if "public" in document_groups:
+        return True
+
     allowed = set(document_groups)
     user_groups = set(user_groups)
 
@@ -99,3 +102,28 @@ def check_user_access(
     raise AuthenticationError(
         "User does not have the required group access for this operation"
     )
+
+
+def build_access_query(
+    user_groups: Iterable[str],
+    scopes: Iterable[str],
+) -> dict:
+    """
+    Build a MongoDB query to find documents that a user has access to
+    based on their groups and scopes.
+
+    Returns
+    -------
+    dict
+        A MongoDB query dictionary that can be used to filter documents.
+    """
+
+    if "hippo:admin" in scopes:
+        return {}
+
+    if "public" not in user_groups:
+        user_groups = set(user_groups) | {"public"}
+
+    return {
+        "$or": [{"readers": {"$in": user_groups}}, {"writers": {"$in": user_groups}}]
+    }

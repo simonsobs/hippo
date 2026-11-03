@@ -12,7 +12,7 @@ from beanie.operators import Text
 from fastapi import HTTPException
 
 from hipposerve.database import Collection
-from hipposerve.service.acl import check_user_access
+from hipposerve.service.acl import build_access_query, check_user_access
 
 LINK_POLICY = {
     "fetch_links": True,
@@ -64,16 +64,11 @@ async def read_most_recent(
     maximum: int = 16,
 ) -> list[Collection]:
     # TODO: Implement updated time for collections.
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
-    collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
-        maximum
-    )
+    collection_list = await Collection.find(
+        access_query, limit=maximum, **LINK_POLICY
+    ).to_list(maximum)
 
     filtered_collection_list = await collection_product_filter(
         groups, scopes, collection_list
@@ -87,19 +82,10 @@ async def read_pinned(
     scopes: set[str],
     maximum: int = 16,
 ) -> list[Collection]:
-    if "hippo:admin" in scopes:
-        access_query = {"pinned": True}
-    else:
-        access_query = {
-            "$and": [
-                {"pinned": True},
-                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
-            ]
-        }
+    access_query = build_access_query(groups, scopes)
+    query = {"$and": [access_query, {"pinned": True}]}
 
-    collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
-        maximum
-    )
+    collection_list = await Collection.find(query, **LINK_POLICY).to_list(maximum)
 
     return collection_list
 
@@ -111,12 +97,7 @@ async def search_by_name(
     Search for Collections by name using the text index.
     """
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = (
         await Collection.find(access_query, Text(name), **LINK_POLICY)  # noqa: E712
@@ -138,13 +119,7 @@ async def search_by_owner(
     """
 
     owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
-
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = await Collection.find(
         {**access_query, "owner": owner_regex}, **LINK_POLICY

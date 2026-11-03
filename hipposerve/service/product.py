@@ -23,7 +23,7 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.acl import check_user_access
+from hipposerve.service.acl import build_access_query, check_user_access
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -226,12 +226,7 @@ async def search_by_name(
     Search for products by name using the text index.
     """
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = (
         await Product.find(
@@ -257,12 +252,7 @@ async def search_by_metadata(
     Search for products by metadata.
     """
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     # Construct the query by embedding metadata field names and values
     query = {f"metadata.{key}": value for key, value in metadata_filters.items()}
@@ -286,12 +276,7 @@ async def search_by_owner(
 
     owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = await Product.find(
         {**access_query, "owner": owner_regex},
@@ -409,12 +394,7 @@ async def read_most_recent(
     maximum: int = 16,
     current_only: bool = True,
 ) -> list[Product]:
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     if current_only:
         query = {"$and": [{"current": True}, access_query]}
@@ -435,15 +415,7 @@ async def read_pinned(
     maximum: int = 16,
     current_only: bool = True,
 ) -> list[Product]:
-    if "hippo:admin" in scopes:
-        access_query = {"pinned": True}
-    else:
-        access_query = {
-            "$and": [
-                {"pinned": True},
-                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
-            ]
-        }
+    access_query = build_access_query(groups, scopes)
 
     if current_only:
         access_query = {"$and": [access_query, {"current": True}]}

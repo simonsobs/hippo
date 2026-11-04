@@ -52,7 +52,6 @@ async def create_collection(
 
 
 @relationship_router.get("/collection/{id}")
-@requires(["hippo:admin", "hippo:read"])
 async def read_collection(
     id: PydanticObjectId,
     request: Request,
@@ -121,7 +120,6 @@ async def read_collection(
 
 
 @relationship_router.get("/collection/search/{name}")
-@requires(["hippo:admin", "hippo:read"])
 async def search_collection(
     name: str,
     request: Request,
@@ -155,7 +153,6 @@ async def search_collection(
             owner=item.owner,
             readers=item.readers,
             writers=item.writers,
-            products=None,
         )
         for item in results
     ]

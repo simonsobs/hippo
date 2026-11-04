@@ -78,7 +78,6 @@ async def create_product(
 
 
 @product_router.get("/search/{text}")
-@requires(["hippo:admin", "hippo:read"])
 async def search(
     text: str,
     request: Request,
@@ -153,7 +152,6 @@ async def complete_product(
 
 
 @product_router.get("/{id}")
-@requires(["hippo:admin", "hippo:read"])
 async def read_product(
     id: PydanticObjectId,
     request: Request,
@@ -192,7 +190,6 @@ async def read_product(
 
 
 @product_router.get("/{id}/tree")
-@requires(["hippo:admin", "hippo:read"])
 async def read_tree(
     id: PydanticObjectId,
     request: Request,
@@ -246,7 +243,6 @@ async def read_tree(
 
 
 @product_router.get("/{id}/files")
-@requires(["hippo:admin", "hippo:read"])
 async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesResponse:
     """
     Read a single product's including pre-signed URLs for downloads.
@@ -280,7 +276,6 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
 
 
 @product_router.get("/{id}/{slug}")
-@requires(["hippo:admin", "hippo:read"])
 async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
     NOT_FOUND = HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,

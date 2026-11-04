@@ -23,7 +23,11 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.acl import build_access_query, check_user_access
+from hipposerve.service.acl import (
+    build_access_query,
+    check_read_access,
+    check_write_access,
+)
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -190,11 +194,7 @@ async def read_by_name(
     if potential is None:
         raise ProductNotFound
 
-    assert check_user_access(
-        user_groups=groups,
-        document_groups=potential.readers + potential.writers,
-        scopes=scopes,
-    )
+    check_read_access(groups, potential, scopes)
 
     return potential
 
@@ -210,11 +210,7 @@ async def read_by_id(
     if potential is None:
         raise ProductNotFound
 
-    assert check_user_access(
-        user_groups=groups,
-        document_groups=potential.readers + potential.writers,
-        scopes=scopes,
-    )
+    check_read_access(groups, potential, scopes)
 
     return potential
 
@@ -415,13 +411,12 @@ async def read_pinned(
     maximum: int = 16,
     current_only: bool = True,
 ) -> list[Product]:
-    access_query = build_access_query(groups, scopes)
-
+    query = {**build_access_query(groups, scopes), "pinned": True}
     if current_only:
-        access_query = {"$and": [access_query, {"current": True}]}
+        query["current"] = True
 
     found = Product.find(
-        access_query,
+        query,
         fetch_links=fetch_links,
     )
 
@@ -623,9 +618,7 @@ async def update(
     """
     Rev the version of the product and update its contents.
     """
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
 
     new_product = await update_metadata(
         product=product,
@@ -684,9 +677,7 @@ async def pin(
     Pin a product in the database.
     """
 
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
 
     product.pinned = True
     await product.save()
@@ -703,9 +694,7 @@ async def unpin(
     Unpin a product in the database.
     """
 
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
 
     product.pinned = False
     await product.save()
@@ -725,9 +714,7 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -784,9 +771,7 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -826,11 +811,9 @@ async def add_relationship(
     scopes: set[str],
     type: Literal["child"],
 ):
+    check_write_access(access_groups, source, scopes)
     if type == "child":
         source.child_of = source.child_of + [destination]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=source.writers, scopes=scopes
-    )
     await source.save()
 
     return
@@ -843,11 +826,9 @@ async def remove_relationship(
     scopes: set[str],
     type: Literal["child"],
 ):
+    check_write_access(access_groups, source, scopes)
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=source.writers, scopes=scopes
-    )
     await source.save()
 
     return
@@ -856,10 +837,8 @@ async def remove_relationship(
 async def add_collection(
     product: Product, access_groups: list[str], scopes: set[str], collection: Collection
 ):
+    check_write_access(access_groups, product, scopes)
     product.collections = product.collections + [collection]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
     await product.save()
 
     return
@@ -868,10 +847,8 @@ async def add_collection(
 async def remove_collection(
     product: Product, access_groups: list[str], scopes: set[str], collection: Collection
 ):
+    check_write_access(access_groups, product, scopes)
     product.collections = [c for c in product.collections if c.id != collection.id]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
     await product.save()
 
     return product

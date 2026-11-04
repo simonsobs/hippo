@@ -16,7 +16,7 @@ from hipposerve.api.models.relationships import (
     UpdateCollectionRequest,
 )
 from hipposerve.service import acl, collection, product
-from hipposerve.service.auth import requires
+from hipposerve.service.auth import AuthenticationError, requires
 
 relationship_router = APIRouter(prefix="/relationships")
 
@@ -400,6 +400,8 @@ async def delete_collection(
             id=id, groups=request.user.groups, scopes=request.auth.scopes
         )
 
+        acl.check_write_access(request.user.groups, coll, scopes=request.auth.scopes)
+
         if coll.parent_collections:
             for parent in coll.parent_collections:
                 await collection.remove_child(
@@ -418,6 +420,12 @@ async def delete_collection(
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
+        )
+
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have write access to this collection",
         )
 
 

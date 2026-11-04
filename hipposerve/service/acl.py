@@ -68,35 +68,35 @@ async def update_access_control(
     return await doc.get(initial_doc_id)
 
 
-def check_user_access(
+def check_read_access(
     user_groups: Iterable[str],
-    document_groups: Iterable[str],
-    scopes: Iterable[str] = set(),
+    document: ProtectedDocument,
+    scopes: Iterable[str],
 ) -> bool:
-    """
-    Check whether a user (based on their groups) has access to a specific
-    document based on its 'reader' or 'writer' group list (`document_groups`).
+    """Allow reads of public documents and documents shared with the user's groups."""
+    if "hippo:admin" in scopes or "public" in document.readers:
+        return True
 
-    Note that the group `admin` is always added to `allowed`.
+    groups = set(user_groups) - {"public"}
+    if groups.intersection(document.readers) or groups.intersection(document.writers):
+        return True
 
-    Raises
-    ------
-    AuthenticationError
-        When there is no overlap between `user_groups` and `document_groups`
-    """
+    raise AuthenticationError(
+        "User does not have the required group access for this operation"
+    )
 
+
+def check_write_access(
+    user_groups: Iterable[str],
+    document: ProtectedDocument,
+    scopes: Iterable[str],
+) -> bool:
+    """Allow writes for members of writer groups and callers with admin scope."""
     if "hippo:admin" in scopes:
         return True
 
-    if "public" in document_groups:
-        return True
-
-    allowed = set(document_groups)
-    user_groups = set(user_groups)
-
-    overlap = user_groups & allowed
-
-    if overlap:
+    groups = set(user_groups) - {"public"}
+    if groups.intersection(document.writers):
         return True
 
     raise AuthenticationError(
@@ -121,9 +121,10 @@ def build_access_query(
     if "hippo:admin" in scopes:
         return {}
 
-    if "public" not in user_groups:
-        user_groups = set(user_groups) | {"public"}
-
+    groups = set(user_groups) - {"public"}
     return {
-        "$or": [{"readers": {"$in": user_groups}}, {"writers": {"$in": user_groups}}]
+        "$or": [
+            {"readers": {"$in": sorted(groups | {"public"})}},
+            {"writers": {"$in": sorted(groups)}},
+        ]
     }

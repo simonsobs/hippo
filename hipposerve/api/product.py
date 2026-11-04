@@ -121,6 +121,14 @@ async def complete_product(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
+    try:
+        acl.check_write_access(request.user.groups, item, scopes=request.auth.scopes)
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have write access to this product",
+        )
+
     success = await product.complete(
         product=item,
         storage=request.app.storage,
@@ -310,9 +318,9 @@ async def metadata_diff(
         )
 
     try:
-        acl.check_user_access(
+        acl.check_write_access(
             user_groups=request.user.groups,
-            document_groups=item.writers,
+            document=item,
             scopes=request.auth.scopes,
         )
     except AuthenticationError:
@@ -449,9 +457,9 @@ async def update_product(
         )
 
     try:
-        acl.check_user_access(
+        acl.check_write_access(
             user_groups=request.user.groups,
-            document_groups=item.writers,
+            document=item,
             scopes=request.auth.scopes,
         )
     except AuthenticationError:

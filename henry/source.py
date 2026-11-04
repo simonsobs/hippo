@@ -14,11 +14,11 @@ class SourceInstance(BaseModel):
 
 
 class LocalSource(SourceInstance):
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         if self.name is None:
             self.name = self.path.stem
 
-        return super().model_post_init(__context)
+        return super().model_post_init(context)
 
     def __repr__(self):
         return (
@@ -40,10 +40,10 @@ class RemoteSource(SourceInstance):
 
     realize: bool = False
 
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         if self.realize:
             self.path = self.__realize()
-        return super().model_post_init(__context)
+        return super().model_post_init(context)
 
     def __realize(self) -> Path:
         if self.path is not None:

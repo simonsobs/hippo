@@ -1,6 +1,6 @@
+from collections.abc import Iterable
 from itertools import chain
 from pathlib import Path
-from typing import Iterable
 
 import httpx
 from pydantic import BaseModel, Field
@@ -30,8 +30,6 @@ class CollectionInstance(BaseModel):
         writers: list[str] | None = None,
     ) -> str:
         raise NotImplementedError
-
-    pass
 
 
 class LocalCollection(CollectionInstance):
@@ -353,9 +351,9 @@ class RemoteCollection(CollectionInstance):
                         f"Child collection {collection.name} not found, consider "
                         "re-downloading or setting allow_incomplete=True"
                     )
-            except CollectionIncompleteError as e:
+            except CollectionIncompleteError:
                 if not allow_incomplete:
-                    raise e
+                    raise
 
         return cls(
             collection_id=str(core_metadata.id),

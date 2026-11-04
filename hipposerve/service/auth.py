@@ -45,7 +45,7 @@ def requires(scopes: str | list[str]):
             if parameter.name == "request":
                 break
         else:
-            raise Exception(f'No "request" argument on function "{func}"')
+            raise TypeError(f'No "request" argument on function "{func}"')
 
         if is_async_callable(func):
 

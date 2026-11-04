@@ -11,12 +11,12 @@ def test_add_file_to_cache(cache):
     """
     Test adding a file to the cache.
     """
-    keys = dict(
-        id="123456789012345678901234",
-        path="test.txt",
-        checksum="12345678901234567890123456789012",
-        size=123,
-    )
+    keys = {
+        "id": "123456789012345678901234",
+        "path": "test.txt",
+        "checksum": "12345678901234567890123456789012",
+        "size": 123,
+    }
 
     cache._add(**keys)
 

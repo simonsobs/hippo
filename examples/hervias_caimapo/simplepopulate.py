@@ -124,11 +124,11 @@ if __name__ == "__main__":
                 name=catalog_names[catalog],
                 description=catalog_descriptions[catalog],
                 metadata=catalogs[catalog],
-                sources=dict(
-                    data=LocalSource(path=Path(catalog), description="Catalog file"),
-                ),
+                sources={
+                    "data": LocalSource(path=Path(catalog), description="Catalog file"),
+                },
             )
-            for catalog in catalogs.keys()
+            for catalog in catalogs
         ],
     )
 

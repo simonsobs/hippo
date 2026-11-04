@@ -41,8 +41,6 @@ async def test_update_access_control(created_collection, created_user):
     assert set(updated_collection.readers) == existing_readers
     assert set(updated_collection.writers) == existing_writers
 
-    return
-
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_update(created_collection, created_user):

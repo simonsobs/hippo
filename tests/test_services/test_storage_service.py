@@ -1,3 +1,4 @@
+import asyncio
 import io
 
 import pytest
@@ -30,7 +31,7 @@ async def test_create_storage_item(storage, created_user, database):
     sizes = [len(FILE_CONTENT)]
 
     with io.BytesIO(FILE_CONTENT) as f:
-        responses.append(requests.put(put[0], f).headers)
+        responses.append((await asyncio.to_thread(requests.put, put[0], f)).headers)
 
     # Check we got it by downloading through the service.
     get = await storage_service.read(
@@ -46,7 +47,7 @@ async def test_create_storage_item(storage, created_user, database):
     )
 
     # Download the file
-    response = requests.get(get)
+    response = await asyncio.to_thread(requests.get, get)
 
     assert response.content == FILE_CONTENT
 
@@ -87,7 +88,7 @@ async def test_create_storage_item_large(storage, created_user, database):
             segment = f.read(50 * 1024 * 1024)
             sizes.append(len(segment))
             headers.append(
-                requests.put(url, segment).headers,
+                (await asyncio.to_thread(requests.put, url, segment)).headers,
             )
 
     # Run the confirmation step
@@ -105,7 +106,7 @@ async def test_create_storage_item_large(storage, created_user, database):
     )
 
     # Download the file
-    response = requests.get(get)
+    response = await asyncio.to_thread(requests.get, get)
 
     assert response.content == FILE_CONTENT
 

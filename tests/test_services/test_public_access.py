@@ -1,3 +1,4 @@
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -251,7 +252,7 @@ async def test_anonymous_product_download(created_full_product, storage):
         redirect = await read_slug(request, str(item.id), slug)
         assert redirect.status_code == 302
         for url in (files.files[slug].url, redirect.headers["location"]):
-            response = requests.get(url, timeout=10)
+            response = await asyncio.to_thread(requests.get, url, timeout=10)
             assert response.status_code == 200
             assert response.content == b"0x0" * 1024
 

@@ -3,7 +3,8 @@ Access control setup (changing access control levels, checking
 for access to documents). Works with `ProtectedDocument`s.
 """
 
-from typing import Iterable, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
 from beanie import BackLink, Link
 

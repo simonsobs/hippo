@@ -112,7 +112,7 @@ def validate_slugs(sources: dict[str, PreUploadFile], metadata: ALL_METADATA_TYP
 
     errors = []
 
-    for k in sources.keys():
+    for k in sources:
         if k not in metadata.valid_slugs:
             errors.append(
                 ValueError(
@@ -147,7 +147,7 @@ async def create(
         mutlipart_size=mutlipart_size,
     )
 
-    current_utc_time = datetime.datetime.now(datetime.timezone.utc)
+    current_utc_time = datetime.datetime.now(datetime.UTC)
 
     product = Product(
         name=name,
@@ -182,7 +182,7 @@ async def read_by_name(
     if version is None:
         potential = await Product.find_one(
             Product.name == name,
-            Product.current == True,  # noqa: E712
+            Product.current == True,
             **LINK_POLICY,
         )
     else:
@@ -229,7 +229,7 @@ async def search_by_name(
         await Product.find(
             access_query,
             Text(name),
-            Product.current == True,  # noqa: E712
+            Product.current == True,
             fetch_links=fetch_links,
         )
         .sort([("score", {"$meta": "textScore"})])
@@ -277,7 +277,7 @@ async def search_by_owner(
 
     results = await Product.find(
         {**access_query, "owner": owner_regex},
-        Product.current == True,  # noqa: E712
+        Product.current == True,
         fetch_links=fetch_links,
     ).to_list()
 
@@ -679,7 +679,7 @@ async def update(
                 drop=drop_sources,
                 storage=storage,
             )
-        except Exception as e:
+        except Exception:
             # Need to roll-back our new product. Full transactions when?
             await delete_one(
                 new_product,
@@ -688,7 +688,7 @@ async def update(
                 data=False,
                 scopes=scopes,
             )
-            raise e
+            raise
     else:
         presigned = {}
 
@@ -709,8 +709,6 @@ async def pin(
     product.pinned = True
     await product.save()
 
-    return
-
 
 async def unpin(
     product: Product,
@@ -725,8 +723,6 @@ async def unpin(
 
     product.pinned = False
     await product.save()
-
-    return
 
 
 async def delete_one(
@@ -784,8 +780,6 @@ async def delete_one(
 
     await product.delete()
 
-    return
-
 
 async def delete_tree(
     product: Product,
@@ -828,8 +822,6 @@ async def delete_tree(
     for product in products_to_delete:
         await product.delete()
 
-    return
-
 
 async def add_relationship(
     source: Product,
@@ -842,8 +834,6 @@ async def add_relationship(
     if type == "child":
         source.child_of = source.child_of + [destination]
     await source.save()
-
-    return
 
 
 async def remove_relationship(
@@ -858,8 +848,6 @@ async def remove_relationship(
         source.child_of = [c for c in source.child_of if c.id != destination.id]
     await source.save()
 
-    return
-
 
 async def add_collection(
     product: Product, access_groups: list[str], scopes: set[str], collection: Collection
@@ -867,8 +855,6 @@ async def add_collection(
     check_write_access(access_groups, product, scopes)
     product.collections = product.collections + [collection]
     await product.save()
-
-    return
 
 
 async def remove_collection(

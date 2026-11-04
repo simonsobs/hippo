@@ -39,8 +39,6 @@ async def touch_last_access_time(name: str) -> None:
     user.last_access_time = current_utc_time()
     await user.save()
 
-    return
-
 
 async def confirm_user(name: str) -> None:
     exists = await User.find(User.name == name).exists()
@@ -69,5 +67,3 @@ async def read_by_id(id: PydanticObjectId) -> User:
 async def delete(name: str):
     user = await read(name=name)
     await user.delete()
-
-    return

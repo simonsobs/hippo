@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 """
 Test suite to reproduce and validate the MongoDB 16MB document limit error
 that occurs when reading collections with hierarchical parent-child relationships.
@@ -73,7 +76,9 @@ async def create_hierarchical_collection_with_relationships(
         with io.BytesIO(FILE_CONTENTS) as f:
             for file_name, put in file_puts.items():
                 f.seek(0)
-                headers[file_name] = [requests.put(put[0], f).headers]
+                headers[file_name] = [
+                    (await asyncio.to_thread(requests.put, put[0], f)).headers
+                ]
                 sizes[file_name] = [len(FILE_CONTENTS)]
 
         await product_sc.complete(
@@ -113,7 +118,9 @@ async def create_hierarchical_collection_with_relationships(
             with io.BytesIO(FILE_CONTENTS) as f:
                 for file_name, put in file_puts.items():
                     f.seek(0)
-                    headers[file_name] = [requests.put(put[0], f).headers]
+                    headers[file_name] = [
+                        (await asyncio.to_thread(requests.put, put[0], f)).headers
+                    ]
                     sizes[file_name] = [len(FILE_CONTENTS)]
 
             await product_sc.complete(
@@ -160,8 +167,8 @@ async def cleanup_hierarchical_collection(collection_id: str, storage):
 
         await Collection.find_one(Collection.id == collection_id).delete()
 
-    except Exception as e:
-        print(f"Cleanup failed: {e}")
+    except Exception:
+        logging.getLogger(__name__).exception("Cleanup failed")
 
 
 @pytest.mark.asyncio(loop_scope="session")

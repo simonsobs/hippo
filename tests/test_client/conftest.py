@@ -24,6 +24,8 @@ def cache(tmp_path):
 
 @pytest.fixture
 def client(server):
-    client = Henry(settings=ClientSettings(host=server["url"], verbose=True))
+    client = Henry(
+        settings=ClientSettings(host=server["url"], verbose=True, token_tag=None)
+    )
 
     yield client

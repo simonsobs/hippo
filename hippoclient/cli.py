@@ -489,7 +489,9 @@ def dev_run(
     storage_kwargs = {}
 
     with MongoDbContainer(**database_kwargs) as database_container:
-        with MinioContainer(**storage_kwargs) as storage_container:
+        with MinioContainer(
+            image="pgsty/minio:latest", **storage_kwargs
+        ) as storage_container:
             storage_config = storage_container.get_config()
             database_uri = database_container.get_connection_url()
 

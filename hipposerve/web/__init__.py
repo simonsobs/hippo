@@ -80,9 +80,9 @@ async def index(request: Request):
         request.auth.scopes,
     )
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "recent_products": recent_products,
             "recent_collections": recent_collections,
             "pinned_products": pinned_products,
@@ -117,9 +117,9 @@ async def product_view(request: Request, id: str):
     )
 
     return templates.TemplateResponse(
+        request,
         "product.html",
         {
-            "request": request,
             "product": product_instance,
             "sources": product_instance.sources,
             "versions": version_history,
@@ -143,9 +143,9 @@ async def product_edit(request: Request, id: str):
     )
 
     return templates.TemplateResponse(
+        request,
         "product_edit.html",
         {
-            "request": request,
             "product": product_instance,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
@@ -202,9 +202,9 @@ async def collection_edit(request: Request, id: PydanticObjectId):
     )
 
     return templates.TemplateResponse(
+        request,
         "collection_edit.html",
         {
-            "request": request,
             "collection": collection_instance,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
@@ -249,9 +249,9 @@ async def collection_view(request: Request, id: PydanticObjectId):
         request.auth.scopes,
     )
     return templates.TemplateResponse(
+        request,
         "collection.html",
         {
-            "request": request,
             "collection": collection_instance,
             "parents_overflow_content": parents_overflow_content,
             "children_overflow_content": children_overflow_content,

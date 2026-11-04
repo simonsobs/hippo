@@ -53,9 +53,9 @@ async def search_results_view(
     )
 
     return templates.TemplateResponse(
+        request,
         "search_results.html",
         {
-            "request": request,
             "query": q,
             "filter": filter,
             "results": results,
@@ -144,9 +144,9 @@ async def searchmetadata_results_view(
     )
 
     return templates.TemplateResponse(
+        request,
         "search_results.html",
         {
-            "request": request,
             "query": q,
             "filter": filter_on,
             "results": results,
@@ -225,9 +225,9 @@ async def search_metadata_view(
     )
 
     return templates.TemplateResponse(
+        request,
         "search_metadata.html",
         {
-            "request": request,
             "metadata": metadata_info,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,

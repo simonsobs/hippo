@@ -130,9 +130,9 @@ async def read_user(request: Request):
     )
 
     return templates.TemplateResponse(
+        request,
         "user.html",
         {
-            "request": request,
             "products": products,
             "collections": collections,
             "web_root": SETTINGS.web_root,

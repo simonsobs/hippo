@@ -1,11 +1,19 @@
 from types import SimpleNamespace
 
 import pytest
+import requests
 from fastapi import Request
+from soauth.toolkit.starlette import SOUser
 from starlette.authentication import AuthCredentials
 
-from hipposerve.api.product import read_product, read_tree
-from hipposerve.api.relationships import read_collection
+from hipposerve.api.product import (
+    read_files,
+    read_product,
+    read_slug,
+    read_tree,
+    search,
+)
+from hipposerve.api.relationships import read_collection, search_collection
 from hipposerve.service import collection, product
 from hipposerve.service.auth import AuthenticationError
 
@@ -50,8 +58,8 @@ async def test_public_access_and_pinned_products(storage):
         await product.add_collection(public_product, [owner], set(), public_collection)
         await product.add_collection(private_product, [owner], set(), public_collection)
 
-        read_collection = await collection.read(public_collection.id, [], set())
-        assert {item.id for item in read_collection.products} == {public_product.id}
+        result = await collection.read(public_collection.id, [], set())
+        assert {item.id for item in result.products} == {public_product.id}
         assert (await product.read_by_id(public_product.id, [], set())).id == (
             public_product.id
         )
@@ -61,6 +69,23 @@ async def test_public_access_and_pinned_products(storage):
         assert {
             item.id for item in await product.search_by_owner(owner, [], set())
         } == {public_product.id}
+
+        request = Request(
+            {"type": "http", "auth": AuthCredentials([]), "user": SOUser()}
+        )
+        assert (await read_collection(public_collection.id, request)).id == (
+            public_collection.id
+        )
+        with pytest.raises(AuthenticationError):
+            await read_collection(private_collection.id, request)
+        assert [
+            item.id for item in await search_collection(public_collection.name, request)
+        ] == [public_collection.id]
+        assert await search_collection(private_collection.name, request) == []
+        assert [item.id for item in await search(public_product.name, request)] == [
+            public_product.id
+        ]
+        assert await search(private_product.name, request) == []
 
         with pytest.raises(AuthenticationError):
             await collection.read(private_collection.id, [], set())
@@ -151,12 +176,19 @@ async def test_public_relationship_responses_hide_private_records(
             private_product, public_product, [owner], set(), "child"
         )
 
-        for groups in (set(), {owner}):
+        for user, scopes in (
+            (SOUser(), []),
+            (
+                SOUser(is_authenticated=True, display_name="reader", groups={owner}),
+                ["hippo:read"],
+            ),
+        ):
+            groups = user.groups
             request = Request(
                 {
                     "type": "http",
-                    "auth": AuthCredentials(["hippo:read"]),
-                    "user": SimpleNamespace(display_name="reader", groups=groups),
+                    "auth": AuthCredentials(scopes),
+                    "user": user,
                 }
             )
             response = await read_collection(anchor.id, request)
@@ -191,3 +223,42 @@ async def test_public_relationship_responses_hide_private_records(
     finally:
         for item in reversed(records):
             await item.delete()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_anonymous_product_download(created_full_product, storage):
+    item = created_full_product
+    request = Request(
+        {
+            "type": "http",
+            "auth": AuthCredentials([]),
+            "user": SOUser(),
+            "app": SimpleNamespace(storage=storage),
+        }
+    )
+    slug = next(iter(item.sources))
+    for read in (read_product, read_tree, read_files):
+        with pytest.raises(AuthenticationError):
+            await read(item.id, request)
+    with pytest.raises(AuthenticationError):
+        await read_slug(request, str(item.id), slug)
+
+    readers = item.readers
+    try:
+        item.readers = [*readers, "public"]
+        await item.save()
+        files = await read_files(item.id, request)
+        redirect = await read_slug(request, str(item.id), slug)
+        assert redirect.status_code == 302
+        for url in (files.files[slug].url, redirect.headers["location"]):
+            response = requests.get(url, timeout=10)
+            assert response.status_code == 200
+            assert response.content == b"0x0" * 1024
+
+    finally:
+        item.readers = readers
+        await item.save()
+
+    request.scope["user"] = SOUser(is_authenticated=True, groups={item.owner})
+    files = await read_files(item.id, request)
+    assert files.files[slug].url

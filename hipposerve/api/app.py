@@ -92,9 +92,9 @@ if SETTINGS.web:  # pragma: no cover
             error_details["requested_id"] = requested_id
 
         return templates.TemplateResponse(
+            request,
             "404.html",
             {
-                "request": request,
                 "error_details": error_details,
                 "user": request.user.display_name,
                 "web_root": SETTINGS.web_root,

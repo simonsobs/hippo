@@ -30,7 +30,7 @@ def database_container():
 
 @pytest.fixture(scope="session")
 def storage_container():
-    with MinioContainer() as container:
+    with MinioContainer(image="pgsty/minio:latest") as container:
         yield container.get_config()
 
 

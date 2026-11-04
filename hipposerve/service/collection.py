@@ -9,10 +9,14 @@ import re
 
 from beanie import PydanticObjectId
 from beanie.operators import Text
-from fastapi import HTTPException
 
 from hipposerve.database import Collection
-from hipposerve.service.acl import check_user_access
+from hipposerve.service.acl import (
+    build_access_query,
+    check_read_access,
+    check_write_access,
+    filter_readable,
+)
 
 LINK_POLICY = {
     "fetch_links": True,
@@ -49,9 +53,7 @@ async def read(id: PydanticObjectId, groups: list[str], scopes: set[str]):
 
     if collection is None:
         raise CollectionNotFound
-    assert check_user_access(
-        groups, collection.readers + collection.writers, scopes=scopes
-    )
+    check_read_access(groups, collection, scopes)
     if collection.products:
         collection_list = await collection_product_filter(groups, scopes, [collection])
         collection = collection_list[0]
@@ -64,16 +66,11 @@ async def read_most_recent(
     maximum: int = 16,
 ) -> list[Collection]:
     # TODO: Implement updated time for collections.
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
-    collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
-        maximum
-    )
+    collection_list = await Collection.find(
+        access_query, limit=maximum, **LINK_POLICY
+    ).to_list(maximum)
 
     filtered_collection_list = await collection_product_filter(
         groups, scopes, collection_list
@@ -87,21 +84,12 @@ async def read_pinned(
     scopes: set[str],
     maximum: int = 16,
 ) -> list[Collection]:
-    if "hippo:admin" in scopes:
-        access_query = {"pinned": True}
-    else:
-        access_query = {
-            "$and": [
-                {"pinned": True},
-                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
-            ]
-        }
+    access_query = build_access_query(groups, scopes)
+    query = {"$and": [access_query, {"pinned": True}]}
 
-    collection_list = await Collection.find(access_query, **LINK_POLICY).to_list(
-        maximum
-    )
+    collection_list = await Collection.find(query, **LINK_POLICY).to_list(maximum)
 
-    return collection_list
+    return await collection_product_filter(groups, scopes, collection_list)
 
 
 async def search_by_name(
@@ -111,12 +99,7 @@ async def search_by_name(
     Search for Collections by name using the text index.
     """
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = (
         await Collection.find(access_query, Text(name), **LINK_POLICY)  # noqa: E712
@@ -138,13 +121,7 @@ async def search_by_owner(
     """
 
     owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
-
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = await Collection.find(
         {**access_query, "owner": owner_regex}, **LINK_POLICY
@@ -187,7 +164,7 @@ async def update(
 ):
     collection = await read(id=id, groups=access_groups, scopes=scopes)
 
-    assert check_user_access(access_groups, collection.writers, scopes=scopes)
+    check_write_access(access_groups, collection, scopes)
 
     if name:
         collection.name = name
@@ -208,7 +185,7 @@ async def add_child(
 ) -> Collection:
     parent = await read(id=parent_id, groups=groups, scopes=scopes)
     child = await read(id=child_id, groups=groups, scopes=scopes)
-    assert check_user_access(groups, parent.writers, scopes=scopes)
+    check_write_access(groups, parent, scopes)
     parent.child_collections.append(child)
     await parent.save()
 
@@ -222,7 +199,7 @@ async def remove_child(
     scopes: set[str],
 ) -> Collection:
     parent = await read(id=parent_id, groups=groups, scopes=scopes)
-    assert check_user_access(groups, parent.writers, scopes=scopes)
+    check_write_access(groups, parent, scopes)
     parent.child_collections = [x for x in parent.child_collections if x.id != child_id]
     await parent.save()
 
@@ -235,7 +212,7 @@ async def pin(
     scopes: set[str],
 ) -> Collection:
     collection = await read(id=id, groups=groups, scopes=scopes)
-    assert check_user_access(groups, collection.writers, scopes=scopes)
+    check_write_access(groups, collection, scopes)
     collection.pinned = True
     await collection.save()
 
@@ -248,7 +225,7 @@ async def unpin(
     scopes: set[str],
 ) -> Collection:
     collection = await read(id=id, groups=groups, scopes=scopes)
-    assert check_user_access(groups, collection.writers, scopes=scopes)
+    check_write_access(groups, collection, scopes)
     collection.pinned = False
     await collection.save()
 
@@ -257,9 +234,7 @@ async def unpin(
 
 async def delete(id: PydanticObjectId, groups: list[str], scopes: set[str]):
     collection = await read(id=id, groups=groups, scopes=scopes)
-    assert check_user_access(
-        groups, collection.readers + collection.writers, scopes=scopes
-    )
+    check_write_access(groups, collection, scopes)
     await collection.delete()
 
     return
@@ -270,18 +245,9 @@ async def collection_product_filter(
     scopes: set[str],
     collection_list: list[Collection],
 ) -> list[Collection]:
-    filtered_collection_list = []
-    for collection in collection_list:
-        if collection.products:
-            product_list = []
-            for product in collection.products:
-                try:
-                    assert check_user_access(
-                        groups, product.readers + product.writers, scopes=scopes
-                    )
-                    product_list.append(product)
-                except HTTPException:
-                    continue
-            collection.products = product_list
-        filtered_collection_list.append(collection)
-    return filtered_collection_list
+    return [
+        collection.model_copy(
+            update={"products": filter_readable(collection.products, groups, scopes)}
+        )
+        for collection in collection_list
+    ]

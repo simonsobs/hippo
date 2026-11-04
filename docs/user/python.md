@@ -24,12 +24,7 @@ beam = client.new_product(
     name="Daynight Beam (DR6)",
     description="The beam for DR6 products",
     metadata=BeamMetadata(),
-    sources={
-        "data": {
-            "path": beam_file,
-            "description": "Beam"
-        }
-    },
+    sources={"data": {"path": beam_file, "description": "Beam"}},
 )
 ```
 Here, `beam` is a python object (`LocalProduct`) that behaves just like a
@@ -84,9 +79,20 @@ map or a mask that you want to bundle alongside a source-free map. The valid slu
 `MapSet` can be found easily:
 ```python
 print(MapSet.valid_slugs)
-{'coadd', 'source_free', 'xlink_coadd', 'source_free_split', 'ivar_split',
-'ivar_coadd', 'split', 'xlink_split', 'mask', 'data', 'source_only_split',
-'source_only'}
+{
+    "coadd",
+    "source_free",
+    "xlink_coadd",
+    "source_free_split",
+    "ivar_split",
+    "ivar_coadd",
+    "split",
+    "xlink_split",
+    "mask",
+    "data",
+    "source_only_split",
+    "source_only",
+}
 ```
 Let's create a coadd map for ACTxPlanck:
 ```python
@@ -194,9 +200,7 @@ Pulling
 
 To pull down a remote product, you can use the `pull_product` method:
 ```python
-remote = client.pull_product(
-    product_id=map_set.product_id, realize_sources=False
-)
+remote = client.pull_product(product_id=map_set.product_id, realize_sources=False)
 ```
 Here, `remote` is a `RemoteProduct`. It's more restrictive than the
 `LocalProduct` because it represents a frozen verison of the metadata that

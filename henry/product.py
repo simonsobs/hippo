@@ -17,8 +17,6 @@ from .exceptions import InvalidSlugError, PreflightFailedError, ProductIncomplet
 class ProductInstance(BaseModel):
     product_id: str | None
 
-    pass
-
     def _upload(
         self,
         client: httpx.Client,
@@ -46,12 +44,12 @@ class LocalProduct(ProductInstance):
     readers: list[str] = []
     writers: list[str] = []
 
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         for k, v in self.sources.items():
             v.slug = k
             self[k] = v
 
-        return super().model_post_init(__context)
+        return super().model_post_init(context)
 
     def __handle_key_error(self, key: str):
         if key in self.metadata.valid_slugs:
@@ -258,11 +256,11 @@ class RemoteProduct(ProductInstance):
     readers: list[str] = []
     writers: list[str] = []
 
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         for k, v in self.sources.items():
             v.slug = k
 
-        return super().model_post_init(__context)
+        return super().model_post_init(context)
 
     def __handle_key_error(self, key: str):
         if key in self.sources.valid_slugs:
@@ -474,12 +472,12 @@ class RevisionProduct(ProductInstance):
     readers: list[str]
     writers: list[str]
 
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         for k, v in self.sources.items():
             v.slug = k
             self[k] = v
 
-        return super().model_post_init(__context)
+        return super().model_post_init(context)
 
     def __handle_key_error(self, key: str):
         if key in self.revision_of.metadata.valid_slugs:
@@ -689,17 +687,17 @@ class RevisionProduct(ProductInstance):
                 "No changes detected in this revision; nothing to upload"
             )
 
-        if name := diff.get("name", None):
-            if len(name) < 2 or not isinstance(name, str):
-                raise PreflightFailedError(
-                    f"Name: {name} is not a valid name; ensure it is at least 2 characters and a valid string"
-                )
+        if (name := diff.get("name")) and (len(name) < 2 or not isinstance(name, str)):
+            raise PreflightFailedError(
+                f"Name: {name} is not a valid name; ensure it is at least 2 characters and a valid string"
+            )
 
-        if description := diff.get("description", None):
-            if len(description) < 2 or not isinstance(description, str):
-                raise PreflightFailedError(
-                    f"Description: {description} is not a valid description; ensure it is at least 2 characters and a valid string"
-                )
+        if (description := diff.get("description")) and (
+            len(description) < 2 or not isinstance(description, str)
+        ):
+            raise PreflightFailedError(
+                f"Description: {description} is not a valid description; ensure it is at least 2 characters and a valid string"
+            )
 
         for slug, source in self.sources.items():
             if slug not in self.revision_of.metadata.valid_slugs:

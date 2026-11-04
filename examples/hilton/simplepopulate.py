@@ -54,7 +54,7 @@ catalogs = {
             "CAMIRA_N_mem": "Optical richness measurement for the CAMIRA algorithm in the HSCSSP S19A footprint.",
             "opt_RADeg": "Alternative optically-determined Right Ascension in decimal degrees (J2000), from a heterogeneous collection of measurements (see opt_positionSource).",
             "opt_decDeg": "Alternative optically-determined Declination in decimal degrees (J2000), from a heterogeneous collection of measurements (see opt_positionSource).",
-            "opt_positionSource": "Indicates the source of the alternative optically-determined cluster position. One of: AMICO (position from the AMICO cluster finder; \citealt2019MNRAS.485..498M), CAMIRA (position from the CAMIRA cluster finder; \citealtOguri_2018), RM, RMDESY3, RMDESY3ACT (position from the redMaPPer cluster finder, in SDSS, DES Y3, or DES Y3 using the ACT position as a prior; \citealtRykoff_2014, Rykoff_2016), Vis-BCG (BCG position from visual inspection of available optical/IR imaging; this work), WHL2015 (position from \citealtWH_2015).",
+            "opt_positionSource": r"Indicates the source of the alternative optically-determined cluster position. One of: AMICO (position from the AMICO cluster finder; \citealt2019MNRAS.485..498M), CAMIRA (position from the CAMIRA cluster finder; \citealtOguri_2018), RM, RMDESY3, RMDESY3ACT (position from the redMaPPer cluster finder, in SDSS, DES Y3, or DES Y3 using the ACT position as a prior; \citealtRykoff_2014, Rykoff_2016), Vis-BCG (BCG position from visual inspection of available optical/IR imaging; this work), WHL2015 (position from \citealtWH_2015).",
             "notes": "If present, at least one of: AGN? (central galaxy may have color or spectrum indicating it may host an AGN); Lensing? (cluster may show strong gravitational lensing features); Merger? (cluster may be a merger); Star formation? (a galaxy near the center may have blue colors which might indicate star formation if it is not a line-of-sight projection). These notes are not comprehensive and merely indicate some systems that were identified as potentially interesting during visual inspection of the available optical/IR imaging.",
             "knownLens": "Names of known strong gravitational lenses within 2 Mpc projected distance of this cluster (comma delimited when there are multiple matches).",
             "knownLensRefCode": "Reference codes (comma delimited when there are multiple matches) corresponding to the entries in the knownLens field. See Table~\reftab:lensCodes to map between the codes used in this field and references to the corresponding lens catalog papers.",
@@ -112,11 +112,11 @@ if __name__ == "__main__":
                 name=catalog_names[catalog],
                 description=catalog_descriptions[catalog],
                 metadata=catalogs[catalog],
-                sources=dict(
-                    data=LocalSource(path=Path(catalog), description="Catalog file"),
-                ),
+                sources={
+                    "data": LocalSource(path=Path(catalog), description="Catalog file"),
+                },
             )
-            for catalog in catalogs.keys()
+            for catalog in catalogs
         ],
     )
 
@@ -125,12 +125,12 @@ if __name__ == "__main__":
             name="ACT DR5 SZ Cluster Catalog Sky Mask",
             description="The file DR5_cluster-search-area-mask_v1.0.fits is a compressed FITS image that contains the cluster search area (pixels with value = 1) as described in Hilton et al. (2020).",
             metadata=mask,
-            sources=dict(
-                mask=LocalSource(
+            sources={
+                "mask": LocalSource(
                     path="DR5_cluster-search-area-mask_v1.0.fits",
                     description="Mask file",
                 ),
-            ),
+            },
         )
     )
 

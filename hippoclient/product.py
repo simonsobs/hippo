@@ -361,7 +361,7 @@ def update(
 
     new_source_metadata = {}
 
-    for slug in (new_sources or {}).keys():
+    for slug in new_sources or {}:
         filename = new_sources[slug]
         desc = new_source_descriptions[slug]
 
@@ -371,7 +371,7 @@ def update(
             console.print("Successfully validated file:", new_source_metadata[slug])
 
     replace_source_metadata = {}
-    for slug in (replace_sources or {}).keys():
+    for slug in replace_sources or {}:
         filename = replace_sources[slug]
         desc = replace_source_descriptions[slug]
 
@@ -645,11 +645,13 @@ def download(
         slug_path = slug_directory / source_data.name
 
         # Check if it's already there and if it matches our checksum
-        if slug_path.exists():
-            if file_info(slug_path)["checksum"] == source_data.checksum:
-                if console:
-                    console.print(f"Valid {source_slug} already exists at {slug_path}")
-                continue
+        if (
+            slug_path.exists()
+            and file_info(slug_path)["checksum"] == source_data.checksum
+        ):
+            if console:
+                console.print(f"Valid {source_slug} already exists at {slug_path}")
+            continue
 
         downloader(
             presigned_url=source_data.url,
@@ -688,8 +690,6 @@ def uncache(
 
         if console:
             console.print(f"Removed file {source.name} ({source.uuid}) from cache")
-
-    return
 
 
 def product_add_reader(

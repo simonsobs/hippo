@@ -1,3 +1,5 @@
+import asyncio
+
 """
 Tests for just the product service.
 """
@@ -73,7 +75,7 @@ async def test_create_file_with_multiple_sources(database, created_user, storage
         for file_name, put in uploads.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            response = requests.put(put[0], f)
+            response = await asyncio.to_thread(requests.put, put[0], f)
 
             responses[file_name] = [response.headers]
             sizes[file_name] = [len(FILE_CONTENTS)]
@@ -175,8 +177,6 @@ async def test_update_access_control(created_full_product, created_user):
     assert updated_product.version == existing_version
     assert set(updated_product.readers) == existing_readers
     assert set(updated_product.writers) == existing_writers
-
-    return
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -286,7 +286,9 @@ async def test_update_sources(created_full_product, database, storage, created_u
         for file_name, put in uploads.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            headers[file_name] = [requests.put(put[0], f).headers]
+            headers[file_name] = [
+                (await asyncio.to_thread(requests.put, put[0], f)).headers
+            ]
             sizes[file_name] = [len(FILE_CONTENTS)]
 
     # Grab it back and check
@@ -476,8 +478,8 @@ async def test_walk_history(database, created_full_product, created_user):
 
     versions = await product.walk_history(latest)
 
-    assert created_full_product.version in versions.keys()
-    assert latest.version in versions.keys()
+    assert created_full_product.version in versions
+    assert latest.version in versions
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -581,7 +583,9 @@ async def test_product_middle_deletion(database, created_user, storage):
         for file_name, put in uploads.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            headers[file_name] = [requests.put(put[0], f).headers]
+            headers[file_name] = [
+                (await asyncio.to_thread(requests.put, put[0], f)).headers
+            ]
             sizes[file_name] = [len(FILE_CONTENTS)]
 
     await product.complete(

@@ -55,7 +55,7 @@ def test_api_products_for_use(test_api_client: TestClient, test_api_user: str):
 def test_read_collection(
     test_api_client: TestClient, test_api_products_for_use: tuple[str, list[str]]
 ):
-    collection_name, collection_id, product_names, product_ids = (
+    collection_name, collection_id, product_names, _product_ids = (
         test_api_products_for_use
     )
 
@@ -94,7 +94,7 @@ def test_update_collection(test_api_client: TestClient):
 
 
 def test_create_child_relationship(test_api_client, test_api_products_for_use):
-    collection_name, collection_id, product_names, product_ids = (
+    _collection_name, _collection_id, _product_names, product_ids = (
         test_api_products_for_use
     )
 

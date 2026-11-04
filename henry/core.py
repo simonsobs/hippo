@@ -38,8 +38,6 @@ class Henry:
         self.writers = self.settings.default_writers
         self.slugify = slugify
 
-        return
-
     def new_product(
         self,
         name: str,

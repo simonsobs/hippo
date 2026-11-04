@@ -4,7 +4,7 @@ Populates the simple example server with a bunch of ACT maps.
 
 from pathlib import Path
 
-import astropy.io.fits as fits
+from astropy.io import fits
 
 from henry import Henry, LocalSource
 from hippometa import MapSet
@@ -164,18 +164,18 @@ if __name__ == "__main__":
         description=COLLECTION_DESCRIPTION,
     )
 
-    for sub_set in sub_sets.keys():
+    for sub_set, maps in sub_sets.items():
         metadata = MapSet(
             pixelisation="healpix",
             telescope="ACT",
             instrument="ACTPol",
             release="DR4",
             season="s13",
-            patch=get_patch(sub_sets[sub_set][list(sub_sets[sub_set])[0]]),
+            patch=get_patch(next(iter(maps.values()))),
             frequency="150",
             polarization_convention="IAU",
         )
-        primary_map = find_primary_map(sub_sets[sub_set])
+        primary_map = find_primary_map(maps)
 
         if primary_map is None:
             raise ValueError(f"No primary map found for subset {sub_set}")
@@ -186,7 +186,7 @@ if __name__ == "__main__":
             metadata=metadata,
             sources={
                 x: LocalSource(path=y, description=link_match(get_map_type(y)))
-                for x, y in sub_sets[sub_set].items()
+                for x, y in maps.items()
             },
         )
 

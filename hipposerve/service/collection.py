@@ -102,7 +102,7 @@ async def search_by_name(
     access_query = build_access_query(groups, scopes)
 
     results = (
-        await Collection.find(access_query, Text(name), **LINK_POLICY)  # noqa: E712
+        await Collection.find(access_query, Text(name), **LINK_POLICY)
         .sort([("score", {"$meta": "textScore"})])
         .to_list()
     )
@@ -236,8 +236,6 @@ async def delete(id: PydanticObjectId, groups: list[str], scopes: set[str]):
     collection = await read(id=id, groups=groups, scopes=scopes)
     check_write_access(groups, collection, scopes)
     await collection.delete()
-
-    return
 
 
 async def collection_product_filter(

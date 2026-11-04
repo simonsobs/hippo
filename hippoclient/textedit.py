@@ -5,7 +5,9 @@ the text associated with a collection or product.
 
 import ast
 import json
+import sys
 from pathlib import Path
+from typing import ClassVar
 
 import xxhash
 from beanie import PydanticObjectId
@@ -43,11 +45,8 @@ class EditorApp(App):
     _current_version: str
     _projected_version: str
     _version: int = 2
-    _drop_sources = []
-    _replace_sources = []
-    _new_sources = []
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         ("d", "show_tab('details-tab')", "Details"),
         ("s", "show_tab('sources-tab')", "Sources"),
         ("m", "show_tab('metadata-tab')", "Metadata"),
@@ -56,6 +55,7 @@ class EditorApp(App):
     def __init__(self, id: PydanticObjectId, client: Client):
         self._object_id = id
         self._client = client
+        self._drop_sources = []
 
         _product = product.read(client, id)
 
@@ -191,8 +191,7 @@ class EditorApp(App):
                 yield Select.from_values(
                     metadata_options, value=class_title, id="metadata-selector"
                 )
-                with Horizontal(classes="metadata-inputs-container"):
-                    None
+                yield Horizontal(classes="metadata-inputs-container")
                 with Horizontal(classes="save-or-cancel"):
                     yield Button("Save", variant="success", id="save")
                     yield Button("Cancel", variant="error", id="cancel")
@@ -362,7 +361,7 @@ class EditorApp(App):
     def get_metadata_type(self, field_data):
         if "anyOf" in field_data:
             options = [x for x in field_data["anyOf"]]
-            true_type = [x for x in options if x["type"] != "null"][0]
+            true_type = next(x for x in options if x["type"] != "null")
             return {
                 "true_type": true_type["type"],
                 "is_optional": ({"type": "null"} in options),
@@ -449,9 +448,9 @@ class EditorApp(App):
                 self.get_replace_sources(),
                 self._drop_sources,
             )
-            exit(0)
+            sys.exit(0)
         elif event.button.id == "cancel":
-            exit(0)
+            sys.exit(0)
         else:
             raise AttributeError(f"Unknown button pressed: {event.button.id}")
 

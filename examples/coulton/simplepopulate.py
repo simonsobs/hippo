@@ -37,25 +37,25 @@ map_set = henry.new_product(
         polarization_convention=None,
         tags=["ymap"],
     ),
-    sources=dict(
-        map=LocalSource(
+    sources={
+        "map": LocalSource(
             path="ilc_actplanck_ymap.fits",
             description="Compton-y map from ACT DR6, lowpass filtered to ell=17000",
         ),
-        mask=LocalSource(
+        "mask": LocalSource(
             path="wide_mask_GAL070_apod_1.50_deg_wExtended.fits",
             description="Mask for the Compton-y map from ACT DR6",
         ),
-    ),
+    },
 )
 
 beam = henry.new_product(
     name="Compton-y Beam (ACT DR6)",
     description="Beam used for the Compton-y map for ACT DR6",
     metadata=BeamMetadata(),
-    sources=dict(
-        data=LocalSource(path="ilc_beam.txt", description="Beam file"),
-    ),
+    sources={
+        "data": LocalSource(path="ilc_beam.txt", description="Beam file"),
+    },
 )
 
 collection = henry.new_collection(

@@ -2,6 +2,7 @@
 A CLI interface to the hippo client.
 """
 
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -40,8 +41,6 @@ def product_read(id: str):
     Read the information of a product by its ID. You can find the relationship
     between product names and IDs through the product search command.
     """
-    global CLIENT, CONSOLE
-
     product = sc.product.read_with_versions(client=CLIENT, id=id, console=CONSOLE)
 
     product_extracted_version = product.versions[product.requested]
@@ -74,7 +73,6 @@ def product_delete(id: str):
     """
     Delete a product by its ID.
     """
-    global CLIENT
     return sc.product.delete(client=CLIENT, id=id, console=CONSOLE)
 
 
@@ -83,8 +81,6 @@ def product_search(text: str):
     """
     Search for products by name.
     """
-    global CLIENT, CONSOLE
-
     response = sc.product.search(client=CLIENT, text=text, console=CONSOLE)
 
     table = helper.render_product_metadata_list(response)
@@ -97,8 +93,6 @@ def product_cache(id: str):
     """
     Cache a product by its ID.
     """
-    global CLIENT, CACHE
-
     response = sc.product.cache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Cached product {id} including {len(response)} files")
@@ -109,8 +103,6 @@ def product_download(id: str, directory: str | None = None, slugify: bool = Fals
     """
     Download a product to a location.
     """
-    global CLIENT
-
     directory = Path(directory or ".")
 
     response = sc.product.download(
@@ -129,8 +121,6 @@ def product_uncache(id: str):
     """
     Uncache a product by its ID.
     """
-    global CACHE
-
     sc.product.uncache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Uncached product {id}")
@@ -141,8 +131,6 @@ def product_edit(id: str):
     """
     Edit a product by its ID.
     """
-    global CLIENT
-
     edit_product(client=CLIENT, id=id)
 
 
@@ -152,7 +140,6 @@ def product_add_reader(id: str, group: str):
     Add a reader (by group name) to a product
     """
 
-    global CLIENT
     updated_id = sc.product.product_add_reader(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -165,7 +152,6 @@ def product_remove_reader(id: str, group: str):
     Remove a reader (by group name) from a product
     """
 
-    global CLIENT
     updated_id = sc.product.product_remove_reader(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -178,7 +164,6 @@ def product_add_writer(id: str, group: str):
     Add a writer (by group name) to a product
     """
 
-    global CLIENT
     updated_id = sc.product.product_add_writer(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -191,7 +176,6 @@ def product_remove_writer(id: str, group: str):
     Remove a writer (by group name) from a product
     """
 
-    global CLIENT
     updated_id = sc.product.product_remove_writer(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -203,8 +187,6 @@ def product_add_child(parent: str, child: str):
     """
     Add a child relationship between two products.
     """
-    global CLIENT
-
     sc.relationships.add_child(
         client=CLIENT, parent=parent, child=child, console=CONSOLE
     )
@@ -216,8 +198,6 @@ def product_remove_child(parent: str, child: str):
     """
     Remove a child relationship between two products.
     """
-    global CLIENT
-
     sc.relationships.remove_child(
         client=CLIENT, parent=parent, child=child, console=CONSOLE
     )
@@ -229,8 +209,6 @@ def collection_read(id: str):
     """
     Read the information of a collection by its name.
     """
-    global CLIENT, CONSOLE
-
     collection = sc.collections.read(client=CLIENT, id=id, console=CONSOLE)
 
     table = helper.render_product_metadata_list(collection.products)
@@ -246,8 +224,6 @@ def collection_search(name: str):
     """
     Search for collections by name.
     """
-    global CLIENT, CONSOLE
-
     collections = sc.collections.search(client=CLIENT, name=name, console=CONSOLE)
 
     table = helper.render_collection_metadata_list(collections)
@@ -260,8 +236,6 @@ def collection_cache(id: str):
     """
     Cache a collection by its ID.
     """
-    global CLIENT, CACHE, CONSOLE
-
     response = sc.collections.cache(
         client=CLIENT, multi_cache=CACHE, id=id, console=CONSOLE
     )
@@ -274,8 +248,6 @@ def collection_download(id: str, directory: str | None = None, slugify: bool = F
     """
     Download a collection by its ID.
     """
-    global CLIENT, CONSOLE
-
     directory = Path(directory or ".")
 
     response = sc.collections.download(
@@ -290,8 +262,6 @@ def collection_uncache(id: str):
     """
     Uncache a collection by its ID.
     """
-    global CACHE
-
     sc.collections.uncache(client=CLIENT, cache=CACHE, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Uncached collection {id}")
@@ -302,8 +272,6 @@ def collection_delete(id: str):
     """
     Delete a collection by its ID.
     """
-    global CLIENT
-
     sc.collections.delete(client=CLIENT, id=id, console=CONSOLE)
 
     CONSOLE.print(f"Deleted collection {id}")
@@ -314,7 +282,6 @@ def collection_add_product(id: str, product_id: str):
     """
     Add a product to a collection.
     """
-    global CLIENT
     updated_id = sc.collections.add(
         client=CLIENT, id=id, product=product_id, console=CONSOLE
     )
@@ -326,7 +293,6 @@ def collection_remove_product(id: str, product_id: str):
     """
     Remove a product from a collection.
     """
-    global CLIENT
     updated_id = sc.collections.remove(
         client=CLIENT, id=id, product=product_id, console=CONSOLE
     )
@@ -338,7 +304,6 @@ def collection_add_child(parent_id: str, child_id: str):
     """
     Add a sub-collection to a collection.
     """
-    global CLIENT
     sc.relationships.add_child_collection(
         client=CLIENT, parent=parent_id, child=child_id, console=CONSOLE
     )
@@ -350,7 +315,6 @@ def collection_remove_child(parent_id: str, child_id: str):
     """
     Remove a sub-collection from a collection.
     """
-    global CLIENT
     sc.relationships.remove_child_collection(
         client=CLIENT, parent=parent_id, child=child_id, console=CONSOLE
     )
@@ -362,7 +326,6 @@ def collection_add_reader(id: str, group: str):
     """
     Add a reader (by group name) to a collection.
     """
-    global CLIENT
     updated_id = sc.collections.add_reader(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -374,7 +337,6 @@ def collection_remove_reader(id: str, group: str):
     """
     Remove a reader (by group name) from a collection.
     """
-    global CLIENT
     updated_id = sc.collections.remove_reader(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -386,7 +348,6 @@ def collection_add_writer(id: str, group: str):
     """
     Add a writer (by group name) to a collection.
     """
-    global CLIENT
     updated_id = sc.collections.add_writer(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -398,7 +359,6 @@ def collection_remove_writer(id: str, group: str):
     """
     Remove a writer (by group name) from a collection.
     """
-    global CLIENT
     updated_id = sc.collections.remove_writer(
         client=CLIENT, id=id, group=group, console=CONSOLE
     )
@@ -410,8 +370,6 @@ def cache_clear(uuid: str):
     """
     Clear the cache of a single file, labelled by its UUID (note that product IDs don't work here).
     """
-    global CACHE
-
     for cache in CACHE.caches:
         if cache.writeable:
             sc.caching.clear_single(cache=cache, id=id, console=CONSOLE)
@@ -423,8 +381,6 @@ def cache_clear_all():
     """
     Clear all caches of all files.
     """
-    global CACHE
-
     for cache in CACHE.caches:
         if cache.writeable:
             sc.caching.clear_all(cache=cache)
@@ -455,7 +411,7 @@ def dev_serve(
     try:
         server.run()
     except KeyboardInterrupt:
-        exit(0)
+        sys.exit(0)
 
 
 @dev_app.command("run")
@@ -488,51 +444,51 @@ def dev_run(
 
     storage_kwargs = {}
 
-    with MongoDbContainer(**database_kwargs) as database_container:
-        with MinioContainer(
+    with (
+        MongoDbContainer(**database_kwargs) as database_container,
+        MinioContainer(
             image="pgsty/minio:latest", **storage_kwargs
-        ) as storage_container:
-            storage_config = storage_container.get_config()
-            database_uri = database_container.get_connection_url()
+        ) as storage_container,
+    ):
+        storage_config = storage_container.get_config()
+        database_uri = database_container.get_connection_url()
 
-            settings = {
-                "mongo_uri": database_uri,
-                "minio_url": storage_config["endpoint"],
-                "minio_access": storage_config["access_key"],
-                "minio_secret": storage_config["secret_key"],
-                "title": "Test hippo",
-                "description": "Test hippo Description",
-                "debug": "yes",
-                "add_cors": "yes",
-                "web": "yes",
-                "auth_system": "soauth" if with_soauth else "None",
-            }
+        settings = {
+            "mongo_uri": database_uri,
+            "minio_url": storage_config["endpoint"],
+            "minio_access": storage_config["access_key"],
+            "minio_secret": storage_config["secret_key"],
+            "title": "Test hippo",
+            "description": "Test hippo Description",
+            "debug": "yes",
+            "add_cors": "yes",
+            "web": "yes",
+            "auth_system": "soauth" if with_soauth else "None",
+        }
 
-            os.environ.update(settings)
+        os.environ.update(settings)
 
-            # HIPPO must be imported _after_ updating settings.
-            from hipposerve.api.app import app
+        # HIPPO must be imported _after_ updating settings.
+        from hipposerve.api.app import app
 
-            config = uvicorn.Config(
-                app,
-                port=port,
-                reload=True,
-                reload_dirs=["hipposerve/web", "hipposerve/web/templates"],
-            )
-            server = uvicorn.Server(config)
+        config = uvicorn.Config(
+            app,
+            port=port,
+            reload=True,
+            reload_dirs=["hipposerve/web", "hipposerve/web/templates"],
+        )
+        server = uvicorn.Server(config)
 
-            try:
-                server.run()
-            except KeyboardInterrupt:
-                exit(0)
-
-    return
+        try:
+            server.run()
+        except KeyboardInterrupt:
+            sys.exit(0)
 
 
 def main():
     settings = ClientSettings()
 
-    global CLIENT, APP, CACHE, CONSOLE
+    global CLIENT, CACHE, CONSOLE
 
     CLIENT = settings.client
     CACHE = settings.cache

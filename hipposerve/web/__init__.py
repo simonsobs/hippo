@@ -42,7 +42,9 @@ def get_color_hash(id: str):
     return f"#{md5(id.encode('utf-8')).hexdigest()[:6]}"
 
 
-def get_cmap(ids: list[str] = []):
+def get_cmap(ids: list[str] | None = None):
+    if ids is None:
+        ids = []
     cmap = {}
     for id in ids:
         cmap[id] = get_color_hash(id)

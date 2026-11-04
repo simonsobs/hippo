@@ -16,8 +16,7 @@ def test_upload_no_multipart(server, tmp_path):
     )
 
     with open(tmp_path / "test.bin", "wb") as f:
-        for _ in range(64):  # 64MB
-            f.write(random.randbytes(1024 * 1024))
+        f.writelines(random.randbytes(1024 * 1024) for _ in range(64))
 
     id = product.create(
         client=client,
@@ -38,8 +37,7 @@ def test_upload_with_multipart(server, tmp_path):
     )
 
     with open(tmp_path / "test.bin", "wb") as f:
-        for _ in range(64):  # 64MB
-            f.write(random.randbytes(1024 * 1024))
+        f.writelines(random.randbytes(1024 * 1024) for _ in range(64))
 
     id = product.create(
         client=client,
@@ -60,8 +58,7 @@ def test_groups_update_add_reader(server, tmp_path):
     )
 
     with open(tmp_path / "test.bin", "wb") as f:
-        for _ in range(64):  # 64MB
-            f.write(random.randbytes(1024 * 1024))
+        f.writelines(random.randbytes(1024 * 1024) for _ in range(64))
 
     id = product.create(
         client=client,
@@ -105,8 +102,7 @@ def test_upload_replacement_source(server, tmp_path):
     )
 
     with open(tmp_path / "test.bin", "wb") as f:
-        for _ in range(64):  # 64MB
-            f.write(random.randbytes(1024 * 1024))
+        f.writelines(random.randbytes(1024 * 1024) for _ in range(64))
 
     id = product.create(
         client=client,
@@ -118,8 +114,7 @@ def test_upload_replacement_source(server, tmp_path):
     )
 
     with open(tmp_path / "test2.bin", "wb") as f:
-        for _ in range(64):  # 64MB
-            f.write(random.randbytes(1024 * 1024))
+        f.writelines(random.randbytes(1024 * 1024) for _ in range(64))
 
     product.update(
         client=client,

@@ -7,10 +7,10 @@ Host can be stored in the hippo_HOST environment variable.
 
 __all__ = [
     "Client",
+    "caching",
     "collections",
     "product",
     "relationships",
-    "caching",
 ]
 
 from . import caching, collections, product, relationships

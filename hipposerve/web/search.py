@@ -94,7 +94,7 @@ async def searchmetadata_results_view(
             continue
 
         if "anyOf" in field_data:
-            true_type = [x for x in field_data["anyOf"] if x["type"] != "null"][0]
+            true_type = next(x for x in field_data["anyOf"] if x["type"] != "null")
             field_data = {**field_data, **true_type}
             field_data.pop("anyOf")
 
@@ -185,7 +185,7 @@ async def search_metadata_view(
 
             if "anyOf" in field_data:
                 # This occurs when we have x | None, extract x and stick it in the field_data
-                true_type = [x for x in field_data["anyOf"] if x["type"] != "null"][0]
+                true_type = next(x for x in field_data["anyOf"] if x["type"] != "null")
                 field_data = {**field_data, **true_type}
                 field_data.pop("anyOf")
 

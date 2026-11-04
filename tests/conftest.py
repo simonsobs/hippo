@@ -1,4 +1,5 @@
 import shutil
+from typing import ClassVar
 
 import pytest
 import pytest_asyncio
@@ -60,7 +61,7 @@ def server(storage_container, database_container, xprocess):
 
     class Starter(ProcessStarter):
         pattern = "Uvicorn running on"
-        args = [
+        args: ClassVar = [
             shutil.which("uvicorn"),
             "hipposerve.api.app:app",
             "--host",
@@ -70,7 +71,7 @@ def server(storage_container, database_container, xprocess):
         ]
         timeout = 10
         max_read_lines = 100
-        env = {x.upper(): y for x, y in settings.items()}
+        env: ClassVar = {x.upper(): y for x, y in settings.items()}
 
     xprocess.ensure("api_server", Starter)
 

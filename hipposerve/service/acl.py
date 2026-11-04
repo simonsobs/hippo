@@ -3,7 +3,9 @@ Access control setup (changing access control levels, checking
 for access to documents). Works with `ProtectedDocument`s.
 """
 
-from typing import Iterable
+from typing import Iterable, TypeVar
+
+from beanie import BackLink, Link
 
 from hipposerve.database import ProtectedDocument
 from hipposerve.service import versioning
@@ -84,6 +86,27 @@ def check_read_access(
     raise AuthenticationError(
         "User does not have the required group access for this operation"
     )
+
+
+DocumentT = TypeVar("DocumentT", bound=ProtectedDocument)
+
+
+def filter_readable(
+    documents: Iterable[DocumentT | Link[DocumentT] | BackLink[DocumentT]],
+    groups: Iterable[str],
+    scopes: Iterable[str],
+) -> list[DocumentT]:
+    """Filter hydrated relationships, omitting unresolved links."""
+    readable = []
+    for document in documents:
+        if isinstance(document, (Link, BackLink)):
+            continue
+        try:
+            check_read_access(groups, document, scopes)
+        except AuthenticationError:
+            continue
+        readable.append(document)
+    return readable
 
 
 def check_write_access(

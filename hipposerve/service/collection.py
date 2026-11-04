@@ -15,8 +15,8 @@ from hipposerve.service.acl import (
     build_access_query,
     check_read_access,
     check_write_access,
+    filter_readable,
 )
-from hipposerve.service.auth import AuthenticationError
 
 LINK_POLICY = {
     "fetch_links": True,
@@ -89,7 +89,7 @@ async def read_pinned(
 
     collection_list = await Collection.find(query, **LINK_POLICY).to_list(maximum)
 
-    return collection_list
+    return await collection_product_filter(groups, scopes, collection_list)
 
 
 async def search_by_name(
@@ -245,16 +245,9 @@ async def collection_product_filter(
     scopes: set[str],
     collection_list: list[Collection],
 ) -> list[Collection]:
-    filtered_collection_list = []
-    for collection in collection_list:
-        if collection.products:
-            product_list = []
-            for product in collection.products:
-                try:
-                    check_read_access(groups, product, scopes)
-                    product_list.append(product)
-                except AuthenticationError:
-                    continue
-            collection.products = product_list
-        filtered_collection_list.append(collection)
-    return filtered_collection_list
+    return [
+        collection.model_copy(
+            update={"products": filter_readable(collection.products, groups, scopes)}
+        )
+        for collection in collection_list
+    ]

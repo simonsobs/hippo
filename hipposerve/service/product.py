@@ -27,6 +27,7 @@ from hipposerve.service.acl import (
     build_access_query,
     check_read_access,
     check_write_access,
+    filter_readable,
 )
 from hipposerve.storage import Storage
 
@@ -283,7 +284,30 @@ async def search_by_owner(
     return results
 
 
-async def walk_history(product: Product) -> dict[str, ProductMetadata]:
+async def with_readable_relationships(
+    product: Product, groups: list[str], scopes: set[str]
+) -> Product:
+    """Build a copy for display without changing the stored relationships."""
+    child_of = [
+        await item.fetch() if isinstance(item, Link) else item
+        for item in product.child_of
+    ]
+    collections = [
+        await item.fetch() if isinstance(item, Link) else item
+        for item in product.collections
+    ]
+    return product.model_copy(
+        update={
+            "child_of": filter_readable(child_of, groups, scopes),
+            "parent_of": filter_readable(product.parent_of, groups, scopes),
+            "collections": filter_readable(collections, groups, scopes),
+        }
+    )
+
+
+async def walk_history(
+    product: Product, *, groups: list[str] | None = None, scopes: set[str] | None = None
+) -> dict[str, ProductMetadata]:
     """
     Walk the history of the product from this point backwards.
     It is recommended that you walk to the current version first,
@@ -291,16 +315,19 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     """
     versions = {}
 
-    while product.replaces is not None:
-        versions[product.version] = await product.to_metadata()
-        product = product.replaces
+    while True:
+        visible = (
+            await with_readable_relationships(product, groups, scopes or set())
+            if groups is not None
+            else product
+        )
+        versions[product.version] = await visible.to_metadata()
+        if product.replaces is None:
+            return versions
 
+        product = product.replaces
         if isinstance(product, Link):
             product = await product.fetch(fetch_links=True)
-
-    versions[product.version] = await product.to_metadata()
-
-    return versions
 
 
 async def walk_to_current(

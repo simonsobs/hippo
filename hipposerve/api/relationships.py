@@ -100,7 +100,9 @@ async def read_collection(
                 readers=x.readers,
                 writers=x.writers,
             )
-            for x in item.child_collections
+            for x in acl.filter_readable(
+                item.child_collections, request.user.groups, request.auth.scopes
+            )
         ],
         parent_collections=[
             ReadCollectionCollectionResponse(
@@ -111,7 +113,9 @@ async def read_collection(
                 readers=x.readers,
                 writers=x.writers,
             )
-            for x in item.parent_collections
+            for x in acl.filter_readable(
+                item.parent_collections, request.user.groups, request.auth.scopes
+            )
         ],
     )
 

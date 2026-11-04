@@ -19,13 +19,20 @@ from hipposerve.api.models.product import (
     UpdateProductRequest,
     UpdateProductResponse,
 )
-from hipposerve.database import ProductMetadata
+from hipposerve.database import Product, ProductMetadata
 from hipposerve.service import acl, product, storage, users
 from hipposerve.service.auth import AuthenticationError, requires
 
 product_router = APIRouter(prefix="/product")
 
 DEFAULT_USER_USER_NAME = "default_user"
+
+
+async def readable_metadata(item: Product, request: Request) -> ProductMetadata:
+    visible = await product.with_readable_relationships(
+        item, request.user.groups, request.auth.scopes
+    )
+    return await visible.to_metadata()
 
 
 @product_router.put("/new")
@@ -95,7 +102,7 @@ async def search(
         request.user.display_name,
     )
 
-    return await asyncio.gather(*[item.to_metadata() for item in items])
+    return await asyncio.gather(*[readable_metadata(item, request) for item in items])
 
 
 @product_router.post("/{id}/complete")
@@ -161,7 +168,7 @@ async def read_product(
         product_item = await product.read_by_id(
             id, request.user.groups, scopes=request.auth.scopes
         )
-        item = await product_item.to_metadata()
+        item = await readable_metadata(product_item, request)
 
         response = ReadProductResponse(
             current_present=item.current,
@@ -207,7 +214,9 @@ async def read_tree(
             groups=request.user.groups,
             scopes=request.auth.scopes,
         )
-        history = await product.walk_history(product=current_item)
+        history = await product.walk_history(
+            current_item, groups=request.user.groups, scopes=request.auth.scopes
+        )
 
         if not current_item.current:
             raise HTTPException(
@@ -265,7 +274,7 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
     )
 
     return ReadFilesResponse(
-        product=await item.to_metadata(),
+        product=await readable_metadata(item, request),
         files=files,
     )
 

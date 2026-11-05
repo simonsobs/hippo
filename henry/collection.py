@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from itertools import chain
 from pathlib import Path
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
@@ -9,6 +10,7 @@ from rich.console import Console
 from henry.product import ProductInstance, RemoteProduct
 from hippoclient import collections, relationships
 from hippoclient.caching import MultiCache
+from hippometa.base import BaseMetadata
 from hipposerve.api.models.relationships import ReadCollectionResponse
 
 from .exceptions import (
@@ -30,6 +32,25 @@ class CollectionInstance(BaseModel):
         writers: list[str] | None = None,
     ) -> str:
         raise NotImplementedError
+
+    def filter(
+        self,
+        *,
+        metadata_type: BaseMetadata | None = None,
+        required_slugs: list[str] | str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> "FilteredCollection":
+        """
+        Filter this collection to only include products that match the given
+        filter. This will recurse through child collections as well.
+        """
+
+        return FilteredCollection.from_collection(
+            collection=self,
+            metadata_type=metadata_type,
+            required_slugs=required_slugs,
+            metadata_filter=metadata_filter,
+        )
 
 
 class LocalCollection(CollectionInstance):
@@ -543,3 +564,146 @@ class RemoteCollection(CollectionInstance):
             )
 
         return self.collection_id
+
+
+def accumulate(
+    collection: CollectionInstance,
+    products: list[ProductInstance],
+    metadata_type: BaseMetadata | None = None,
+    required_slugs: list[str] | None = None,
+    metadata_filter: dict[str, Any] | None = None,
+):
+    """
+    Accumulate products that match the filter recursively through the
+    collection and its child collections.
+    """
+
+    for c in collections.collections:
+        accumulate(
+            collection=c,
+            products=products,
+            metadata_type=metadata_type,
+            required_slugs=required_slugs,
+            metadata_filter=metadata_filter,
+        )
+
+    for p in collection.products:
+        dumped_metadata = p.metadata.model_dump() if p.metadata is not None else {}
+
+        if metadata_type is not None and not isinstance(p.metadata, metadata_type):
+            continue
+
+        if required_slugs is not None and not all(
+            slug in p.sources for slug in required_slugs
+        ):
+            continue
+
+        if metadata_filter is not None and not all(
+            dumped_metadata.get(k) == v for k, v in metadata_filter.items()
+        ):
+            continue
+
+        products.append(p)
+
+
+class FilteredCollection(CollectionInstance):
+    """
+    A filtered collection, containing only products that match a certain
+    filter. Retains the collection ID of the _main_ collection that was filtered,
+    but includes products from child collections. Note that a filtered collection
+    is immutable other than to filter it further, so acts more like a tuple than
+    a list.
+    """
+
+    collection_id: str
+    name: str
+    description: str
+    products: list[ProductInstance] = []
+    collections: list[CollectionInstance] = []
+    owner: str
+    readers: list[str] = []
+    writers: list[str] = []
+
+    def __get_global_index(self, key: int, /) -> tuple[str, int]:
+        if key < 0:
+            return self.__get_global_index(self.__len__() + key)
+        elif key < len(self.products):
+            return "p", key
+        elif key < self.__len__():
+            return "c", key - len(self.products)
+        else:
+            raise IndexError(f"Index {key} invalid for object of size {self.__len__()}")
+
+    def __repr__(self):
+        return (
+            f"FilteredCollection(name='{self.name}', description='{self.description}', "
+            f"products=[{', '.join([x.__repr__() for x in self.products])}]"
+        )
+
+    def __str__(self):
+        return f"Filtered collection from {self.name} ({self.description}) with {len(self.products)} products"
+
+    def __len__(self) -> int:
+        return len(self.products) + len(self.collections)
+
+    def __getitem__(self, key: int, /) -> CollectionInstance | ProductInstance:
+        arr, index = self.__get_global_index(key)
+        if arr == "p":
+            return self.products[index]
+        else:
+            return self.collections[index]
+
+    def __iter__(self):
+        return chain(self.products, self.collections)
+
+    def __reversed__(self) -> Iterable[ProductInstance | CollectionInstance]:
+        return chain(self.collections.__reversed__(), self.products.__reversed__())
+
+    def __contains__(self, item: CollectionInstance | ProductInstance, /):
+        match item:
+            case CollectionInstance():
+                self.collections.__contains__(item)
+            case ProductInstance():
+                self.products.__contains__(item)
+            case _:
+                raise TypeError(
+                    f"Only collections or products are members of collections, found {type(item)}"
+                )
+
+    @classmethod
+    def from_collection(
+        cls,
+        collection: CollectionInstance,
+        *,
+        metadata_type: BaseMetadata | None = None,
+        required_slugs: list[str] | str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ):
+        """
+        Create a filtered collection from an existing collection, iterating to find all
+        products that match the various filters.
+        """
+
+        products: list[ProductInstance] = []
+        required_slugs = (
+            [required_slugs] if isinstance(required_slugs, str) else required_slugs
+        )
+
+        accumulate(
+            collection=collection,
+            products=products,
+            metadata_type=metadata_type,
+            required_slugs=required_slugs,
+            metadata_filter=metadata_filter,
+        )
+
+        return FilteredCollection(
+            collection_id=collection.collection_id,
+            name=collection.name,
+            description=collection.description,
+            products=products,
+            collections=[],
+            owner=getattr(collection, "owner", ""),
+            readers=getattr(collection, "readers", []),
+            writers=getattr(collection, "writers", []),
+        )

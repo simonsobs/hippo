@@ -7,10 +7,23 @@ from henry.source import LocalSource
 from hippoclient.caching import MultiCache
 from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
-from hippoclient.product import download as download_product
+from hippoclient.product import (
+    apply_slugify,
+)
+from hippoclient.product import (
+    cache as cache_product,
+)
+from hippoclient.product import (
+    download as download_product,
+)
 from hippometa import ALL_METADATA_TYPE
 
-from .collection import CollectionInstance, LocalCollection, RemoteCollection
+from .collection import (
+    CollectionInstance,
+    FilteredCollection,
+    LocalCollection,
+    RemoteCollection,
+)
 from .product import LocalProduct, ProductInstance, RemoteProduct, RevisionProduct
 
 
@@ -127,3 +140,75 @@ class Henry:
             slugs=slugs,
             slugify=self.slugify,
         )
+
+    def realize(
+        self,
+        item: RemoteCollection | RemoteProduct | FilteredCollection,
+        slugs: list[str] | None = None,
+    ):
+        """
+        Realize the collection or product by ensuring that it is cached.
+        """
+
+        if isinstance(item, RemoteProduct):
+            cache_product(
+                client=self.client,
+                cache=self.cache,
+                console=self.console,
+                id=item.product_id,
+                slugs=slugs,
+                slugify=self.slugify,
+            )
+        elif isinstance(item, (RemoteCollection, FilteredCollection)):
+            for i in item:
+                self.realize(i, slugs=slugs)
+
+        return item
+
+    def checkout(
+        self,
+        item: RemoteCollection | RemoteProduct | FilteredCollection,
+        slugs: list[str] | None = None,
+        directory: str | Path = Path("."),
+    ):
+        """
+        Checkout the collection or product by downloading it to the local filesystem.
+        """
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        if isinstance(item, RemoteProduct):
+            path = self.download_product(
+                product_id=item.product_id,
+                directory=directory,
+                slugs=slugs,
+                console=self.console,
+                slugify=self.slugify,
+            )
+
+            return RemoteProduct(
+                product_id=item.product_id,
+                path=path,
+                slug=item.slug,
+                name=item.name,
+                description=item.description,
+            )
+        elif isinstance(item, (RemoteCollection, FilteredCollection)):
+            item.products = [
+                self.checkout(p, slugs=slugs, directory=directory)
+                for p in item.products
+            ]
+
+            for c in item.collections:
+                sub_directory = (
+                    directory / apply_slugify(c.name)
+                    if self.slugify
+                    else directory / c.name
+                )
+                sub_directory.mkdir(parents=True, exist_ok=True)
+                self.checkout(c, slugs=slugs, directory=sub_directory)
+        else:
+            # Fall through for local stuff
+            return item
+
+        return item

@@ -483,7 +483,11 @@ def search(
 
 
 def cache(
-    client: Client, cache: MultiCache, id: str, console: Console | None = None
+    client: Client,
+    cache: MultiCache,
+    id: str,
+    slugs: list[str] | None = None,
+    console: Console | None = None,
 ) -> list[Path]:
     """
     Cache a product from hippo.
@@ -496,6 +500,8 @@ def cache(
         The cache to use for storing the product.
     id : str
         The ID of the product to cache.
+    slugs: list[str] | None, optional
+        A list of slugs to cache. If None, all slugs will be cached.
     console : Console, optional
         The rich console to print to.
 
@@ -517,7 +523,9 @@ def cache(
     response.raise_for_status()
 
     post_upload_files = {
-        x: PostUploadFile.model_validate(y) for x, y in response.json()["files"].items()
+        x: PostUploadFile.model_validate(y)
+        for x, y in response.json()["files"].items()
+        if (slugs is None or x in slugs)
     }
 
     if console:

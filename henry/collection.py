@@ -36,7 +36,7 @@ class CollectionInstance(BaseModel):
     def filter(
         self,
         *,
-        metadata_type: BaseMetadata | None = None,
+        metadata_type: type[BaseMetadata] | None = None,
         required_slugs: list[str] | str | None = None,
         metadata_filter: dict[str, Any] | None = None,
     ) -> "FilteredCollection":
@@ -569,7 +569,7 @@ class RemoteCollection(CollectionInstance):
 def accumulate(
     collection: CollectionInstance,
     products: list[ProductInstance],
-    metadata_type: BaseMetadata | None = None,
+    metadata_type: type[BaseMetadata] | None = None,
     required_slugs: list[str] | None = None,
     metadata_filter: dict[str, Any] | None = None,
 ):
@@ -578,7 +578,7 @@ def accumulate(
     collection and its child collections.
     """
 
-    for c in collections.collections:
+    for c in collection.collections:
         accumulate(
             collection=c,
             products=products,
@@ -599,7 +599,8 @@ def accumulate(
             continue
 
         if metadata_filter is not None and not all(
-            dumped_metadata.get(k) == v for k, v in metadata_filter.items()
+            k in dumped_metadata and dumped_metadata[k] == v
+            for k, v in metadata_filter.items()
         ):
             continue
 
@@ -610,12 +611,11 @@ class FilteredCollection(CollectionInstance):
     """
     A filtered collection, containing only products that match a certain
     filter. Retains the collection ID of the _main_ collection that was filtered,
-    but includes products from child collections. Note that a filtered collection
-    is immutable other than to filter it further, so acts more like a tuple than
-    a list.
+    but includes products from child collections. The collection interface supports
+    reading and further filtering. Products are shared with the original collection.
     """
 
-    collection_id: str
+    collection_id: str | None
     name: str
     description: str
     products: list[ProductInstance] = []
@@ -626,8 +626,10 @@ class FilteredCollection(CollectionInstance):
 
     def __get_global_index(self, key: int, /) -> tuple[str, int]:
         if key < 0:
-            return self.__get_global_index(self.__len__() + key)
-        elif key < len(self.products):
+            key += len(self)
+        if key < 0 or key >= len(self):
+            raise IndexError(f"Index {key} invalid for object of size {len(self)}")
+        if key < len(self.products):
             return "p", key
         elif key < self.__len__():
             return "c", key - len(self.products)
@@ -637,7 +639,7 @@ class FilteredCollection(CollectionInstance):
     def __repr__(self):
         return (
             f"FilteredCollection(name='{self.name}', description='{self.description}', "
-            f"products=[{', '.join([x.__repr__() for x in self.products])}]"
+            f"products=[{', '.join([x.__repr__() for x in self.products])}])"
         )
 
     def __str__(self):
@@ -662,9 +664,9 @@ class FilteredCollection(CollectionInstance):
     def __contains__(self, item: CollectionInstance | ProductInstance, /):
         match item:
             case CollectionInstance():
-                self.collections.__contains__(item)
+                return self.collections.__contains__(item)
             case ProductInstance():
-                self.products.__contains__(item)
+                return self.products.__contains__(item)
             case _:
                 raise TypeError(
                     f"Only collections or products are members of collections, found {type(item)}"
@@ -675,7 +677,7 @@ class FilteredCollection(CollectionInstance):
         cls,
         collection: CollectionInstance,
         *,
-        metadata_type: BaseMetadata | None = None,
+        metadata_type: type[BaseMetadata] | None = None,
         required_slugs: list[str] | str | None = None,
         metadata_filter: dict[str, Any] | None = None,
     ):
@@ -697,7 +699,7 @@ class FilteredCollection(CollectionInstance):
             metadata_filter=metadata_filter,
         )
 
-        return FilteredCollection(
+        return cls(
             collection_id=collection.collection_id,
             name=collection.name,
             description=collection.description,

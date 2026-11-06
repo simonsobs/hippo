@@ -545,12 +545,105 @@ def cache(
     paths = []
 
     for product in collection.products:
-        paths += cache_product(client, multi_cache, str(product.id))
+        paths += cache_product(client, multi_cache, str(product.id)).values()
 
     for child in collection.child_collections:
         paths += cache(client, multi_cache, str(child.id))
 
     return paths
+
+
+def download_direct(
+    collection: ReadCollectionResponse,
+    client: Client,
+    directory: Path,
+    console: Console | None = None,
+    slugify: bool = False,
+    slugs: list[str] | None = None,
+) -> Path:
+    """
+    Download a collection from HIPPO onto the local filesystem, storing the data
+    in the provided 'directory'. Data is stored as follows:
+
+    directory/Collection Name
+      collection.json < Metadata for this collection
+      Product Name/
+        ... < See product.download
+      Child Collection/
+        collection.json
+        Product Name/
+          ... < See product.download
+
+    Inside the provided directory, we create a new directory with the collection name.
+    In there we store each product and child collection recursively, and store
+    the metadata for the collection as `collection.json`.
+
+    Arguments
+    ---------
+    client: Client
+        The client to use for interacting with the hippo API
+    collection: ReadCollectionResponse
+        The API response describing the collection to download.
+    directory: Path
+        The directory to download the collection into.
+    console : Console, optional
+        The rich console to print to.
+    slugify : bool, optional
+        Whether to convert names to valid 'slugs'.
+    slugs : list[str], optional
+        Only download specific source slugs. None downloads all sources.
+
+    Returns
+    -------
+    Path
+        The path to the cached collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails
+    FileNotFoundError
+        If the directory does not exist or is not a directory.
+    """
+
+    metadata = collection.model_copy(deep=True)
+
+    if slugify:
+        metadata.name = apply_slugify(metadata.name)
+
+    collection_directory = directory / metadata.name
+
+    collection_directory.mkdir(exist_ok=True, parents=False)
+
+    for product in metadata.products:
+        product_directory = download_product(
+            client=client,
+            id=product.id,
+            directory=collection_directory,
+            console=console,
+            slugify=slugify,
+            slugs=slugs,
+        )
+        product.name = product_directory.name
+
+    for child_metadata in metadata.child_collections:
+        child_directory = download_direct(
+            collection=read(client, child_metadata.id),
+            client=client,
+            directory=collection_directory,
+            console=console,
+            slugify=slugify,
+            slugs=slugs,
+        )
+        child_metadata.name = child_directory.name
+
+    with open(collection_directory / "collection.json", "w") as handle:
+        handle.write(metadata.model_dump_json(indent=2))
+
+    if console:
+        console.print(f"Successfully wrote metadata for collection {metadata.name}")
+
+    return collection_directory
 
 
 def download(
@@ -605,38 +698,13 @@ def download(
 
     collection = read(client, id)
 
-    if slugify:
-        collection.name = apply_slugify(collection.name)
-
-    collection_directory = directory / collection.name
-
-    collection_directory.mkdir(exist_ok=True, parents=False)
-
-    with open(collection_directory / "collection.json", "w") as handle:
-        handle.write(collection.model_dump_json(indent=2))
-
-        if console:
-            console.print(
-                f"Successfully wrote metadata for collection {collection.name}"
-            )
-
-    for product in collection.products:
-        download_product(
-            client=client,
-            id=product.id,
-            directory=collection_directory,
-            console=console,
-            slugify=slugify,
-        )
-
-    for child in collection.child_collections:
-        download(
-            client=client,
-            id=child.id,
-            directory=collection_directory,
-            console=console,
-            slugify=slugify,
-        )
+    collection_directory = download_direct(
+        collection=collection,
+        client=client,
+        directory=directory,
+        console=console,
+        slugify=slugify,
+    )
 
     return collection_directory
 

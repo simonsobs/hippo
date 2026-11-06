@@ -356,6 +356,7 @@ class RemoteProduct(ProductInstance):
             name=core_metadata.name,
             description=core_metadata.description,
             metadata=core_metadata.metadata,
+            version=core_metadata.version,
             sources=sources,
             readers=core_metadata.readers,
             writers=core_metadata.writers,

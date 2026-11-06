@@ -514,8 +514,12 @@ def search(
 
 
 def cache(
-    client: Client, cache: MultiCache, id: str, console: Console | None = None
-) -> list[Path]:
+    client: Client,
+    cache: MultiCache,
+    id: str,
+    console: Console | None = None,
+    slugs: list[str] | None = None,
+) -> dict[str, Path]:
     """
     Cache a product from hippo.
 
@@ -527,13 +531,15 @@ def cache(
         The cache to use for storing the product.
     id : str
         The ID of the product to cache.
+    slugs: list[str] | None, optional
+        A list of slugs to cache. If None, all slugs will be cached.
     console : Console, optional
         The rich console to print to.
 
     Returns
     -------
-    list[Path]
-        The list of paths to the cached sources.
+    dict[str, Path]
+        The dictionary of slugs to paths to the cached sources.
 
     Raises
     ------
@@ -548,19 +554,21 @@ def cache(
     response.raise_for_status()
 
     post_upload_files = {
-        x: PostUploadFile.model_validate(y) for x, y in response.json()["files"].items()
+        x: PostUploadFile.model_validate(y)
+        for x, y in response.json()["files"].items()
+        if (slugs is None or x in slugs)
     }
 
     if console:
         console.print(f"Successfully read product {id}")
 
-    response_paths = []
+    response_paths = {}
 
     for file in post_upload_files.values():
         # See if it's already cached.
         try:
             cached = cache.available(file.uuid)
-            response_paths.append(cached)
+            response_paths[file.slug] = cached
 
             if console:
                 console.print(f"Found cached file {file.name}", style="green")
@@ -581,7 +589,7 @@ def cache(
             presigned_url=file.url,
         )
 
-        response_paths.append(cached)
+        response_paths[file.slug] = cached
 
         if console:
             console.print(f"Cached file {file.name} ({file.uuid})", style="yellow")
@@ -668,7 +676,7 @@ def download(
             console.print(f"Successfully wrote metadata for product {metadata.name}")
 
     for source_slug, source_data in post_upload_files.items():
-        if slugs and source_slug not in slugs:
+        if slugs is not None and source_slug not in slugs:
             continue
 
         slug_directory = product_directory / source_slug

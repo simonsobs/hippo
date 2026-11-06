@@ -106,7 +106,7 @@
             {% for child in collection.child_collections %}
             <tr class="small">
                 <td><a href="{{ web_root }}/collections/{{ child.id | e }}">{{ child.name }}</a></td>
-                <td class="small">{{ child.products | length }}</td>
+                <td class="small">{{ product_counts[child.id] }}</td>
                 <td class="small">{{ child.owner }}</td>
             </tr>
             {% endfor %}
@@ -127,7 +127,7 @@
             {% for parent in collection.parent_collections %}
             <tr class="small">
                 <td><a href="{{ web_root }}/collections/{{ parent.id | e }}">{{ parent.name }}</a></td>
-                <td class="small">{{ parent.products | length }}</td>
+                <td class="small">{{ product_counts[parent.id] }}</td>
                 <td class="small">{{ parent.owner }}</td>
             </tr>
             {% endfor %}

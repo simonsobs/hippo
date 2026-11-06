@@ -10,7 +10,7 @@ import re
 from beanie import PydanticObjectId
 from beanie.operators import Text
 
-from hipposerve.database import Collection
+from hipposerve.database import Collection, Product
 from hipposerve.service.acl import (
     build_access_query,
     check_read_access,
@@ -249,3 +249,39 @@ async def collection_product_filter(
         )
         for collection in collection_list
     ]
+
+
+async def product_counts(
+    collection_list: list[Collection],
+    groups: list[str],
+    scopes: set[str],
+) -> dict[PydanticObjectId, int]:
+    """Count readable products in already-authorized collections without fetching links."""
+    counts = {collection.id: 0 for collection in collection_list}
+    if not counts:
+        return counts
+
+    collection_ids = list(counts)
+    results = (
+        await Product.find(
+            build_access_query(groups, scopes),
+            {"collections.$id": {"$in": collection_ids}},
+        )
+        .aggregate(
+            [
+                # Count each product once per collection, even with duplicate links.
+                {
+                    "$project": {
+                        "collections": {
+                            "$setIntersection": ["$collections.$id", collection_ids]
+                        }
+                    }
+                },
+                {"$unwind": "$collections"},
+                {"$group": {"_id": "$collections", "count": {"$sum": 1}}},
+            ]
+        )
+        .to_list()
+    )
+    counts.update({result["_id"]: result["count"] for result in results})
+    return counts

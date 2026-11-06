@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from httpx import Client
+from pydantic import ValidationError
 from rich.console import Console
 
 from henry.source import LocalSource
 from hippoclient.caching import MultiCache
-from hippoclient.collections import download_direct as download_collection_direct
 from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
 from hippoclient.product import (
@@ -122,10 +122,15 @@ class Henry:
 
     def read_collection(
         self, directory: str | Path, allow_incomplete: bool = True
-    ) -> RemoteCollection:
-        return RemoteCollection.read(
-            directory=directory, allow_incomplete=allow_incomplete
-        )
+    ) -> RemoteCollection | FilteredCollection:
+        try:
+            return RemoteCollection.read(
+                directory=directory, allow_incomplete=allow_incomplete
+            )
+        except ValidationError:
+            return FilteredCollection.read(
+                directory=directory, allow_incomplete=allow_incomplete
+            )
 
     def download_product(
         self, product_id: str, directory: str | Path, slugs: list[str] | None = None
@@ -186,17 +191,15 @@ class Henry:
                 update={"sources": self.read_product(directory=path).sources}
             )
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
-            path = download_collection_direct(
-                collection=item,
-                client=self.client,
-                directory=directory,
-                console=self.console,
-                slugify=self.slugify,
-                slugs=slugs,
-            )
-            downloaded = self.read_collection(directory=path)
-            item.products = downloaded.products
-            item.collections = downloaded.collections
+            for collection in item:
+                self.checkout(
+                    collection, slugs=slugs, directory=directory / collection.name
+                )
+            for product in item.products:
+                self.checkout(product, slugs=slugs, directory=directory / product.name)
+
+            with open(directory / "collection.json", "w") as handle:
+                handle.write(item.model_dump_json(indent=2, exclude_none=True))
         else:
             # Fall through for local stuff
             return item

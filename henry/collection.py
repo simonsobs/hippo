@@ -673,6 +673,51 @@ class FilteredCollection(CollectionInstance):
                 )
 
     @classmethod
+    def read(cls, directory: Path | str, allow_incomplete: bool) -> "RemoteCollection":
+        """
+        Read a collection that was serialized to disk, usualyl after using the
+        `henry.checkout()` function.
+        """
+        directory = Path(directory)
+
+        with open(directory / "collection.json", "r") as handle:
+            core_metadata = FilteredCollection.model_validate_json(handle.read())
+
+        products = []
+
+        for product in core_metadata.products:
+            try:
+                products.append(
+                    RemoteProduct.read(
+                        directory / product.name, allow_incomplete=allow_incomplete
+                    )
+                )
+            except FileNotFoundError:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Product {product.name} not found, consider re-downloading "
+                        "or setting allow_incomplete=True"
+                    )
+            except ProductIncompleteError as e:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Collection not complete due to error reading {product.name}: {e}"
+                    )
+
+        collections = []
+
+        return cls(
+            collection_id=core_metadata.collection_id,
+            name=core_metadata.name,
+            description=core_metadata.description,
+            products=products,
+            owner=core_metadata.owner,
+            collections=collections,
+            readers=core_metadata.readers,
+            writers=core_metadata.writers,
+        )
+
+    @classmethod
     def from_collection(
         cls,
         collection: CollectionInstance,

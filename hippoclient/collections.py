@@ -341,11 +341,12 @@ def cache(
 
 
 def download_direct(
-    collection,
+    collection: ReadCollectionResponse,
     client: Client,
     directory: Path,
     console: Console | None = None,
     slugify: bool = False,
+    slugs: list[str] | None = None,
 ) -> Path:
     """
     Download a collection from HIPPO onto the local filesystem, storing the data
@@ -369,13 +370,15 @@ def download_direct(
     client: Client
         The client to use for interacting with the hippo API
     collection: ReadCollectionResponse
-        The collection to download.
+        The API response describing the collection to download.
     directory: Path
         The directory to download the collection into.
     console : Console, optional
         The rich console to print to.
     slugify : bool, optional
         Whether to convert names to valid 'slugs'.
+    slugs : list[str], optional
+        Only download specific source slugs. None downloads all sources.
 
     Returns
     -------
@@ -390,38 +393,42 @@ def download_direct(
         If the directory does not exist or is not a directory.
     """
 
-    if slugify:
-        collection.name = apply_slugify(collection.name)
+    metadata = collection.model_copy(deep=True)
 
-    collection_directory = directory / collection.name
+    if slugify:
+        metadata.name = apply_slugify(metadata.name)
+
+    collection_directory = directory / metadata.name
 
     collection_directory.mkdir(exist_ok=True, parents=False)
 
-    with open(collection_directory / "collection.json", "w") as handle:
-        handle.write(collection.model_dump_json(indent=2))
-
-        if console:
-            console.print(
-                f"Successfully wrote metadata for collection {collection.name}"
-            )
-
-    for product in collection.products:
-        download_product(
+    for product in metadata.products:
+        product_directory = download_product(
             client=client,
             id=product.id,
             directory=collection_directory,
             console=console,
             slugify=slugify,
+            slugs=slugs,
         )
+        product.name = product_directory.name
 
-    for child in collection.child_collections:
-        download_direct(
-            read(client, child.id),
+    for child_metadata in metadata.child_collections:
+        child_directory = download_direct(
+            collection=read(client, child_metadata.id),
             client=client,
             directory=collection_directory,
             console=console,
             slugify=slugify,
+            slugs=slugs,
         )
+        child_metadata.name = child_directory.name
+
+    with open(collection_directory / "collection.json", "w") as handle:
+        handle.write(metadata.model_dump_json(indent=2))
+
+    if console:
+        console.print(f"Successfully wrote metadata for collection {metadata.name}")
 
     return collection_directory
 

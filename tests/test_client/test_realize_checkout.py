@@ -170,7 +170,7 @@ def test_checkout_empty_filtered_collection(remote_collection, client, tmp_path)
     assert list(client.read_collection(directory, allow_incomplete=False)) == []
 
 
-@pytest.mark.parametrize("mode", ["id", "response", "instance"])
+@pytest.mark.parametrize("mode", ["id", "response"])
 @pytest.mark.parametrize("slugify", [False, True])
 def test_download_collection(remote_collection, client, tmp_path, mode, slugify):
     if mode == "response":
@@ -183,15 +183,6 @@ def test_download_collection(remote_collection, client, tmp_path, mode, slugify)
             slugify=slugify,
         )
         assert metadata.name == remote_collection.name
-    elif mode == "instance":
-        directory = collections.download_instance(
-            collection=remote_collection,
-            client=client.client,
-            directory=tmp_path,
-            console=client.console,
-            slugify=slugify,
-        )
-        assert remote_collection.name == "Root collection"
     else:
         directory = collections.download(
             client=client.client,

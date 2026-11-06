@@ -14,6 +14,7 @@ from hippoclient.product import (
 from hippoclient.product import (
     download as download_product,
 )
+from hippoclient.tools import slugify as apply_slugify
 from hippometa import ALL_METADATA_TYPE
 
 from .collection import (
@@ -187,19 +188,27 @@ class Henry:
                 slugs=slugs,
             )
 
-            return item.model_copy(
-                update={"sources": self.read_product(directory=path).sources}
-            )
+            item.sources = self.read_product(directory=path).sources
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
-            for collection in item:
-                self.checkout(
-                    collection, slugs=slugs, directory=directory / collection.name
-                )
-            for product in item.products:
-                self.checkout(product, slugs=slugs, directory=directory / product.name)
+            name = apply_slugify(item.name) if self.slugify else item.name
+            directory /= name
+            directory.mkdir(parents=True, exist_ok=True)
+            metadata = item.model_copy()
+            metadata.collections = [
+                self.checkout(child, slugs=slugs, directory=directory).model_copy()
+                for child in item.collections
+            ]
+            metadata.products = [
+                self.checkout(product, slugs=slugs, directory=directory).model_copy()
+                for product in item.products
+            ]
+            if self.slugify:
+                metadata.name = name
+                for member in metadata:
+                    member.name = apply_slugify(member.name)
 
             with open(directory / "collection.json", "w") as handle:
-                handle.write(item.model_dump_json(indent=2, exclude_none=True))
+                handle.write(metadata.model_dump_json(indent=2, exclude_none=True))
         else:
             # Fall through for local stuff
             return item

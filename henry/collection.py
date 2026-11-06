@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from rich.console import Console
 
-from henry.product import ProductInstance, RemoteProduct
+from henry.product import LocalProduct, ProductInstance, RemoteProduct
 from hippoclient import collections, relationships
 from hippoclient.caching import MultiCache
 from hippometa.base import BaseMetadata
@@ -252,8 +252,8 @@ class RemoteCollection(CollectionInstance):
     collection_id: str
     name: str
     description: str
-    products: list[ProductInstance] = []
-    collections: list[CollectionInstance] = []
+    products: list[RemoteProduct | LocalProduct] = []
+    collections: list["RemoteCollection | LocalCollection"] = []
     owner: str
     readers: list[str] = []
     writers: list[str] = []
@@ -334,7 +334,18 @@ class RemoteCollection(CollectionInstance):
         directory = Path(directory)
 
         with open(directory / "collection.json", "r") as handle:
-            core_metadata = ReadCollectionResponse.model_validate_json(handle.read())
+            data = handle.read()
+
+        try:
+            core_metadata = ReadCollectionResponse.model_validate_json(data)
+            child_collections = core_metadata.child_collections
+            original_product_ids = {str(p.id) for p in core_metadata.products}
+            original_collection_ids = {str(c.id) for c in child_collections}
+        except ValidationError:
+            core_metadata = cls.model_validate_json(data)
+            child_collections = core_metadata.collections
+            original_product_ids = core_metadata.original_product_ids
+            original_collection_ids = core_metadata.original_collection_ids
 
         products = []
 
@@ -359,7 +370,7 @@ class RemoteCollection(CollectionInstance):
 
         collections = []
 
-        for collection in core_metadata.child_collections:
+        for collection in child_collections:
             try:
                 collections.append(
                     RemoteCollection.read(
@@ -377,7 +388,7 @@ class RemoteCollection(CollectionInstance):
                     raise
 
         return cls(
-            collection_id=str(core_metadata.id),
+            collection_id=str(core_metadata.collection_id),
             name=core_metadata.name,
             description=core_metadata.description,
             products=products,
@@ -387,10 +398,8 @@ class RemoteCollection(CollectionInstance):
             writers=core_metadata.writers,
             original_name=core_metadata.name,
             original_description=core_metadata.description,
-            original_product_ids={str(p.id) for p in core_metadata.products},
-            original_collection_ids={
-                str(c.id) for c in core_metadata.child_collections
-            },
+            original_product_ids=original_product_ids,
+            original_collection_ids=original_collection_ids,
         )
 
     def __get_global_index(self, key: int, /) -> tuple[str, int]:
@@ -618,7 +627,7 @@ class FilteredCollection(CollectionInstance):
     collection_id: str | None
     name: str
     description: str
-    products: list[ProductInstance] = []
+    products: list[RemoteProduct | LocalProduct] = []
     collections: list[CollectionInstance] = []
     owner: str
     readers: list[str] = []
@@ -673,7 +682,9 @@ class FilteredCollection(CollectionInstance):
                 )
 
     @classmethod
-    def read(cls, directory: Path | str, allow_incomplete: bool) -> "RemoteCollection":
+    def read(
+        cls, directory: Path | str, allow_incomplete: bool
+    ) -> "FilteredCollection":
         """
         Read a collection that was serialized to disk, usualyl after using the
         `henry.checkout()` function.

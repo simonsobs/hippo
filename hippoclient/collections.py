@@ -2,6 +2,7 @@
 Methods for interacting with the collections layer of the hippo API
 """
 
+from collections.abc import Callable
 from pathlib import Path
 
 from httpx import Client
@@ -12,6 +13,12 @@ from hipposerve.api.models.relationships import ReadCollectionResponse
 from .core import MultiCache
 from .product import cache as cache_product
 from .product import download as download_product
+from .product import (
+    product_add_reader,
+    product_add_writer,
+    product_remove_reader,
+    product_remove_writer,
+)
 from .product import uncache as uncache_product
 from .tools import slugify as apply_slugify
 
@@ -108,56 +115,103 @@ def read(
     return model
 
 
-def add_reader(
-    client: Client, id: str, group: str, console: Console | None = None
+def _update_permissions(
+    client: Client,
+    id: str,
+    group: str,
+    action: str,
+    update_product: Callable[..., str],
+    console: Console | None,
+    recursive: bool,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"add_readers": [group]}
+    collection_ids = [str(id)]
+    product_ids = set()
+
+    if recursive:
+        # Discover the hierarchy before a removal can revoke read access.
+        seen = {str(id)}
+        for collection_id in collection_ids:
+            collection = read(client, collection_id)
+            product_ids.update(str(product.id) for product in collection.products)
+            for child in collection.child_collections:
+                child_id = str(child.id)
+                if child_id not in seen:
+                    seen.add(child_id)
+                    collection_ids.append(child_id)
+
+    for product_id in sorted(product_ids):
+        update_product(client, product_id, group, console=console)
+
+    verb, role = action.split("_")
+    updated_id = str(id)
+    for collection_id in collection_ids:
+        response = client.post(
+            f"/relationships/collection/{collection_id}", json={action: [group]}
+        )
+        response.raise_for_status()
+        if collection_id == str(id):
+            updated_id = response.json()
+        if console:
+            operation = "added" if verb == "add" else "removed"
+            preposition = "to" if verb == "add" else "from"
+            console.print(
+                f"Successfully {operation} {group} {preposition} "
+                f"collection {collection_id} {role}."
+            )
+
+    return updated_id
+
+
+def add_reader(
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
+) -> str:
+    """Add a reader; optionally update child collections and their products too."""
+    return _update_permissions(
+        client, id, group, "add_readers", product_add_reader, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully added {group} to collection {id} readers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def remove_reader(
-    client: Client, id: str, group: str, console: Console | None = None
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"remove_readers": [group]}
+    """Remove a reader; optionally update child collections and their products too."""
+    return _update_permissions(
+        client, id, group, "remove_readers", product_remove_reader, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully removed {group} from collection {id} readers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def add_writer(
-    client: Client, id: str, group: str, console: Console | None = None
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"add_writers": [group]}
+    """Add a writer; optionally update child collections and their products too."""
+    return _update_permissions(
+        client, id, group, "add_writers", product_add_writer, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully added {group} to collection {id} writers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def remove_writer(
-    client: Client, id: str, group: str, console: Console | None = None
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"remove_writers": [group]}
+    """Remove a writer; optionally update child collections and their products too."""
+    return _update_permissions(
+        client, id, group, "remove_writers", product_remove_writer, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully removed {group} from collection {id} writers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def search(

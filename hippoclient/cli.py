@@ -322,45 +322,85 @@ def collection_remove_child(parent_id: str, child_id: str):
 
 
 @collection_app.command("add-reader")
-def collection_add_reader(id: str, group: str):
+def collection_add_reader(
+    id: str,
+    group: str,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            help="Also update child collections and all constituent products.",
+        ),
+    ] = False,
+):
     """
     Add a reader (by group name) to a collection.
     """
     updated_id = sc.collections.add_reader(
-        client=CLIENT, id=id, group=group, console=CONSOLE
+        client=CLIENT, id=id, group=group, console=CONSOLE, recursive=recursive
     )
     CONSOLE.print(f"Added {group} to readers. Collection ID is {updated_id}")
 
 
 @collection_app.command("remove-reader")
-def collection_remove_reader(id: str, group: str):
+def collection_remove_reader(
+    id: str,
+    group: str,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            help="Also update child collections and all constituent products.",
+        ),
+    ] = False,
+):
     """
     Remove a reader (by group name) from a collection.
     """
     updated_id = sc.collections.remove_reader(
-        client=CLIENT, id=id, group=group, console=CONSOLE
+        client=CLIENT, id=id, group=group, console=CONSOLE, recursive=recursive
     )
     CONSOLE.print(f"Removed {group} from readers. Collection ID is {updated_id}")
 
 
 @collection_app.command("add-writer")
-def collection_add_writer(id: str, group: str):
+def collection_add_writer(
+    id: str,
+    group: str,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            help="Also update child collections and all constituent products.",
+        ),
+    ] = False,
+):
     """
     Add a writer (by group name) to a collection.
     """
     updated_id = sc.collections.add_writer(
-        client=CLIENT, id=id, group=group, console=CONSOLE
+        client=CLIENT, id=id, group=group, console=CONSOLE, recursive=recursive
     )
     CONSOLE.print(f"Added {group} to writers. Collection ID is {updated_id}")
 
 
 @collection_app.command("remove-writer")
-def collection_remove_writer(id: str, group: str):
+def collection_remove_writer(
+    id: str,
+    group: str,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            help="Also update child collections and all constituent products.",
+        ),
+    ] = False,
+):
     """
     Remove a writer (by group name) from a collection.
     """
     updated_id = sc.collections.remove_writer(
-        client=CLIENT, id=id, group=group, console=CONSOLE
+        client=CLIENT, id=id, group=group, console=CONSOLE, recursive=recursive
     )
     CONSOLE.print(f"Removed {group} from writers. Collection ID is {updated_id}")
 

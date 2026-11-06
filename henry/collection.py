@@ -338,11 +338,13 @@ class RemoteCollection(CollectionInstance):
 
         try:
             core_metadata = ReadCollectionResponse.model_validate_json(data)
+            collection_id = str(core_metadata.id)
             child_collections = core_metadata.child_collections
             original_product_ids = {str(p.id) for p in core_metadata.products}
             original_collection_ids = {str(c.id) for c in child_collections}
         except ValidationError:
             core_metadata = cls.model_validate_json(data)
+            collection_id = str(core_metadata.collection_id)
             child_collections = core_metadata.collections
             original_product_ids = core_metadata.original_product_ids
             original_collection_ids = core_metadata.original_collection_ids
@@ -388,7 +390,7 @@ class RemoteCollection(CollectionInstance):
                     raise
 
         return cls(
-            collection_id=str(core_metadata.collection_id),
+            collection_id=collection_id,
             name=core_metadata.name,
             description=core_metadata.description,
             products=products,

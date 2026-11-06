@@ -166,13 +166,18 @@ class Henry:
             item = item.model_copy(
                 update={
                     "sources": {
-                        slug: LocalSource(path=path) for slug, path in sources.items()
+                        slug: item.sources[slug].model_copy(update={"path": path})
+                        for slug, path in sources.items()
                     }
                 }
             )
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
-            for i in item:
-                self.realize(i, slugs=slugs)
+            new_collections = [self.realize(c, slugs=slugs) for c in item.collections]
+            new_products = [self.realize(p, slugs=slugs) for p in item.products]
+
+            item = item.model_copy(
+                update={"collections": new_collections, "products": new_products}
+            )
 
         return item
 
@@ -201,22 +206,26 @@ class Henry:
             name = apply_slugify(item.name) if self.slugify else item.name
             directory /= name
             directory.mkdir(parents=True, exist_ok=True)
-            metadata = item.model_copy()
-            metadata.collections = [
-                self.checkout(child, slugs=slugs, directory=directory).model_copy()
+
+            new_collections = [
+                self.checkout(child, slugs=slugs, directory=directory)
                 for child in item.collections
             ]
-            metadata.products = [
-                self.checkout(product, slugs=slugs, directory=directory).model_copy()
+            new_products = [
+                self.checkout(product, slugs=slugs, directory=directory)
                 for product in item.products
             ]
-            if self.slugify:
-                metadata.name = name
-                for member in metadata:
-                    member.name = apply_slugify(member.name)
+
+            item = item.model_copy(
+                update={
+                    "collections": new_collections,
+                    "products": new_products,
+                    "name": name,
+                }
+            )
 
             with open(directory / "collection.json", "w") as handle:
-                handle.write(metadata.model_dump_json(indent=2, exclude_none=True))
+                handle.write(item.model_dump_json(indent=2, exclude_none=True))
         else:
             # Fall through for local stuff
             return item

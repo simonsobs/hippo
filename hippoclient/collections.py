@@ -18,6 +18,7 @@ from .product import (
     product_add_writer,
     product_remove_reader,
     product_remove_writer,
+    resolve_current_id,
 )
 from .product import uncache as uncache_product
 from .tools import slugify as apply_slugify
@@ -115,7 +116,7 @@ def read(
     return model
 
 
-def _update_permissions(
+def update_permissions(
     client: Client,
     id: str,
     group: str,
@@ -124,6 +125,45 @@ def _update_permissions(
     console: Console | None,
     recursive: bool,
 ) -> str:
+    """
+    Update a collection's readers or writers, optionally including descendants.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the root collection to update.
+    group : str
+        The group to add to or remove from the collection's permissions.
+    action : str
+        The permission change: add_readers, remove_readers, add_writers,
+        or remove_writers.
+    update_product : Callable[..., str]
+        The product permission function corresponding to the action.
+    console : Console | None
+        The Console to use to print to, or None to disable output.
+    recursive : bool
+        Whether to update readable child collections and their products too.
+
+    Returns
+    -------
+    str
+        The ID of the updated root collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+
+    Notes
+    -----
+    Recursive discovery and resolution to distinct current product IDs finish
+    before permissions change. Products are updated before collections.
+    Earlier changes are not rolled back if a later request fails.
+    """
     collection_ids = [str(id)]
     product_ids = set()
 
@@ -139,7 +179,14 @@ def _update_permissions(
                     seen.add(child_id)
                     collection_ids.append(child_id)
 
+    # Resolve every version before removals can revoke access to its history.
+    current_product_ids = set()
     for product_id in sorted(product_ids):
+        if product_id in current_product_ids:
+            continue
+        current_product_ids.add(resolve_current_id(client, product_id))
+
+    for product_id in sorted(current_product_ids):
         update_product(client, product_id, group, console=console)
 
     verb, role = action.split("_")
@@ -169,8 +216,36 @@ def add_reader(
     console: Console | None = None,
     recursive: bool = False,
 ) -> str:
-    """Add a reader; optionally update child collections and their products too."""
-    return _update_permissions(
+    """
+    Add a reader to a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to add to the collection's readers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
         client, id, group, "add_readers", product_add_reader, console, recursive
     )
 
@@ -182,8 +257,36 @@ def remove_reader(
     console: Console | None = None,
     recursive: bool = False,
 ) -> str:
-    """Remove a reader; optionally update child collections and their products too."""
-    return _update_permissions(
+    """
+    Remove a reader from a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to remove from the collection's readers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
         client, id, group, "remove_readers", product_remove_reader, console, recursive
     )
 
@@ -195,8 +298,36 @@ def add_writer(
     console: Console | None = None,
     recursive: bool = False,
 ) -> str:
-    """Add a writer; optionally update child collections and their products too."""
-    return _update_permissions(
+    """
+    Add a writer to a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to add to the collection's writers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
         client, id, group, "add_writers", product_add_writer, console, recursive
     )
 
@@ -208,8 +339,36 @@ def remove_writer(
     console: Console | None = None,
     recursive: bool = False,
 ) -> str:
-    """Remove a writer; optionally update child collections and their products too."""
-    return _update_permissions(
+    """
+    Remove a writer from a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to remove from the collection's writers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
         client, id, group, "remove_writers", product_remove_writer, console, recursive
     )
 

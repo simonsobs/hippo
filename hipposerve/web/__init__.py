@@ -233,6 +233,11 @@ async def collection_view(request: Request, id: PydanticObjectId):
             ),
         }
     )
+    product_counts = await collection.product_counts(
+        collection_instance.parent_collections + collection_instance.child_collections,
+        request.user.groups,
+        request.auth.scopes,
+    )
     parents_overflow_content = get_overflow_content(
         collection_instance.parent_collections, "collection"
     )
@@ -255,6 +260,7 @@ async def collection_view(request: Request, id: PydanticObjectId):
         "collection.html",
         {
             "collection": collection_instance,
+            "product_counts": product_counts,
             "parents_overflow_content": parents_overflow_content,
             "children_overflow_content": children_overflow_content,
             "cmap": cmap,

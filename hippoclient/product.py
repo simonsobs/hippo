@@ -264,6 +264,37 @@ def read_with_versions(
     return model
 
 
+def resolve_current_id(client: Client, id: str) -> str:
+    """
+    Resolve a product version to the current version's ID.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of any version of the product.
+
+    Returns
+    -------
+    str
+        The ID of the product's current version.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If the response does not identify a current version.
+    """
+    response = client.get(f"/product/{id}/tree")
+    response.raise_for_status()
+    model = ReadProductResponse.model_validate_json(response.content)
+    if model.current is None or not model.current_present:
+        raise ValueError(f"No current version found for product {id}")
+    return str(model.versions[model.current].id)
+
+
 def read(client: Client, id: str, console: Console | None = None) -> ProductMetadata:
     """
     Read a product from hippo by ID. Always returns the requested version,

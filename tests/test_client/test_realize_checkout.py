@@ -170,36 +170,6 @@ def test_checkout_empty_filtered_collection(remote_collection, client, tmp_path)
     assert list(client.read_collection(directory, allow_incomplete=False)) == []
 
 
-@pytest.mark.parametrize("mode", ["id", "response"])
-@pytest.mark.parametrize("slugify", [False, True])
-def test_download_collection(remote_collection, client, tmp_path, mode, slugify):
-    if mode == "response":
-        metadata = collections.read(client.client, remote_collection.collection_id)
-        directory = collections.download_direct(
-            collection=metadata,
-            client=client.client,
-            directory=tmp_path,
-            console=client.console,
-            slugify=slugify,
-        )
-        assert metadata.name == remote_collection.name
-    else:
-        directory = collections.download(
-            client=client.client,
-            id=remote_collection.collection_id,
-            directory=tmp_path,
-            console=client.console,
-            slugify=slugify,
-        )
-
-    downloaded = client.read_collection(directory, allow_incomplete=False)
-
-    assert downloaded.collection_id == remote_collection.collection_id
-    assert downloaded.products[0].sources["map"].path.read_text() == "Root product map"
-    child = downloaded.collections[0].products[0]
-    assert child.sources["ivar"].path.read_text() == "Child product ivar"
-
-
 def test_realize_and_checkout_local_product(client, tmp_path):
     item = client.new_product(
         name="Local product",

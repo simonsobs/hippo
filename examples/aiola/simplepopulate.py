@@ -174,6 +174,7 @@ if __name__ == "__main__":
             patch=get_patch(next(iter(maps.values()))),
             frequency="150",
             polarization_convention="IAU",
+            split=get_set(next(iter(maps.values()))),
         )
         primary_map = find_primary_map(maps)
 

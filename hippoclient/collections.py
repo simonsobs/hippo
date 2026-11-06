@@ -332,7 +332,7 @@ def cache(
     paths = []
 
     for product in collection.products:
-        paths += cache_product(client, multi_cache, str(product.id))
+        paths += cache_product(client, multi_cache, str(product.id)).values()
 
     for child in collection.child_collections:
         paths += cache(client, multi_cache, str(child.id))

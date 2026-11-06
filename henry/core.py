@@ -155,12 +155,20 @@ class Henry:
         """
 
         if isinstance(item, RemoteProduct):
-            cache_product(
+            sources = cache_product(
                 client=self.client,
                 cache=self.cache,
                 console=self.console,
                 id=item.product_id,
                 slugs=slugs,
+            )
+
+            item = item.model_copy(
+                update={
+                    "sources": {
+                        slug: LocalSource(path=path) for slug, path in sources.items()
+                    }
+                }
             )
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
             for i in item:
@@ -188,7 +196,7 @@ class Henry:
                 slugs=slugs,
             )
 
-            item.sources = self.read_product(directory=path).sources
+            return self.read_product(directory=path)
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
             name = apply_slugify(item.name) if self.slugify else item.name
             directory /= name

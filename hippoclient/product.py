@@ -488,7 +488,7 @@ def cache(
     id: str,
     console: Console | None = None,
     slugs: list[str] | None = None,
-) -> list[Path]:
+) -> dict[str, Path]:
     """
     Cache a product from hippo.
 
@@ -507,8 +507,8 @@ def cache(
 
     Returns
     -------
-    list[Path]
-        The list of paths to the cached sources.
+    dict[str, Path]
+        The dictionary of slugs to paths to the cached sources.
 
     Raises
     ------
@@ -531,13 +531,13 @@ def cache(
     if console:
         console.print(f"Successfully read product {id}")
 
-    response_paths = []
+    response_paths = {}
 
     for file in post_upload_files.values():
         # See if it's already cached.
         try:
             cached = cache.available(file.uuid)
-            response_paths.append(cached)
+            response_paths[file.slug] = cached
 
             if console:
                 console.print(f"Found cached file {file.name}", style="green")
@@ -558,7 +558,7 @@ def cache(
             presigned_url=file.url,
         )
 
-        response_paths.append(cached)
+        response_paths[file.slug] = cached
 
         if console:
             console.print(f"Cached file {file.name} ({file.uuid})", style="yellow")

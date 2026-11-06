@@ -629,7 +629,7 @@ class FilteredCollection(CollectionInstance):
     collection_id: str | None
     name: str
     description: str
-    products: list[RemoteProduct | LocalProduct] = []
+    products: list[RemoteProduct] = []
     collections: list[CollectionInstance] = []
     owner: str
     readers: list[str] = []

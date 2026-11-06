@@ -160,7 +160,7 @@ class Henry:
                 cache=self.cache,
                 console=self.console,
                 id=item.product_id,
-                slugs=slugs,
+                slugs=[slug for slug in item.sources if slugs is None or slug in slugs],
             )
 
             item = item.model_copy(
@@ -227,7 +227,7 @@ class Henry:
             )
 
             with open(directory / "collection.json", "w") as handle:
-                handle.write(item.model_dump_json(indent=2, exclude_none=True))
+                handle.write(item.model_dump_json(indent=2))
         else:
             # Fall through for local stuff
             return item

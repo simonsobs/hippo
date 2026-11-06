@@ -709,3 +709,18 @@ class FilteredCollection(CollectionInstance):
             readers=getattr(collection, "readers", []),
             writers=getattr(collection, "writers", []),
         )
+
+    def one(self, *, allow_none: bool = False) -> ProductInstance:
+        """
+        Return the one and only product in this filtered collection. If there is
+        not exactly one product, raise an error.
+        """
+
+        if len(self.products) == 1:
+            return self.products[0]
+        elif len(self.products) == 0 and allow_none:
+            return None
+        else:
+            raise ValueError(
+                f"Filtered collection has {len(self.products)} products, expected exactly 1"
+            )

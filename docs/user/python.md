@@ -293,6 +293,27 @@ for slug, source in realized_product.items():
 ```
 which is a local path and can be loaded howver we wish.
 
+Filtering Data
+--------------
+
+Before downloading a large amount of data, you can filter a collection down
+to just the products that you want using the `filter` method. This flattens out
+the internal hierarchy (so if a collection contains collections, we search those too
+and return a flat list of products). You can filter on metadata type, keys, and on the
+available slugs.
+```python
+filtered_collection = collection.filter(metadata_filter={"patch": "D6"})
+```
+If you know there should only be one (or none) results to a query, you can enfore
+this using the `.one` method on a filtered collection, which also returns just the
+product, discarding the collection overhead:
+```python
+filtered_product = filtered_collection.one(allow_none=False)
+```
+which dissallows `None` by default. Given your new filtered collection, you can
+realize all slugs or only a value using the `henry.realize()` method, or check it
+out to a local directory with `henry.checkout()`.
+
 Loading Downloaded Data
 -----------------------
 

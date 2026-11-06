@@ -166,7 +166,9 @@ class Henry:
             item = item.model_copy(
                 update={
                     "sources": {
-                        slug: item.sources[slug].model_copy(update={"path": path})
+                        slug: item.sources[slug].model_copy(
+                            update={"path": path, "cached": True}
+                        )
                         for slug, path in sources.items()
                     }
                 }

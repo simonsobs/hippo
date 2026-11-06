@@ -4,7 +4,7 @@ Tests for realizing and checking out products and collections.
 
 import pytest
 
-from henry.source import LocalSource
+from henry.source import LocalSource, RemoteSource
 from hippoclient import collections, product
 from hippoclient.caching import MultiCache
 from hippometa import MapSet
@@ -52,33 +52,80 @@ def remote_collection(client, cache, tmp_path):
 def test_realize_product(remote_collection, client, slugs):
     item = remote_collection.products[0]
 
-    assert client.realize(item, slugs=slugs) is item
+    realized = client.realize(item, slugs=slugs)
+
+    assert realized is not item
+    assert realized.product_id == item.product_id
+    assert realized.metadata == item.metadata
+    assert realized.version == item.version
+    assert set(realized.sources) == (set(item.sources) if slugs is None else set(slugs))
 
     for slug, source in item.sources.items():
         if slugs is None or slug in slugs:
             path = client.cache.available(source.source_id)
             assert path.read_text() == f"Root product {slug}"
+            realized_source = realized.sources[slug]
+            assert isinstance(realized_source, RemoteSource)
+            assert realized_source.source_id == source.source_id
+            assert realized_source.slug == slug
+            assert realized_source.description == source.description
+            assert realized_source.cached
+            assert realized_source.path == path
         else:
             with pytest.raises(FileNotFoundError):
                 client.cache.available(source.source_id)
+        assert source.path is None
+        assert not source.cached
 
 
 @pytest.mark.parametrize("filtered", [False, True])
-def test_realize_collection(remote_collection, client, filtered):
+@pytest.mark.parametrize("slugs", [None, ["map"], []])
+def test_realize_collection(remote_collection, client, filtered, slugs):
     item = remote_collection
     if filtered:
         item = item.filter(metadata_filter={"telescope": "Child product"})
 
-    assert client.realize(item, slugs=["map"]) is item
+    realized = client.realize(item, slugs=slugs)
 
-    child = remote_collection.collections[0].products[0]
-    assert client.cache.available(child.sources["map"].source_id).exists()
-    root_source = remote_collection.products[0].sources["map"]
+    assert realized is not item
+    assert realized.collection_id == item.collection_id
     if filtered:
-        with pytest.raises(FileNotFoundError):
-            client.cache.available(root_source.source_id)
+        assert realized.collections == []
+        realized_products = realized.products
     else:
-        assert client.cache.available(root_source.source_id).exists()
+        assert len(realized.collections) == 1
+        assert realized.collections[0] is not item.collections[0]
+        realized_products = realized.products + realized.collections[0].products
+
+    originals = remote_collection.products + remote_collection.collections[0].products
+    originals_by_id = {p.product_id: p for p in originals}
+    assert {p.product_id for p in realized_products} == (
+        {originals[1].product_id} if filtered else set(originals_by_id)
+    )
+    for realized_product in realized_products:
+        original = originals_by_id[realized_product.product_id]
+        assert realized_product is not original
+        assert set(realized_product.sources) == (
+            set(original.sources) if slugs is None else set(slugs)
+        )
+        for slug, source in realized_product.sources.items():
+            assert isinstance(source, RemoteSource)
+            assert source.source_id == original.sources[slug].source_id
+            assert source.cached
+            assert source.path == client.cache.available(source.source_id)
+            assert source.path.read_text() == f"{original.name} {slug}"
+
+    for original in originals:
+        for slug, source in original.sources.items():
+            assert source.path is None
+            assert not source.cached
+            if (not filtered or original is originals[1]) and (
+                slugs is None or slug in slugs
+            ):
+                assert client.cache.available(source.source_id).exists()
+            else:
+                with pytest.raises(FileNotFoundError):
+                    client.cache.available(source.source_id)
 
 
 @pytest.mark.parametrize("slugs", [None, ["map"], []])
@@ -104,27 +151,40 @@ def test_checkout_product(remote_collection, client, tmp_path, slugs):
 
 
 @pytest.mark.parametrize("slugify", [False, True])
-@pytest.mark.parametrize("slugs", [None, ["map"]])
+@pytest.mark.parametrize("slugs", [None, ["map"], []])
 def test_checkout_collection(remote_collection, client, tmp_path, slugify, slugs):
     client.slugify = slugify
     directory = tmp_path / "checkout"
 
-    assert (
-        client.checkout(remote_collection, directory=directory, slugs=slugs)
-        is remote_collection
-    )
+    checked_out = client.checkout(remote_collection, directory=directory, slugs=slugs)
+
+    assert checked_out is not remote_collection
+    assert checked_out.collection_id == remote_collection.collection_id
+    assert checked_out.collections[0] is not remote_collection.collections[0]
 
     directory /= "root-collection" if slugify else "Root collection"
     root_name = "root-product" if slugify else "Root product"
     child_name = "child-collection" if slugify else "Child collection"
     product_name = "child-product" if slugify else "Child product"
-    root = remote_collection.products[0]
-    child = remote_collection.collections[0].products[0]
+    root = checked_out.products[0]
+    child = checked_out.collections[0].products[0]
     assert root.sources["map"].path.parent.parent == directory / root_name
     assert (
         child.sources["map"].path.parent.parent == directory / child_name / product_name
     )
-    assert child.sources["map"].path.read_text() == "Child product map"
+    for checked_product, original in [
+        (root, remote_collection.products[0]),
+        (child, remote_collection.collections[0].products[0]),
+    ]:
+        assert checked_product is not original
+        assert checked_product.product_id == original.product_id
+        for slug, source in checked_product.sources.items():
+            selected = slugs is None or slug in slugs
+            assert source.cached == selected
+            assert source.path.exists() == selected
+            if selected:
+                assert source.path.read_text() == f"{original.name} {slug}"
+            assert original.sources[slug].path is None
 
     downloaded = client.read_collection(directory, allow_incomplete=slugs is not None)
     assert downloaded.collection_id == remote_collection.collection_id
@@ -143,7 +203,11 @@ def test_checkout_filtered_collection(remote_collection, client, tmp_path, slugi
     filtered = remote_collection.filter(metadata_filter={"telescope": "Child product"})
     directory = tmp_path / "checkout"
 
-    assert client.checkout(filtered, directory=directory, slugs=["map"]) is filtered
+    checked_out = client.checkout(filtered, directory=directory, slugs=["map"])
+
+    assert checked_out is not filtered
+    assert checked_out.collection_id == filtered.collection_id
+    assert checked_out.collections == []
 
     directory /= "root-collection" if slugify else "Root collection"
     product_name = "child-product" if slugify else "Child product"
@@ -151,8 +215,12 @@ def test_checkout_filtered_collection(remote_collection, client, tmp_path, slugi
         product_name,
         "collection.json",
     }
-    assert filtered[0].sources["map"].path.read_text() == "Child product map"
-    assert not filtered[0].sources["ivar"].path.exists()
+    assert checked_out[0] is not filtered[0]
+    assert checked_out[0].sources["map"].cached
+    assert checked_out[0].sources["map"].path.read_text() == "Child product map"
+    assert not checked_out[0].sources["ivar"].cached
+    assert not checked_out[0].sources["ivar"].path.exists()
+    assert all(source.path is None for source in filtered[0].sources.values())
 
     downloaded = client.read_collection(directory)
     assert downloaded.collection_id == filtered.collection_id
@@ -163,7 +231,11 @@ def test_checkout_filtered_collection(remote_collection, client, tmp_path, slugi
 def test_checkout_empty_filtered_collection(remote_collection, client, tmp_path):
     filtered = remote_collection.filter(required_slugs="missing")
 
-    assert client.checkout(filtered, directory=tmp_path) is filtered
+    checked_out = client.checkout(filtered, directory=tmp_path)
+
+    assert checked_out is not filtered
+    assert checked_out.collection_id == filtered.collection_id
+    assert list(checked_out) == []
 
     directory = tmp_path / "Root collection"
     assert {path.name for path in directory.iterdir()} == {"collection.json"}

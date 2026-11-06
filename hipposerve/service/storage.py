@@ -32,7 +32,7 @@ async def create(
 ) -> tuple[File, str]:
     # All uploads are now multipart.
     multipart = True
-    number_of_parts = int(ceil(size / multipart_size))
+    number_of_parts = ceil(size / multipart_size)
     uuid = UUID()
 
     upload_id, put = await asyncify(storage.put)(
@@ -86,8 +86,6 @@ async def complete(
         sizes=sizes,
     )
 
-    return
-
 
 async def confirm(file: File, storage: Storage) -> bool:
     return await asyncify(storage.confirm)(
@@ -111,4 +109,3 @@ async def delete(
     await asyncify(storage.delete)(
         name=file.name, uploader=file.uploader, uuid=file.uuid, bucket=file.bucket
     )
-    return

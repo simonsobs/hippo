@@ -1,14 +1,16 @@
+from collections.abc import Iterable
 from itertools import chain
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from rich.console import Console
 
-from henry.product import ProductInstance, RemoteProduct
+from henry.product import LocalProduct, ProductInstance, RemoteProduct
 from hippoclient import collections, relationships
 from hippoclient.caching import MultiCache
+from hippometa.base import BaseMetadata
 from hipposerve.api.models.relationships import ReadCollectionResponse
 
 from .exceptions import (
@@ -31,7 +33,24 @@ class CollectionInstance(BaseModel):
     ) -> str:
         raise NotImplementedError
 
-    pass
+    def filter(
+        self,
+        *,
+        metadata_type: type[BaseMetadata] | None = None,
+        required_slugs: list[str] | str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> "FilteredCollection":
+        """
+        Filter this collection to only include products that match the given
+        filter. This will recurse through child collections as well.
+        """
+
+        return FilteredCollection.from_collection(
+            collection=self,
+            metadata_type=metadata_type,
+            required_slugs=required_slugs,
+            metadata_filter=metadata_filter,
+        )
 
 
 class LocalCollection(CollectionInstance):
@@ -233,8 +252,8 @@ class RemoteCollection(CollectionInstance):
     collection_id: str
     name: str
     description: str
-    products: list[ProductInstance] = []
-    collections: list[CollectionInstance] = []
+    products: list[RemoteProduct | LocalProduct] = []
+    collections: list["RemoteCollection | LocalCollection"] = []
     owner: str
     readers: list[str] = []
     writers: list[str] = []
@@ -315,7 +334,20 @@ class RemoteCollection(CollectionInstance):
         directory = Path(directory)
 
         with open(directory / "collection.json", "r") as handle:
-            core_metadata = ReadCollectionResponse.model_validate_json(handle.read())
+            data = handle.read()
+
+        try:
+            core_metadata = ReadCollectionResponse.model_validate_json(data)
+            collection_id = str(core_metadata.id)
+            child_collections = core_metadata.child_collections
+            original_product_ids = {str(p.id) for p in core_metadata.products}
+            original_collection_ids = {str(c.id) for c in child_collections}
+        except ValidationError:
+            core_metadata = cls.model_validate_json(data)
+            collection_id = str(core_metadata.collection_id)
+            child_collections = core_metadata.collections
+            original_product_ids = core_metadata.original_product_ids
+            original_collection_ids = core_metadata.original_collection_ids
 
         products = []
 
@@ -340,7 +372,7 @@ class RemoteCollection(CollectionInstance):
 
         collections = []
 
-        for collection in core_metadata.child_collections:
+        for collection in child_collections:
             try:
                 collections.append(
                     RemoteCollection.read(
@@ -353,12 +385,12 @@ class RemoteCollection(CollectionInstance):
                         f"Child collection {collection.name} not found, consider "
                         "re-downloading or setting allow_incomplete=True"
                     )
-            except CollectionIncompleteError as e:
+            except CollectionIncompleteError:
                 if not allow_incomplete:
-                    raise e
+                    raise
 
         return cls(
-            collection_id=str(core_metadata.id),
+            collection_id=collection_id,
             name=core_metadata.name,
             description=core_metadata.description,
             products=products,
@@ -368,10 +400,8 @@ class RemoteCollection(CollectionInstance):
             writers=core_metadata.writers,
             original_name=core_metadata.name,
             original_description=core_metadata.description,
-            original_product_ids={str(p.id) for p in core_metadata.products},
-            original_collection_ids={
-                str(c.id) for c in core_metadata.child_collections
-            },
+            original_product_ids=original_product_ids,
+            original_collection_ids=original_collection_ids,
         )
 
     def __get_global_index(self, key: int, /) -> tuple[str, int]:
@@ -545,3 +575,210 @@ class RemoteCollection(CollectionInstance):
             )
 
         return self.collection_id
+
+
+def accumulate(
+    collection: CollectionInstance,
+    products: list[ProductInstance],
+    metadata_type: type[BaseMetadata] | None = None,
+    required_slugs: list[str] | None = None,
+    metadata_filter: dict[str, Any] | None = None,
+):
+    """
+    Accumulate products that match the filter recursively through the
+    collection and its child collections.
+    """
+
+    for c in collection.collections:
+        accumulate(
+            collection=c,
+            products=products,
+            metadata_type=metadata_type,
+            required_slugs=required_slugs,
+            metadata_filter=metadata_filter,
+        )
+
+    for p in collection.products:
+        dumped_metadata = p.metadata.model_dump() if p.metadata is not None else {}
+
+        if metadata_type is not None and not isinstance(p.metadata, metadata_type):
+            continue
+
+        if required_slugs is not None and not all(
+            slug in p.sources for slug in required_slugs
+        ):
+            continue
+
+        if metadata_filter is not None and not all(
+            k in dumped_metadata and dumped_metadata[k] == v
+            for k, v in metadata_filter.items()
+        ):
+            continue
+
+        products.append(p)
+
+
+class FilteredCollection(CollectionInstance):
+    """
+    A filtered collection, containing only products that match a certain
+    filter. Retains the collection ID of the _main_ collection that was filtered,
+    but includes products from child collections. The collection interface supports
+    reading and further filtering. Products are shared with the original collection.
+    """
+
+    collection_id: str | None
+    name: str
+    description: str
+    products: list[RemoteProduct | LocalProduct] = []
+    collections: list[CollectionInstance] = []
+    owner: str
+    readers: list[str] = []
+    writers: list[str] = []
+
+    def __get_global_index(self, key: int, /) -> tuple[str, int]:
+        if key < 0:
+            key += len(self)
+        if key < 0 or key >= len(self):
+            raise IndexError(f"Index {key} invalid for object of size {len(self)}")
+        if key < len(self.products):
+            return "p", key
+        elif key < self.__len__():
+            return "c", key - len(self.products)
+        else:
+            raise IndexError(f"Index {key} invalid for object of size {self.__len__()}")
+
+    def __repr__(self):
+        return (
+            f"FilteredCollection(name='{self.name}', description='{self.description}', "
+            f"products=[{', '.join([x.__repr__() for x in self.products])}])"
+        )
+
+    def __str__(self):
+        return f"Filtered collection from {self.name} ({self.description}) with {len(self.products)} products"
+
+    def __len__(self) -> int:
+        return len(self.products) + len(self.collections)
+
+    def __getitem__(self, key: int, /) -> CollectionInstance | ProductInstance:
+        arr, index = self.__get_global_index(key)
+        if arr == "p":
+            return self.products[index]
+        else:
+            return self.collections[index]
+
+    def __iter__(self):
+        return chain(self.products, self.collections)
+
+    def __reversed__(self) -> Iterable[ProductInstance | CollectionInstance]:
+        return chain(self.collections.__reversed__(), self.products.__reversed__())
+
+    def __contains__(self, item: CollectionInstance | ProductInstance, /):
+        match item:
+            case CollectionInstance():
+                return self.collections.__contains__(item)
+            case ProductInstance():
+                return self.products.__contains__(item)
+            case _:
+                raise TypeError(
+                    f"Only collections or products are members of collections, found {type(item)}"
+                )
+
+    @classmethod
+    def read(
+        cls, directory: Path | str, allow_incomplete: bool
+    ) -> "FilteredCollection":
+        """
+        Read a collection that was serialized to disk, usualyl after using the
+        `henry.checkout()` function.
+        """
+        directory = Path(directory)
+
+        with open(directory / "collection.json", "r") as handle:
+            core_metadata = FilteredCollection.model_validate_json(handle.read())
+
+        products = []
+
+        for product in core_metadata.products:
+            try:
+                products.append(
+                    RemoteProduct.read(
+                        directory / product.name, allow_incomplete=allow_incomplete
+                    )
+                )
+            except FileNotFoundError:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Product {product.name} not found, consider re-downloading "
+                        "or setting allow_incomplete=True"
+                    )
+            except ProductIncompleteError as e:
+                if not allow_incomplete:
+                    raise CollectionIncompleteError(
+                        f"Collection not complete due to error reading {product.name}: {e}"
+                    )
+
+        collections = []
+
+        return cls(
+            collection_id=core_metadata.collection_id,
+            name=core_metadata.name,
+            description=core_metadata.description,
+            products=products,
+            owner=core_metadata.owner,
+            collections=collections,
+            readers=core_metadata.readers,
+            writers=core_metadata.writers,
+        )
+
+    @classmethod
+    def from_collection(
+        cls,
+        collection: CollectionInstance,
+        *,
+        metadata_type: type[BaseMetadata] | None = None,
+        required_slugs: list[str] | str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ):
+        """
+        Create a filtered collection from an existing collection, iterating to find all
+        products that match the various filters.
+        """
+
+        products: list[ProductInstance] = []
+        required_slugs = (
+            [required_slugs] if isinstance(required_slugs, str) else required_slugs
+        )
+
+        accumulate(
+            collection=collection,
+            products=products,
+            metadata_type=metadata_type,
+            required_slugs=required_slugs,
+            metadata_filter=metadata_filter,
+        )
+
+        return cls(
+            collection_id=collection.collection_id,
+            name=collection.name,
+            description=collection.description,
+            products=products,
+            collections=[],
+            owner=getattr(collection, "owner", ""),
+            readers=getattr(collection, "readers", []),
+            writers=getattr(collection, "writers", []),
+        )
+
+    def one(self, *, allow_none: bool = False) -> ProductInstance:
+        """
+        Return the one and only product in this filtered collection. If there is
+        not exactly one product, raise an error.
+        """
+
+        if len(self.products) == 1:
+            return self.products[0]
+        elif len(self.products) == 0 and allow_none:
+            return None
+        else:
+            raise ValueError(
+                f"Filtered collection has {len(self.products)} products, expected exactly 1"
+            )

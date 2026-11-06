@@ -264,6 +264,37 @@ def read_with_versions(
     return model
 
 
+def resolve_current_id(client: Client, id: str) -> str:
+    """
+    Resolve a product version to the current version's ID.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of any version of the product.
+
+    Returns
+    -------
+    str
+        The ID of the product's current version.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If the response does not identify a current version.
+    """
+    response = client.get(f"/product/{id}/tree")
+    response.raise_for_status()
+    model = ReadProductResponse.model_validate_json(response.content)
+    if model.current is None or not model.current_present:
+        raise ValueError(f"No current version found for product {id}")
+    return str(model.versions[model.current].id)
+
+
 def read(client: Client, id: str, console: Console | None = None) -> ProductMetadata:
     """
     Read a product from hippo by ID. Always returns the requested version,
@@ -361,7 +392,7 @@ def update(
 
     new_source_metadata = {}
 
-    for slug in (new_sources or {}).keys():
+    for slug in new_sources or {}:
         filename = new_sources[slug]
         desc = new_source_descriptions[slug]
 
@@ -371,7 +402,7 @@ def update(
             console.print("Successfully validated file:", new_source_metadata[slug])
 
     replace_source_metadata = {}
-    for slug in (replace_sources or {}).keys():
+    for slug in replace_sources or {}:
         filename = replace_sources[slug]
         desc = replace_source_descriptions[slug]
 
@@ -483,8 +514,12 @@ def search(
 
 
 def cache(
-    client: Client, cache: MultiCache, id: str, console: Console | None = None
-) -> list[Path]:
+    client: Client,
+    cache: MultiCache,
+    id: str,
+    console: Console | None = None,
+    slugs: list[str] | None = None,
+) -> dict[str, Path]:
     """
     Cache a product from hippo.
 
@@ -496,13 +531,15 @@ def cache(
         The cache to use for storing the product.
     id : str
         The ID of the product to cache.
+    slugs: list[str] | None, optional
+        A list of slugs to cache. If None, all slugs will be cached.
     console : Console, optional
         The rich console to print to.
 
     Returns
     -------
-    list[Path]
-        The list of paths to the cached sources.
+    dict[str, Path]
+        The dictionary of slugs to paths to the cached sources.
 
     Raises
     ------
@@ -517,19 +554,21 @@ def cache(
     response.raise_for_status()
 
     post_upload_files = {
-        x: PostUploadFile.model_validate(y) for x, y in response.json()["files"].items()
+        x: PostUploadFile.model_validate(y)
+        for x, y in response.json()["files"].items()
+        if (slugs is None or x in slugs)
     }
 
     if console:
         console.print(f"Successfully read product {id}")
 
-    response_paths = []
+    response_paths = {}
 
     for file in post_upload_files.values():
         # See if it's already cached.
         try:
             cached = cache.available(file.uuid)
-            response_paths.append(cached)
+            response_paths[file.slug] = cached
 
             if console:
                 console.print(f"Found cached file {file.name}", style="green")
@@ -550,7 +589,7 @@ def cache(
             presigned_url=file.url,
         )
 
-        response_paths.append(cached)
+        response_paths[file.slug] = cached
 
         if console:
             console.print(f"Cached file {file.name} ({file.uuid})", style="yellow")
@@ -637,7 +676,7 @@ def download(
             console.print(f"Successfully wrote metadata for product {metadata.name}")
 
     for source_slug, source_data in post_upload_files.items():
-        if slugs and source_slug not in slugs:
+        if slugs is not None and source_slug not in slugs:
             continue
 
         slug_directory = product_directory / source_slug
@@ -645,11 +684,13 @@ def download(
         slug_path = slug_directory / source_data.name
 
         # Check if it's already there and if it matches our checksum
-        if slug_path.exists():
-            if file_info(slug_path)["checksum"] == source_data.checksum:
-                if console:
-                    console.print(f"Valid {source_slug} already exists at {slug_path}")
-                continue
+        if (
+            slug_path.exists()
+            and file_info(slug_path)["checksum"] == source_data.checksum
+        ):
+            if console:
+                console.print(f"Valid {source_slug} already exists at {slug_path}")
+            continue
 
         downloader(
             presigned_url=source_data.url,
@@ -688,8 +729,6 @@ def uncache(
 
         if console:
             console.print(f"Removed file {source.name} ({source.uuid}) from cache")
-
-    return
 
 
 def product_add_reader(

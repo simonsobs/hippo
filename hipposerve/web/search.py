@@ -53,9 +53,9 @@ async def search_results_view(
     )
 
     return templates.TemplateResponse(
+        request,
         "search_results.html",
         {
-            "request": request,
             "query": q,
             "filter": filter,
             "results": results,
@@ -72,8 +72,8 @@ async def searchmetadata_results_view(
     q: str | None = None,
     filter_on: str = "products",
 ):
-    query_params = {nh3.clean(x): nh3.clean(y) for x, y in request.query_params}
-    q = nh3.clean(q)
+    query_params = {nh3.clean(x): nh3.clean(y) for x, y in request.query_params.items()}
+    q = nh3.clean(q) if q is not None else None
     filter_on = nh3.clean(filter_on)
 
     # Determine which metadata_class we're searching on so we can get the fields;
@@ -81,7 +81,7 @@ async def searchmetadata_results_view(
     metadata_class = next(
         v
         for v in ALL_METADATA.values()
-        if v.schema()["title"] == query_params["metadata_type"]
+        if v.model_json_schema()["title"] == query_params["metadata_type"]
     )
     metadata_fields = metadata_class.model_json_schema()["properties"]
 
@@ -94,7 +94,7 @@ async def searchmetadata_results_view(
             continue
 
         if "anyOf" in field_data:
-            true_type = [x for x in field_data["anyOf"] if x["type"] != "null"][0]
+            true_type = next(x for x in field_data["anyOf"] if x["type"] != "null")
             field_data = {**field_data, **true_type}
             field_data.pop("anyOf")
 
@@ -104,7 +104,7 @@ async def searchmetadata_results_view(
     metadata_filters = {}
 
     for key, value in query_params.items():
-        if key == "metadata_type":
+        if key in {"metadata_type", "q", "filter_on"}:
             continue
 
         field = simplified_metadata_fields[key]
@@ -144,9 +144,9 @@ async def searchmetadata_results_view(
     )
 
     return templates.TemplateResponse(
+        request,
         "search_results.html",
         {
-            "request": request,
             "query": q,
             "filter": filter_on,
             "results": results,
@@ -185,7 +185,7 @@ async def search_metadata_view(
 
             if "anyOf" in field_data:
                 # This occurs when we have x | None, extract x and stick it in the field_data
-                true_type = [x for x in field_data["anyOf"] if x["type"] != "null"][0]
+                true_type = next(x for x in field_data["anyOf"] if x["type"] != "null")
                 field_data = {**field_data, **true_type}
                 field_data.pop("anyOf")
 
@@ -225,9 +225,9 @@ async def search_metadata_view(
     )
 
     return templates.TemplateResponse(
+        request,
         "search_metadata.html",
         {
-            "request": request,
             "metadata": metadata_info,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,

@@ -21,18 +21,17 @@ def parent_child_collection_generator(
 
         parent.append(child)
 
-        if generate_grandchildren:
-            # randomly generate grandchildren at a 50% rate per collection
-            if random.randint(0, 1) == 0:
-                # randomly generate a number of grandchildren between 1 and 3
-                num_grandchildren = random.randint(1, 3)
-                for ng in range(num_grandchildren):
-                    child.append(
-                        henry.new_collection(
-                            name=f"Grandchild {ng + 1} of Child {n}",
-                            description=f"This is grandchild {ng + 1} of {parent.name}",
-                        )
+        # randomly generate grandchildren at a 50% rate per collection
+        if generate_grandchildren and random.randint(0, 1) == 0:
+            # randomly generate a number of grandchildren between 1 and 3
+            num_grandchildren = random.randint(1, 3)
+            for ng in range(num_grandchildren):
+                child.append(
+                    henry.new_collection(
+                        name=f"Grandchild {ng + 1} of Child {n}",
+                        description=f"This is grandchild {ng + 1} of {parent.name}",
                     )
+                )
 
     return child
 

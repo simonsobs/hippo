@@ -29,7 +29,7 @@ services:
     - 9000:9000
     volumes:
     - ./data:/data
-    image: minio/minio:latest
+    image: pgsty/minio:latest
     environment:
       MINIO_ROOT_USER: "minio"
       MINIO_ROOT_PASSWORD: "minio"

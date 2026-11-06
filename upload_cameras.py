@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from henry import Henry
@@ -21,7 +21,7 @@ product = client.new_product(
     name=f"Security Cameras ({dt})",
     description="Security camera timelapses",
     sources=sources,
-    metadata=CameraMetadata(date=datetime.now(timezone.utc)),
+    metadata=CameraMetadata(date=datetime.now(UTC)),
 )
 
 client.push(product)

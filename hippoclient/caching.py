@@ -91,7 +91,7 @@ class Cache(BaseModel):
     _database: Path = PrivateAttr()
     _connection: sqlite3.Connection = PrivateAttr()
 
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         self._database = self.path / self.database_name
         self._connection = self._initialize_database()
 
@@ -245,7 +245,7 @@ class Cache(BaseModel):
             )
 
             self._mark_available(id)
-        except BaseException as e:
+        except BaseException:
             # Atomic! Not super threadsafe but this is sqlite anyway. Usually when someone kills this
             # with a KeyboardInterrupt -- we don't wanna leave dangling db items. We could probably handle
             # this with an actual transaction...
@@ -256,7 +256,7 @@ class Cache(BaseModel):
                 os.remove(destination_path)
             except FileNotFoundError:
                 pass
-            raise e
+            raise
 
         return destination_path
 

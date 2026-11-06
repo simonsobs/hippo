@@ -16,7 +16,7 @@ from hipposerve.api.models.relationships import (
     UpdateCollectionRequest,
 )
 from hipposerve.service import acl, collection, product
-from hipposerve.service.auth import requires
+from hipposerve.service.auth import AuthenticationError, requires
 
 relationship_router = APIRouter(prefix="/relationships")
 
@@ -52,7 +52,6 @@ async def create_collection(
 
 
 @relationship_router.get("/collection/{id}")
-@requires(["hippo:admin", "hippo:read"])
 async def read_collection(
     id: PydanticObjectId,
     request: Request,
@@ -100,7 +99,9 @@ async def read_collection(
                 readers=x.readers,
                 writers=x.writers,
             )
-            for x in item.child_collections
+            for x in acl.filter_readable(
+                item.child_collections, request.user.groups, request.auth.scopes
+            )
         ],
         parent_collections=[
             ReadCollectionCollectionResponse(
@@ -111,13 +112,14 @@ async def read_collection(
                 readers=x.readers,
                 writers=x.writers,
             )
-            for x in item.parent_collections
+            for x in acl.filter_readable(
+                item.parent_collections, request.user.groups, request.auth.scopes
+            )
         ],
     )
 
 
 @relationship_router.get("/collection/search/{name}")
-@requires(["hippo:admin", "hippo:read"])
 async def search_collection(
     name: str,
     request: Request,
@@ -151,7 +153,6 @@ async def search_collection(
             owner=item.owner,
             readers=item.readers,
             writers=item.writers,
-            products=None,
         )
         for item in results
     ]
@@ -400,6 +401,8 @@ async def delete_collection(
             id=id, groups=request.user.groups, scopes=request.auth.scopes
         )
 
+        acl.check_write_access(request.user.groups, coll, scopes=request.auth.scopes)
+
         if coll.parent_collections:
             for parent in coll.parent_collections:
                 await collection.remove_child(
@@ -418,6 +421,12 @@ async def delete_collection(
     except collection.CollectionNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found."
+        )
+
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have write access to this collection",
         )
 
 

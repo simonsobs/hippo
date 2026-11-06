@@ -2,6 +2,7 @@
 Methods for interacting with the collections layer of the hippo API
 """
 
+from collections.abc import Callable
 from pathlib import Path
 
 from httpx import Client
@@ -12,6 +13,13 @@ from hipposerve.api.models.relationships import ReadCollectionResponse
 from .core import MultiCache
 from .product import cache as cache_product
 from .product import download as download_product
+from .product import (
+    product_add_reader,
+    product_add_writer,
+    product_remove_reader,
+    product_remove_writer,
+    resolve_current_id,
+)
 from .product import uncache as uncache_product
 from .tools import slugify as apply_slugify
 
@@ -108,56 +116,261 @@ def read(
     return model
 
 
-def add_reader(
-    client: Client, id: str, group: str, console: Console | None = None
+def update_permissions(
+    client: Client,
+    id: str,
+    group: str,
+    action: str,
+    update_product: Callable[..., str],
+    console: Console | None,
+    recursive: bool,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"add_readers": [group]}
+    """
+    Update a collection's readers or writers, optionally including descendants.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the root collection to update.
+    group : str
+        The group to add to or remove from the collection's permissions.
+    action : str
+        The permission change: add_readers, remove_readers, add_writers,
+        or remove_writers.
+    update_product : Callable[..., str]
+        The product permission function corresponding to the action.
+    console : Console | None
+        The Console to use to print to, or None to disable output.
+    recursive : bool
+        Whether to update readable child collections and their products too.
+
+    Returns
+    -------
+    str
+        The ID of the updated root collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+
+    Notes
+    -----
+    Recursive discovery and resolution to distinct current product IDs finish
+    before permissions change. Products are updated before collections.
+    Earlier changes are not rolled back if a later request fails.
+    """
+    collection_ids = [str(id)]
+    product_ids = set()
+
+    if recursive:
+        # Discover the hierarchy before a removal can revoke read access.
+        seen = {str(id)}
+        for collection_id in collection_ids:
+            collection = read(client, collection_id)
+            product_ids.update(str(product.id) for product in collection.products)
+            for child in collection.child_collections:
+                child_id = str(child.id)
+                if child_id not in seen:
+                    seen.add(child_id)
+                    collection_ids.append(child_id)
+
+    # Resolve every version before removals can revoke access to its history.
+    current_product_ids = set()
+    for product_id in sorted(product_ids):
+        if product_id in current_product_ids:
+            continue
+        current_product_ids.add(resolve_current_id(client, product_id))
+
+    for product_id in sorted(current_product_ids):
+        update_product(client, product_id, group, console=console)
+
+    verb, role = action.split("_")
+    updated_id = str(id)
+    for collection_id in collection_ids:
+        response = client.post(
+            f"/relationships/collection/{collection_id}", json={action: [group]}
+        )
+        response.raise_for_status()
+        if collection_id == str(id):
+            updated_id = response.json()
+        if console:
+            operation = "added" if verb == "add" else "removed"
+            preposition = "to" if verb == "add" else "from"
+            console.print(
+                f"Successfully {operation} {group} {preposition} "
+                f"collection {collection_id} {role}."
+            )
+
+    return updated_id
+
+
+def add_reader(
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
+) -> str:
+    """
+    Add a reader to a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to add to the collection's readers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
+        client, id, group, "add_readers", product_add_reader, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully added {group} to collection {id} readers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def remove_reader(
-    client: Client, id: str, group: str, console: Console | None = None
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"remove_readers": [group]}
+    """
+    Remove a reader from a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to remove from the collection's readers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
+        client, id, group, "remove_readers", product_remove_reader, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully removed {group} from collection {id} readers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def add_writer(
-    client: Client, id: str, group: str, console: Console | None = None
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"add_writers": [group]}
+    """
+    Add a writer to a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to add to the collection's writers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
+        client, id, group, "add_writers", product_add_writer, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully added {group} to collection {id} writers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def remove_writer(
-    client: Client, id: str, group: str, console: Console | None = None
+    client: Client,
+    id: str,
+    group: str,
+    console: Console | None = None,
+    recursive: bool = False,
 ) -> str:
-    response = client.post(
-        f"/relationships/collection/{id}", json={"remove_writers": [group]}
+    """
+    Remove a writer from a collection.
+
+    Arguments
+    ---------
+    client : Client
+        The client to use for interacting with the hippo API.
+    id : str
+        The ID of the collection to update.
+    group : str
+        The group to remove from the collection's writers.
+    console : Console, optional
+        The Console to use to print to.
+    recursive : bool, optional
+        Whether to update readable child collections and their products too.
+        Defaults to False.
+
+    Returns
+    -------
+    str
+        The ID of the updated collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails.
+    ValueError
+        If a product has no current version during recursive discovery.
+    """
+    return update_permissions(
+        client, id, group, "remove_writers", product_remove_writer, console, recursive
     )
-    response.raise_for_status()
-    if console:
-        console.print(f"Successfully removed {group} from collection {id} writers.")
-    this_collection_id = response.json()
-    return this_collection_id
 
 
 def search(
@@ -332,12 +545,105 @@ def cache(
     paths = []
 
     for product in collection.products:
-        paths += cache_product(client, multi_cache, str(product.id))
+        paths += cache_product(client, multi_cache, str(product.id)).values()
 
     for child in collection.child_collections:
         paths += cache(client, multi_cache, str(child.id))
 
     return paths
+
+
+def download_direct(
+    collection: ReadCollectionResponse,
+    client: Client,
+    directory: Path,
+    console: Console | None = None,
+    slugify: bool = False,
+    slugs: list[str] | None = None,
+) -> Path:
+    """
+    Download a collection from HIPPO onto the local filesystem, storing the data
+    in the provided 'directory'. Data is stored as follows:
+
+    directory/Collection Name
+      collection.json < Metadata for this collection
+      Product Name/
+        ... < See product.download
+      Child Collection/
+        collection.json
+        Product Name/
+          ... < See product.download
+
+    Inside the provided directory, we create a new directory with the collection name.
+    In there we store each product and child collection recursively, and store
+    the metadata for the collection as `collection.json`.
+
+    Arguments
+    ---------
+    client: Client
+        The client to use for interacting with the hippo API
+    collection: ReadCollectionResponse
+        The API response describing the collection to download.
+    directory: Path
+        The directory to download the collection into.
+    console : Console, optional
+        The rich console to print to.
+    slugify : bool, optional
+        Whether to convert names to valid 'slugs'.
+    slugs : list[str], optional
+        Only download specific source slugs. None downloads all sources.
+
+    Returns
+    -------
+    Path
+        The path to the cached collection.
+
+    Raises
+    ------
+    httpx.HTTPStatusError
+        If a request to the API fails
+    FileNotFoundError
+        If the directory does not exist or is not a directory.
+    """
+
+    metadata = collection.model_copy(deep=True)
+
+    if slugify:
+        metadata.name = apply_slugify(metadata.name)
+
+    collection_directory = directory / metadata.name
+
+    collection_directory.mkdir(exist_ok=True, parents=False)
+
+    for product in metadata.products:
+        product_directory = download_product(
+            client=client,
+            id=product.id,
+            directory=collection_directory,
+            console=console,
+            slugify=slugify,
+            slugs=slugs,
+        )
+        product.name = product_directory.name
+
+    for child_metadata in metadata.child_collections:
+        child_directory = download_direct(
+            collection=read(client, child_metadata.id),
+            client=client,
+            directory=collection_directory,
+            console=console,
+            slugify=slugify,
+            slugs=slugs,
+        )
+        child_metadata.name = child_directory.name
+
+    with open(collection_directory / "collection.json", "w") as handle:
+        handle.write(metadata.model_dump_json(indent=2))
+
+    if console:
+        console.print(f"Successfully wrote metadata for collection {metadata.name}")
+
+    return collection_directory
 
 
 def download(
@@ -392,38 +698,13 @@ def download(
 
     collection = read(client, id)
 
-    if slugify:
-        collection.name = apply_slugify(collection.name)
-
-    collection_directory = directory / collection.name
-
-    collection_directory.mkdir(exist_ok=True, parents=False)
-
-    with open(collection_directory / "collection.json", "w") as handle:
-        handle.write(collection.model_dump_json(indent=2))
-
-        if console:
-            console.print(
-                f"Successfully wrote metadata for collection {collection.name}"
-            )
-
-    for product in collection.products:
-        download_product(
-            client=client,
-            id=product.id,
-            directory=collection_directory,
-            console=console,
-            slugify=slugify,
-        )
-
-    for child in collection.child_collections:
-        download(
-            client=client,
-            id=child.id,
-            directory=collection_directory,
-            console=console,
-            slugify=slugify,
-        )
+    collection_directory = download_direct(
+        collection=collection,
+        client=client,
+        directory=directory,
+        console=console,
+        slugify=slugify,
+    )
 
     return collection_directory
 

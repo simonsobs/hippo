@@ -1,3 +1,5 @@
+import asyncio
+
 """
 The goal of this testing module is simple: just test the
 services in isolation, and do not interact at all with the
@@ -96,7 +98,9 @@ async def created_full_product(database, storage, created_user):
         for file_name, put in file_puts.items():
             # Must go back to the start or we write 0 bytes!
             f.seek(0)
-            headers[file_name] = [requests.put(put[0], f).headers]
+            headers[file_name] = [
+                (await asyncio.to_thread(requests.put, put[0], f)).headers
+            ]
             sizes[file_name] = [len(FILE_CONTENTS)]
 
     await product.complete(

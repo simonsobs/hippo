@@ -43,7 +43,7 @@ class Storage(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def model_post_init(self, __context):
+    def model_post_init(self, context, /):
         self.client = Minio(
             self.url,
             access_key=self.access_key,
@@ -61,8 +61,6 @@ class Storage(BaseModel):
     def bucket(self, name: str):
         if not self.client.bucket_exists(name):
             self.client.make_bucket(name)
-
-        return
 
     def put(
         self, name: str, uploader: str, uuid: str, bucket: str, size: int, batch: int
@@ -113,7 +111,7 @@ class Storage(BaseModel):
                 new=self.presign_url,
                 upgrade=self.upgrade_presign_url_to_https,
             )
-            for i in range(int(ceil(size / batch)))
+            for i in range(ceil(size / batch))
         ]
 
         return upload_id, urls

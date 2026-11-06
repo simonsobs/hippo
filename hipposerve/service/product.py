@@ -23,7 +23,12 @@ from hipposerve.database import (
 )
 from hipposerve.service import storage as storage_service
 from hipposerve.service import utils, versioning
-from hipposerve.service.acl import check_user_access
+from hipposerve.service.acl import (
+    build_access_query,
+    check_read_access,
+    check_write_access,
+    filter_readable,
+)
 from hipposerve.storage import Storage
 
 INITIAL_VERSION = "1.0.0"
@@ -107,7 +112,7 @@ def validate_slugs(sources: dict[str, PreUploadFile], metadata: ALL_METADATA_TYP
 
     errors = []
 
-    for k in sources.keys():
+    for k in sources:
         if k not in metadata.valid_slugs:
             errors.append(
                 ValueError(
@@ -142,7 +147,7 @@ async def create(
         mutlipart_size=mutlipart_size,
     )
 
-    current_utc_time = datetime.datetime.now(datetime.timezone.utc)
+    current_utc_time = datetime.datetime.now(datetime.UTC)
 
     product = Product(
         name=name,
@@ -177,7 +182,7 @@ async def read_by_name(
     if version is None:
         potential = await Product.find_one(
             Product.name == name,
-            Product.current == True,  # noqa: E712
+            Product.current == True,
             **LINK_POLICY,
         )
     else:
@@ -190,11 +195,7 @@ async def read_by_name(
     if potential is None:
         raise ProductNotFound
 
-    assert check_user_access(
-        user_groups=groups,
-        document_groups=potential.readers + potential.writers,
-        scopes=scopes,
-    )
+    check_read_access(groups, potential, scopes)
 
     return potential
 
@@ -210,11 +211,7 @@ async def read_by_id(
     if potential is None:
         raise ProductNotFound
 
-    assert check_user_access(
-        user_groups=groups,
-        document_groups=potential.readers + potential.writers,
-        scopes=scopes,
-    )
+    check_read_access(groups, potential, scopes)
 
     return potential
 
@@ -226,18 +223,13 @@ async def search_by_name(
     Search for products by name using the text index.
     """
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = (
         await Product.find(
             access_query,
             Text(name),
-            Product.current == True,  # noqa: E712
+            Product.current == True,
             fetch_links=fetch_links,
         )
         .sort([("score", {"$meta": "textScore"})])
@@ -257,12 +249,7 @@ async def search_by_metadata(
     Search for products by metadata.
     """
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     # Construct the query by embedding metadata field names and values
     query = {f"metadata.{key}": value for key, value in metadata_filters.items()}
@@ -286,23 +273,41 @@ async def search_by_owner(
 
     owner_regex = {"$regex": f"^{re.escape(owner)}$", "$options": "i"}
 
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     results = await Product.find(
         {**access_query, "owner": owner_regex},
-        Product.current == True,  # noqa: E712
+        Product.current == True,
         fetch_links=fetch_links,
     ).to_list()
 
     return results
 
 
-async def walk_history(product: Product) -> dict[str, ProductMetadata]:
+async def with_readable_relationships(
+    product: Product, groups: list[str], scopes: set[str]
+) -> Product:
+    """Build a copy for display without changing the stored relationships."""
+    child_of = [
+        await item.fetch() if isinstance(item, Link) else item
+        for item in product.child_of
+    ]
+    collections = [
+        await item.fetch() if isinstance(item, Link) else item
+        for item in product.collections
+    ]
+    return product.model_copy(
+        update={
+            "child_of": filter_readable(child_of, groups, scopes),
+            "parent_of": filter_readable(product.parent_of, groups, scopes),
+            "collections": filter_readable(collections, groups, scopes),
+        }
+    )
+
+
+async def walk_history(
+    product: Product, *, groups: list[str] | None = None, scopes: set[str] | None = None
+) -> dict[str, ProductMetadata]:
     """
     Walk the history of the product from this point backwards.
     It is recommended that you walk to the current version first,
@@ -310,16 +315,19 @@ async def walk_history(product: Product) -> dict[str, ProductMetadata]:
     """
     versions = {}
 
-    while product.replaces is not None:
-        versions[product.version] = await product.to_metadata()
-        product = product.replaces
+    while True:
+        visible = (
+            await with_readable_relationships(product, groups, scopes or set())
+            if groups is not None
+            else product
+        )
+        versions[product.version] = await visible.to_metadata()
+        if product.replaces is None:
+            return versions
 
+        product = product.replaces
         if isinstance(product, Link):
             product = await product.fetch(fetch_links=True)
-
-    versions[product.version] = await product.to_metadata()
-
-    return versions
 
 
 async def walk_to_current(
@@ -409,12 +417,7 @@ async def read_most_recent(
     maximum: int = 16,
     current_only: bool = True,
 ) -> list[Product]:
-    if "hippo:admin" in scopes:
-        access_query = {}
-    else:
-        access_query = {
-            "$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]
-        }
+    access_query = build_access_query(groups, scopes)
 
     if current_only:
         query = {"$and": [{"current": True}, access_query]}
@@ -435,21 +438,12 @@ async def read_pinned(
     maximum: int = 16,
     current_only: bool = True,
 ) -> list[Product]:
-    if "hippo:admin" in scopes:
-        access_query = {"pinned": True}
-    else:
-        access_query = {
-            "$and": [
-                {"pinned": True},
-                {"$or": [{"readers": {"$in": groups}}, {"writers": {"$in": groups}}]},
-            ]
-        }
-
+    query = {**build_access_query(groups, scopes), "pinned": True}
     if current_only:
-        access_query = {"$and": [access_query, {"current": True}]}
+        query["current"] = True
 
     found = Product.find(
-        access_query,
+        query,
         fetch_links=fetch_links,
     )
 
@@ -651,9 +645,7 @@ async def update(
     """
     Rev the version of the product and update its contents.
     """
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
 
     new_product = await update_metadata(
         product=product,
@@ -687,7 +679,7 @@ async def update(
                 drop=drop_sources,
                 storage=storage,
             )
-        except Exception as e:
+        except Exception:
             # Need to roll-back our new product. Full transactions when?
             await delete_one(
                 new_product,
@@ -696,7 +688,7 @@ async def update(
                 data=False,
                 scopes=scopes,
             )
-            raise e
+            raise
     else:
         presigned = {}
 
@@ -712,14 +704,10 @@ async def pin(
     Pin a product in the database.
     """
 
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
 
     product.pinned = True
     await product.save()
-
-    return
 
 
 async def unpin(
@@ -731,14 +719,10 @@ async def unpin(
     Unpin a product in the database.
     """
 
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
 
     product.pinned = False
     await product.save()
-
-    return
 
 
 async def delete_one(
@@ -753,9 +737,7 @@ async def delete_one(
     """
 
     # Deal with parent/child replacement relationship
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
     if product.current:
         replaced_by = None
         replaces = product.replaces
@@ -798,8 +780,6 @@ async def delete_one(
 
     await product.delete()
 
-    return
-
 
 async def delete_tree(
     product: Product,
@@ -812,9 +792,7 @@ async def delete_tree(
     Delete an entire tree of products, from this one down. You must provide
     a current product.
     """
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
+    check_write_access(access_groups, product, scopes)
     if not product.current:
         raise versioning.VersioningError(
             "Attempting to delete the tree starting from a non-current product"
@@ -844,8 +822,6 @@ async def delete_tree(
     for product in products_to_delete:
         await product.delete()
 
-    return
-
 
 async def add_relationship(
     source: Product,
@@ -854,14 +830,10 @@ async def add_relationship(
     scopes: set[str],
     type: Literal["child"],
 ):
+    check_write_access(access_groups, source, scopes)
     if type == "child":
         source.child_of = source.child_of + [destination]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=source.writers, scopes=scopes
-    )
     await source.save()
-
-    return
 
 
 async def remove_relationship(
@@ -871,35 +843,25 @@ async def remove_relationship(
     scopes: set[str],
     type: Literal["child"],
 ):
+    check_write_access(access_groups, source, scopes)
     if type == "child":
         source.child_of = [c for c in source.child_of if c.id != destination.id]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=source.writers, scopes=scopes
-    )
     await source.save()
-
-    return
 
 
 async def add_collection(
     product: Product, access_groups: list[str], scopes: set[str], collection: Collection
 ):
+    check_write_access(access_groups, product, scopes)
     product.collections = product.collections + [collection]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
     await product.save()
-
-    return
 
 
 async def remove_collection(
     product: Product, access_groups: list[str], scopes: set[str], collection: Collection
 ):
+    check_write_access(access_groups, product, scopes)
     product.collections = [c for c in product.collections if c.id != collection.id]
-    assert check_user_access(
-        user_groups=access_groups, document_groups=product.writers, scopes=scopes
-    )
     await product.save()
 
     return product

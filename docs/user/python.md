@@ -24,12 +24,7 @@ beam = client.new_product(
     name="Daynight Beam (DR6)",
     description="The beam for DR6 products",
     metadata=BeamMetadata(),
-    sources={
-        "data": {
-            "path": beam_file,
-            "description": "Beam"
-        }
-    },
+    sources={"data": {"path": beam_file, "description": "Beam"}},
 )
 ```
 Here, `beam` is a python object (`LocalProduct`) that behaves just like a
@@ -84,9 +79,20 @@ map or a mask that you want to bundle alongside a source-free map. The valid slu
 `MapSet` can be found easily:
 ```python
 print(MapSet.valid_slugs)
-{'coadd', 'source_free', 'xlink_coadd', 'source_free_split', 'ivar_split',
-'ivar_coadd', 'split', 'xlink_split', 'mask', 'data', 'source_only_split',
-'source_only'}
+{
+    "coadd",
+    "source_free",
+    "xlink_coadd",
+    "source_free_split",
+    "ivar_split",
+    "ivar_coadd",
+    "split",
+    "xlink_split",
+    "mask",
+    "data",
+    "source_only_split",
+    "source_only",
+}
 ```
 Let's create a coadd map for ACTxPlanck:
 ```python
@@ -194,9 +200,7 @@ Pulling
 
 To pull down a remote product, you can use the `pull_product` method:
 ```python
-remote = client.pull_product(
-    product_id=map_set.product_id, realize_sources=False
-)
+remote = client.pull_product(product_id=map_set.product_id, realize_sources=False)
 ```
 Here, `remote` is a `RemoteProduct`. It's more restrictive than the
 `LocalProduct` because it represents a frozen verison of the metadata that
@@ -288,6 +292,27 @@ for slug, source in realized_product.items():
 >>> coadd /tmp/test_user/84c9cc2d-f284-4e8b-b61c-c1b8e2c47083/act-planck_dr4dr6_coadd_AA_daynight_f150_map.fits
 ```
 which is a local path and can be loaded howver we wish.
+
+Filtering Data
+--------------
+
+Before downloading a large amount of data, you can filter a collection down
+to just the products that you want using the `filter` method. This flattens out
+the internal hierarchy (so if a collection contains collections, we search those too
+and return a flat list of products). You can filter on metadata type, keys, and on the
+available slugs.
+```python
+filtered_collection = collection.filter(metadata_filter={"patch": "D6"})
+```
+If you know there should only be one (or none) results to a query, you can enfore
+this using the `.one` method on a filtered collection, which also returns just the
+product, discarding the collection overhead:
+```python
+filtered_product = filtered_collection.one(allow_none=False)
+```
+which dissallows `None` by default. Given your new filtered collection, you can
+realize all slugs or only a value using the `henry.realize()` method, or check it
+out to a local directory with `henry.checkout()`.
 
 Loading Downloaded Data
 -----------------------

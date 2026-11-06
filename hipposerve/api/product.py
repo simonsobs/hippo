@@ -19,13 +19,20 @@ from hipposerve.api.models.product import (
     UpdateProductRequest,
     UpdateProductResponse,
 )
-from hipposerve.database import ProductMetadata
+from hipposerve.database import Product, ProductMetadata
 from hipposerve.service import acl, product, storage, users
 from hipposerve.service.auth import AuthenticationError, requires
 
 product_router = APIRouter(prefix="/product")
 
 DEFAULT_USER_USER_NAME = "default_user"
+
+
+async def readable_metadata(item: Product, request: Request) -> ProductMetadata:
+    visible = await product.with_readable_relationships(
+        item, request.user.groups, request.auth.scopes
+    )
+    return await visible.to_metadata()
 
 
 @product_router.put("/new")
@@ -71,7 +78,6 @@ async def create_product(
 
 
 @product_router.get("/search/{text}")
-@requires(["hippo:admin", "hippo:read"])
 async def search(
     text: str,
     request: Request,
@@ -95,7 +101,7 @@ async def search(
         request.user.display_name,
     )
 
-    return await asyncio.gather(*[item.to_metadata() for item in items])
+    return await asyncio.gather(*[readable_metadata(item, request) for item in items])
 
 
 @product_router.post("/{id}/complete")
@@ -121,6 +127,14 @@ async def complete_product(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
+    try:
+        acl.check_write_access(request.user.groups, item, scopes=request.auth.scopes)
+    except AuthenticationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have write access to this product",
+        )
+
     success = await product.complete(
         product=item,
         storage=request.app.storage,
@@ -138,7 +152,6 @@ async def complete_product(
 
 
 @product_router.get("/{id}")
-@requires(["hippo:admin", "hippo:read"])
 async def read_product(
     id: PydanticObjectId,
     request: Request,
@@ -153,7 +166,7 @@ async def read_product(
         product_item = await product.read_by_id(
             id, request.user.groups, scopes=request.auth.scopes
         )
-        item = await product_item.to_metadata()
+        item = await readable_metadata(product_item, request)
 
         response = ReadProductResponse(
             current_present=item.current,
@@ -177,7 +190,6 @@ async def read_product(
 
 
 @product_router.get("/{id}/tree")
-@requires(["hippo:admin", "hippo:read"])
 async def read_tree(
     id: PydanticObjectId,
     request: Request,
@@ -199,7 +211,9 @@ async def read_tree(
             groups=request.user.groups,
             scopes=request.auth.scopes,
         )
-        history = await product.walk_history(product=current_item)
+        history = await product.walk_history(
+            current_item, groups=request.user.groups, scopes=request.auth.scopes
+        )
 
         if not current_item.current:
             raise HTTPException(
@@ -229,7 +243,6 @@ async def read_tree(
 
 
 @product_router.get("/{id}/files")
-@requires(["hippo:admin", "hippo:read"])
 async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesResponse:
     """
     Read a single product's including pre-signed URLs for downloads.
@@ -257,13 +270,12 @@ async def read_files(id: PydanticObjectId, request: Request) -> ReadFilesRespons
     )
 
     return ReadFilesResponse(
-        product=await item.to_metadata(),
+        product=await readable_metadata(item, request),
         files=files,
     )
 
 
 @product_router.get("/{id}/{slug}")
-@requires(["hippo:admin", "hippo:read"])
 async def read_slug(request: Request, id: str, slug: str) -> RedirectResponse:
     NOT_FOUND = HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -310,9 +322,9 @@ async def metadata_diff(
         )
 
     try:
-        acl.check_user_access(
+        acl.check_write_access(
             user_groups=request.user.groups,
-            document_groups=item.writers,
+            document=item,
             scopes=request.auth.scopes,
         )
     except AuthenticationError:
@@ -449,9 +461,9 @@ async def update_product(
         )
 
     try:
-        acl.check_user_access(
+        acl.check_write_access(
             user_groups=request.user.groups,
-            document_groups=item.writers,
+            document=item,
             scopes=request.auth.scopes,
         )
     except AuthenticationError:

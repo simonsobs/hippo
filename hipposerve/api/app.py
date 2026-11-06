@@ -61,11 +61,14 @@ app.include_router(relationship_router)
 
 if SETTINGS.web:  # pragma: no cover
     from hipposerve.web import static_files, web_router
+    from hipposerve.web.preview import SocialPreviewMiddleware
 
     logger.info("Web interface enabled, serving it from {}", web_router.prefix)
 
     app.include_router(web_router)
     app.mount(**static_files)
+
+    app.add_middleware(SocialPreviewMiddleware)
 
     @app.exception_handler(UnauthorizedException)
     async def unauthorized_exception_handler(
@@ -92,9 +95,9 @@ if SETTINGS.web:  # pragma: no cover
             error_details["requested_id"] = requested_id
 
         return templates.TemplateResponse(
+            request,
             "404.html",
             {
-                "request": request,
                 "error_details": error_details,
                 "user": request.user.display_name,
                 "web_root": SETTINGS.web_root,

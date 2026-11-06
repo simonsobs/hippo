@@ -157,3 +157,13 @@ henry collection remove-reader 6851be3dc869d741c82d6964 test_user
 >>> Removed test_user from readers. Collection ID is 6851be3dc869d741c82d6964
 ```
 The same commands exist for writers, and under `henry product`.
+
+For collections, pass `--recursive` to apply the change to the collection, all
+child collections, and the products in each of those collections:
+
+```sh
+henry collection add-reader 6851be3dc869d741c82d6964 test_user --recursive
+```
+
+Adding a reader of 'public' will allow anyone (even non-logged in users) view
+and access the underlying product data, with the same behavior for collections.

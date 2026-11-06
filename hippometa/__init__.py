@@ -14,7 +14,7 @@ Each metadata type must be added to the below ALL_METADATA and
 ALL_METADATA_TYPE lists.
 """
 
-from typing import Annotated, Union
+from typing import Annotated
 
 from pydantic import Field
 
@@ -27,16 +27,14 @@ from hippometa.numeric import NumericMetadata
 from hippometa.simple import SimpleMetadata
 
 ALL_METADATA_TYPE = Annotated[
-    Union[
-        ArchiveMetadata,
-        BeamMetadata,
-        MapSet,
-        CatalogMetadata,
-        NumericMetadata,
-        SimpleMetadata,
-        CameraMetadata,
-        None,
-    ],
+    ArchiveMetadata
+    | BeamMetadata
+    | MapSet
+    | CatalogMetadata
+    | NumericMetadata
+    | SimpleMetadata
+    | CameraMetadata
+    | None,
     Field(discriminator="metadata_type"),
 ]
 

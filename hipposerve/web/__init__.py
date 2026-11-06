@@ -15,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from loguru import logger
 
 from hipposerve.database import Collection
-from hipposerve.service import collection, product, storage
+from hipposerve.service import acl, collection, product, storage
 from hipposerve.settings import SETTINGS
 
 from .auth import router as auth_router
@@ -42,7 +42,9 @@ def get_color_hash(id: str):
     return f"#{md5(id.encode('utf-8')).hexdigest()[:6]}"
 
 
-def get_cmap(ids: list[str] = []):
+def get_cmap(ids: list[str] | None = None):
+    if ids is None:
+        ids = []
     cmap = {}
     for id in ids:
         cmap[id] = get_color_hash(id)
@@ -80,9 +82,9 @@ async def index(request: Request):
         request.auth.scopes,
     )
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "recent_products": recent_products,
             "recent_collections": recent_collections,
             "pinned_products": pinned_products,
@@ -102,7 +104,12 @@ async def product_view(request: Request, id: str):
     latest_version = await product.walk_to_current(
         product_instance, request.user.groups, scopes=request.auth.scopes
     )
-    version_history = await product.walk_history(latest_version)
+    version_history = await product.walk_history(
+        latest_version, groups=request.user.groups, scopes=request.auth.scopes
+    )
+    product_instance = await product.with_readable_relationships(
+        product_instance, request.user.groups, request.auth.scopes
+    )
 
     logger.info(
         "Product page for {} requested by {}, user has {} scopes",
@@ -112,9 +119,9 @@ async def product_view(request: Request, id: str):
     )
 
     return templates.TemplateResponse(
+        request,
         "product.html",
         {
-            "request": request,
             "product": product_instance,
             "sources": product_instance.sources,
             "versions": version_history,
@@ -138,9 +145,9 @@ async def product_edit(request: Request, id: str):
     )
 
     return templates.TemplateResponse(
+        request,
         "product_edit.html",
         {
-            "request": request,
             "product": product_instance,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
@@ -197,9 +204,9 @@ async def collection_edit(request: Request, id: PydanticObjectId):
     )
 
     return templates.TemplateResponse(
+        request,
         "collection_edit.html",
         {
-            "request": request,
             "collection": collection_instance,
             "user": request.user.display_name,
             "web_root": SETTINGS.web_root,
@@ -211,6 +218,25 @@ async def collection_edit(request: Request, id: PydanticObjectId):
 async def collection_view(request: Request, id: PydanticObjectId):
     collection_instance = await collection.read(
         id, request.user.groups, scopes=request.auth.scopes
+    )
+    collection_instance = collection_instance.model_copy(
+        update={
+            "parent_collections": acl.filter_readable(
+                collection_instance.parent_collections,
+                request.user.groups,
+                request.auth.scopes,
+            ),
+            "child_collections": acl.filter_readable(
+                collection_instance.child_collections,
+                request.user.groups,
+                request.auth.scopes,
+            ),
+        }
+    )
+    product_counts = await collection.product_counts(
+        collection_instance.parent_collections + collection_instance.child_collections,
+        request.user.groups,
+        request.auth.scopes,
     )
     parents_overflow_content = get_overflow_content(
         collection_instance.parent_collections, "collection"
@@ -230,10 +256,11 @@ async def collection_view(request: Request, id: PydanticObjectId):
         request.auth.scopes,
     )
     return templates.TemplateResponse(
+        request,
         "collection.html",
         {
-            "request": request,
             "collection": collection_instance,
+            "product_counts": product_counts,
             "parents_overflow_content": parents_overflow_content,
             "children_overflow_content": children_overflow_content,
             "cmap": cmap,

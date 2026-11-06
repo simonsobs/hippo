@@ -15,7 +15,7 @@ hipposerve = ["web/static/*.svg", "web/static/*.ico", "web/static/*.png", "web/t
 [project]
 name = "pyhippo"
 description = "The Hierarchical Product Post Office, developed for the Simons Observatory."
-version = "0.2.10"
+version = "0.2.12"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -44,6 +44,7 @@ dependencies = [
     "textual[syntax]",
     "soauth>=0.5.2",
     "nh3==0.3.2",
+    "user-agents",
 ]
 authors = [
     {name = "Josh Borrow", email = "josh@joshborow.com"},
@@ -65,7 +66,7 @@ Issues = "https://github.com/simonsobs/hippo/issues"
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "ruff",
+    "ruff==0.17.3",
     "testcontainers",
     "coverage",
     "pytest-cov",

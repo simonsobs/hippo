@@ -3,7 +3,10 @@ Access control setup (changing access control levels, checking
 for access to documents). Works with `ProtectedDocument`s.
 """
 
-from typing import Iterable
+from collections.abc import Iterable
+from typing import TypeVar
+
+from beanie import BackLink, Link
 
 from hipposerve.database import ProtectedDocument
 from hipposerve.service import versioning
@@ -68,34 +71,84 @@ async def update_access_control(
     return await doc.get(initial_doc_id)
 
 
-def check_user_access(
+def check_read_access(
     user_groups: Iterable[str],
-    document_groups: Iterable[str],
-    scopes: Iterable[str] = set(),
+    document: ProtectedDocument,
+    scopes: Iterable[str],
 ) -> bool:
-    """
-    Check whether a user (based on their groups) has access to a specific
-    document based on its 'reader' or 'writer' group list (`document_groups`).
-
-    Note that the group `admin` is always added to `allowed`.
-
-    Raises
-    ------
-    AuthenticationError
-        When there is no overlap between `user_groups` and `document_groups`
-    """
-
-    if "hippo:admin" in scopes:
+    """Allow reads of public documents and documents shared with the user's groups."""
+    if "hippo:admin" in scopes or "public" in document.readers:
         return True
 
-    allowed = set(document_groups)
-    user_groups = set(user_groups)
-
-    overlap = user_groups & allowed
-
-    if overlap:
+    groups = set(user_groups) - {"public"}
+    if groups.intersection(document.readers) or groups.intersection(document.writers):
         return True
 
     raise AuthenticationError(
         "User does not have the required group access for this operation"
     )
+
+
+DocumentT = TypeVar("DocumentT", bound=ProtectedDocument)
+
+
+def filter_readable(
+    documents: Iterable[DocumentT | Link[DocumentT] | BackLink[DocumentT]],
+    groups: Iterable[str],
+    scopes: Iterable[str],
+) -> list[DocumentT]:
+    """Filter hydrated relationships, omitting unresolved links."""
+    readable = []
+    for document in documents:
+        if isinstance(document, (Link, BackLink)):
+            continue
+        try:
+            check_read_access(groups, document, scopes)
+        except AuthenticationError:
+            continue
+        readable.append(document)
+    return readable
+
+
+def check_write_access(
+    user_groups: Iterable[str],
+    document: ProtectedDocument,
+    scopes: Iterable[str],
+) -> bool:
+    """Allow writes for members of writer groups and callers with admin scope."""
+    if "hippo:admin" in scopes:
+        return True
+
+    groups = set(user_groups) - {"public"}
+    if groups.intersection(document.writers):
+        return True
+
+    raise AuthenticationError(
+        "User does not have the required group access for this operation"
+    )
+
+
+def build_access_query(
+    user_groups: Iterable[str],
+    scopes: Iterable[str],
+) -> dict:
+    """
+    Build a MongoDB query to find documents that a user has access to
+    based on their groups and scopes.
+
+    Returns
+    -------
+    dict
+        A MongoDB query dictionary that can be used to filter documents.
+    """
+
+    if "hippo:admin" in scopes:
+        return {}
+
+    groups = set(user_groups) - {"public"}
+    return {
+        "$or": [
+            {"readers": {"$in": sorted(groups | {"public"})}},
+            {"writers": {"$in": sorted(groups)}},
+        ]
+    }

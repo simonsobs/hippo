@@ -486,8 +486,8 @@ def cache(
     client: Client,
     cache: MultiCache,
     id: str,
-    slugs: list[str] | None = None,
     console: Console | None = None,
+    slugs: list[str] | None = None,
 ) -> list[Path]:
     """
     Cache a product from hippo.
@@ -645,7 +645,7 @@ def download(
             console.print(f"Successfully wrote metadata for product {metadata.name}")
 
     for source_slug, source_data in post_upload_files.items():
-        if slugs and source_slug not in slugs:
+        if slugs is not None and source_slug not in slugs:
             continue
 
         slug_directory = product_directory / source_slug

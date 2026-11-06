@@ -5,11 +5,9 @@ from rich.console import Console
 
 from henry.source import LocalSource
 from hippoclient.caching import MultiCache
+from hippoclient.collections import download_direct as download_collection_direct
 from hippoclient.core import Client as AuthenticatedClient
 from hippoclient.core import ClientSettings
-from hippoclient.product import (
-    apply_slugify,
-)
 from hippoclient.product import (
     cache as cache_product,
 )
@@ -157,7 +155,6 @@ class Henry:
                 console=self.console,
                 id=item.product_id,
                 slugs=slugs,
-                slugify=self.slugify,
             )
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
             for i in item:
@@ -173,6 +170,7 @@ class Henry:
     ):
         """
         Checkout the collection or product by downloading it to the local filesystem.
+        Collections are stored in a named subdirectory with collection.json metadata.
         """
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
@@ -182,31 +180,23 @@ class Henry:
                 product_id=item.product_id,
                 directory=directory,
                 slugs=slugs,
-                console=self.console,
-                slugify=self.slugify,
             )
 
-            return RemoteProduct(
-                product_id=item.product_id,
-                path=path,
-                slug=item.slug,
-                name=item.name,
-                description=item.description,
+            return item.model_copy(
+                update={"sources": self.read_product(directory=path).sources}
             )
         elif isinstance(item, (RemoteCollection, FilteredCollection)):
-            item.products = [
-                self.checkout(p, slugs=slugs, directory=directory)
-                for p in item.products
-            ]
-
-            for c in item.collections:
-                sub_directory = (
-                    directory / apply_slugify(c.name)
-                    if self.slugify
-                    else directory / c.name
-                )
-                sub_directory.mkdir(parents=True, exist_ok=True)
-                self.checkout(c, slugs=slugs, directory=sub_directory)
+            path = download_collection_direct(
+                collection=item,
+                client=self.client,
+                directory=directory,
+                console=self.console,
+                slugify=self.slugify,
+                slugs=slugs,
+            )
+            downloaded = self.read_collection(directory=path)
+            item.products = downloaded.products
+            item.collections = downloaded.collections
         else:
             # Fall through for local stuff
             return item

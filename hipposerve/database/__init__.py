@@ -4,6 +4,7 @@ The database access layer for hippo. Uses MongoDB and Beanie.
 
 from datetime import datetime
 from enum import Enum
+from typing import ClassVar
 
 import pymongo
 from beanie import BackLink, Document, Indexed, Link, PydanticObjectId
@@ -130,6 +131,13 @@ class Product(ProtectedDocument, ProductMetadata):
 
     collections: list[Link["Collection"]] = []
     collection_policies: list[CollectionPolicy] = [CollectionPolicy.CURRENT]
+
+    class Settings:
+        indexes: ClassVar[list[pymongo.IndexModel]] = [
+            pymongo.IndexModel(
+                [("collections.$id", pymongo.ASCENDING)], name="collections_id"
+            )
+        ]
 
     async def to_metadata(self) -> ProductMetadata:
         # If links are longer than the pre-determined limit (3) we need
